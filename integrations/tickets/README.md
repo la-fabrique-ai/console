@@ -56,8 +56,21 @@ never retry a partial read blindly as a new page. Enrichment can return partial
 nested collections when its budget or limits expire.
 
 `ticketConnection(config, project?)` resolves the selected local connection and scope.
-The bundled connector owns transport validation, legacy aliases, agent instructions
-and MCP server configuration. The engine consumes `connectorAgentContext(config)`;
-ticket content can never supply it. V0 loads exactly one bundled adapter.
+Each bundled connector owns its transport validation, agent instructions and MCP server
+configuration. The engine consumes `connectorAgentContext(config)`; ticket content can never supply it.
+
+## Registry
+
+`factory.mjs` loads every bundled adapter folder. One console uses one connector, selected by the
+global `tracker.driver` setting (its definition `id`). Without `driver`, the definition marked
+`default: true` is used, so existing configurations keep working unchanged. An unknown driver is
+refused with `INVALID_CONFIG` before any provider is reached. The registry removes `driver` before
+calling the adapter's `settings()` (`undefined` when nothing else is set) and keeps it in the result.
+Compatibility shims for persisted data and legacy options (`mission`, `ticketState`, `action`,
+`backendOptions`, `factoryOptions`, `error`, legacy setting aliases) come from the default connector.
+
+Until the engine vocabulary is renamed, every connector returns tickets in the shape the engine
+already consumes (`id`, `identifier`, `team.id` = scope id, `state.type`, …) next to the normalized
+`status`, `reference` and `untrusted` fields.
 
 Each adapter folder provides `definition.mjs`, its runtime, instructions and documentation.

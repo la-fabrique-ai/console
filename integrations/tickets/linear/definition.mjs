@@ -5,6 +5,7 @@ const instructions=readFileSync(new URL('./agent-instructions.md',import.meta.ur
 const readInstructions=readFileSync(new URL('./agent-read-instructions.md',import.meta.url),'utf8').trim();
 export const definition={
   id:'linear',
+  default:true,
   scope:project=>({key:project.key,id:project.teamId??(!project.projectId?project.ticketScope?.scopeId:null)??null}),
   agentContext:()=>({instructions:readInstructions,writeInstructions:instructions}),
   configInput(input){

@@ -21,3 +21,15 @@ test('an unknown driver is refused before any provider is reached',async()=>{
   const {getTickets}=createTicketFactory({loadConfig:async()=>({tracker:{driver:'nope'}})});
   await assert.rejects(getTickets,{code:'INVALID_CONFIG'});
 });
+test('a version 1 configuration keeps its chosen driver through the migration',async()=>{
+  const {convertV1Config}=await import('../src/config-migration.mjs');
+  const v1={version:1,tracker:{driver:DEFAULT_TICKET_DRIVER,transport:'graphql'},projects:[{key:'synthetic-nova',teamId:'team-only',repo:'/example/app',mainBranch:'main',preferredAgent:'codex',machine:null,tests:{}}]};
+  assert.deepEqual(convertV1Config(v1,{worktreesRoot:'/example/worktrees'}).tracker,{driver:DEFAULT_TICKET_DRIVER,transport:'graphql'});
+});
+test('a runtime refuses a configuration whose driver changed after it was selected',async()=>{
+  let driver=DEFAULT_TICKET_DRIVER;
+  const {getTickets}=createTicketFactory({loadConfig:async()=>({tracker:{driver,transport:'graphql'}}),injectedTransport:{configured:async()=>true}});
+  assert.equal(await (await getTickets()).configured(),true);
+  driver='nope';
+  await assert.rejects(getTickets,{code:'INVALID_CONFIG'});
+});

@@ -56,7 +56,14 @@ export function createTicketFactory(raw){
   // The driver is read from the current configuration on every access, so a changed choice takes effect.
   const load=async()=>{
     const definition=definitionOfConfig(await options.loadConfig());
-    if(!runtimes.has(definition.id))runtimes.set(definition.id,definition.runtime().then(module=>module.createTicketFactory({...definition.factoryOptions(raw),loadConfig:async()=>normalizeTicketConfig(await options.loadConfig())})));
+    // A runtime only ever reads a configuration of its own driver: a choice changed between two reads is refused,
+    // and the next access selects the new connector, so one provider never receives another one's settings.
+    const ownConfig=async()=>{
+      const config=normalizeTicketConfig(await options.loadConfig());
+      if(definitionOfConfig(config)!==definition)fail('CONFIG_CONFLICT','The ticket connector changed while the configuration was read. Read it again.');
+      return config;
+    };
+    if(!runtimes.has(definition.id))runtimes.set(definition.id,definition.runtime().then(module=>module.createTicketFactory({...definition.factoryOptions(raw),loadConfig:ownConfig})));
     return runtimes.get(definition.id);
   };
   return {

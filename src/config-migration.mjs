@@ -17,7 +17,7 @@ export function convertV1Config(source,{worktreesRoot,profiles}={}) {
   object(source,'INVALID_CONFIG');
   if(source.version!==1||!Array.isArray(source.projects))fail('INVALID_CONFIG','Migration requires a version 1 configuration.');
   known(source,['version','tracker','projects','budgets','owner','ticketConnector']);
-  if(source.tracker!==undefined)known(source.tracker,['transport','endpoint']);
+  if(source.tracker!==undefined)known(source.tracker,['driver','transport','endpoint']);
   for(const project of source.projects) {
     known(project,['key','name','projectId','teamId','repo','preferredAgent','mainBranch','machine','tests','budgets','color','icon','leadLayout','ticketScope']);
     for(const profile of Object.values(project.tests??{}))known(profile,['argv','timeoutMs','terminal']);

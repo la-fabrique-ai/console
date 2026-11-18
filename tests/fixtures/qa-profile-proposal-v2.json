@@ -1,0 +1,454 @@
+{
+  "projects": [
+    {
+      "key": "alpha",
+      "repos": [
+        {
+          "key": "alpha",
+          "path": "/example/repos/alpha",
+          "tests": {
+            "rapide": {
+              "argv": [
+                "node",
+                "--test",
+                "test/firebase-runtime-contract.test.mjs",
+                "test/prod-export-codec.test.mjs"
+              ],
+              "timeoutMs": 120000,
+              "terminal": true
+            },
+            "complet-local": {
+              "argv": [
+                "node",
+                "--test",
+                "test/firebase-runtime-contract.test.mjs",
+                "test/prod-export-codec.test.mjs",
+                "test/firebase-network-boundary.test.mjs",
+                "test/contracts/metadata.test.mjs"
+              ],
+              "timeoutMs": 600000,
+              "terminal": true
+            }
+          }
+        },
+        {
+          "key": "admin",
+          "path": "/example/repos/alpha/admin",
+          "tests": {
+            "rapide": {
+              "argv": [
+                "pnpm",
+                "exec",
+                "vitest",
+                "run",
+                "test/unit/weather-contract-schema.test.ts",
+                "test/unit/firestore-doc-id.test.ts",
+                "--passWithNoTests=false"
+              ],
+              "timeoutMs": 120000,
+              "terminal": true
+            },
+            "complet-local": {
+              "argv": [
+                "pnpm",
+                "exec",
+                "vitest",
+                "run",
+                "test/unit/weather-contract-schema.test.ts",
+                "test/unit/firestore-doc-id.test.ts",
+                "test/unit/paris-time.test.ts",
+                "test/unit/game-question-logic.test.ts",
+                "test/unit/competition-invariants.test.ts",
+                "test/unit/region-names.test.ts",
+                "test/unit/partner-follower-filters.test.ts",
+                "test/unit/user-display-name.test.ts",
+                "--passWithNoTests=false"
+              ],
+              "timeoutMs": 600000,
+              "terminal": true
+            },
+            "types": {
+              "argv": [
+                "pnpm",
+                "exec",
+                "tsc",
+                "--noEmit"
+              ],
+              "timeoutMs": 300000,
+              "terminal": true
+            }
+          }
+        },
+        {
+          "key": "app",
+          "path": "/example/repos/alpha/app",
+          "tests": {
+            "rapide": {
+              "argv": [
+                "flutter",
+                "test",
+                "--no-pub",
+                "--dart-define=FIREBASE_EXECUTION_MODE=emulator-strict",
+                "test/features/my_game/domain/scoring_engine_test.dart",
+                "test/features/quiz/domain/live_draw_navigation_policy_test.dart",
+                "test/features/quiz/domain/services/magic_draw_paths_test.dart"
+              ],
+              "timeoutMs": 120000,
+              "terminal": true
+            },
+            "complet-local": {
+              "argv": [
+                "flutter",
+                "test",
+                "--no-pub",
+                "--dart-define=FIREBASE_EXECUTION_MODE=emulator-strict",
+                "test/features/my_game/domain/scoring_engine_test.dart",
+                "test/features/quiz/domain/live_draw_navigation_policy_test.dart",
+                "test/features/quiz/domain/services/magic_draw_paths_test.dart",
+                "test/features/my_game/domain/game_profile_test.dart",
+                "test/features/golf_details/domain/entities/golf_pricing_test.dart",
+                "test/features/golf_details/presentation/display_case_test.dart",
+                "test/core/utils/distance_test.dart",
+                "test/core/utils/string_utils_test.dart",
+                "test/core/utils/golf_index_format_test.dart",
+                "test/core/utils/paris_time_test.dart"
+              ],
+              "timeoutMs": 600000,
+              "terminal": true
+            }
+          }
+        },
+        {
+          "key": "specs",
+          "path": "/example/repos/alpha/specs"
+        },
+        {
+          "key": "website",
+          "path": "/example/repos/alpha/website",
+          "tests": {
+            "rapide": {
+              "argv": [
+                "node",
+                "--test",
+                "test/app-links.test.mjs"
+              ],
+              "timeoutMs": 120000,
+              "terminal": true
+            },
+            "lint": {
+              "argv": [
+                "pnpm",
+                "exec",
+                "eslint",
+                "."
+              ],
+              "timeoutMs": 300000,
+              "terminal": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "gamma",
+      "repos": [
+        {
+          "key": "gamma",
+          "path": "/example/repos/gamma",
+          "tests": {
+            "rapide": {
+              "argv": [
+                "node",
+                "--test",
+                "test/prod-export-codec.test.mjs",
+                "test/prod-export-sanitize.test.mjs"
+              ],
+              "timeoutMs": 120000,
+              "terminal": true
+            },
+            "complet-local": {
+              "argv": [
+                "node",
+                "--test",
+                "test/prod-export-codec.test.mjs",
+                "test/prod-export-sanitize.test.mjs",
+                "test/dev-seed.test.mjs"
+              ],
+              "timeoutMs": 600000,
+              "terminal": true
+            }
+          }
+        },
+        {
+          "key": "admin",
+          "path": "/example/repos/gamma/admin",
+          "tests": {
+            "rapide": {
+              "argv": [
+                "pnpm",
+                "run",
+                "test",
+                "test/unit/bookings-amounts.test.ts",
+                "test/unit/pricing-totals.test.ts",
+                "test/unit/bookings-sales-window.test.ts",
+                "--passWithNoTests=false"
+              ],
+              "timeoutMs": 120000,
+              "terminal": true
+            },
+            "statique": {
+              "argv": [
+                "pnpm",
+                "run",
+                "check-all"
+              ],
+              "timeoutMs": 300000,
+              "terminal": true
+            }
+          }
+        },
+        {
+          "key": "app",
+          "path": "/example/repos/gamma/app",
+          "tests": {
+            "rapide": {
+              "argv": [
+                "flutter",
+                "test",
+                "--no-pub",
+                "test/core/failures_test.dart",
+                "test/features/events/domain/event_periods_test.dart",
+                "test/features/events/domain/logic/city_names_test.dart",
+                "test/features/members/domain/profile_options_test.dart"
+              ],
+              "timeoutMs": 120000,
+              "terminal": true
+            },
+            "format": {
+              "argv": [
+                "dart",
+                "format",
+                "--output=none",
+                "--set-exit-if-changed",
+                "lib",
+                "test"
+              ],
+              "timeoutMs": 300000,
+              "terminal": true
+            },
+            "analyse": {
+              "argv": [
+                "flutter",
+                "analyze",
+                "--no-pub"
+              ],
+              "timeoutMs": 300000,
+              "terminal": true
+            }
+          }
+        },
+        {
+          "key": "specs",
+          "path": "/example/repos/gamma/specs"
+        }
+      ]
+    },
+    {
+      "key": "delta",
+      "repos": [
+        {
+          "key": "delta",
+          "path": "/example/repos/delta"
+        },
+        {
+          "key": "app",
+          "path": "/example/repos/delta/app",
+          "tests": {
+            "tests-knowledge": {
+              "argv": [
+                "pnpm",
+                "--filter",
+                "@repo/knowledge",
+                "run",
+                "test"
+              ],
+              "timeoutMs": 300000,
+              "terminal": true
+            },
+            "lint": {
+              "argv": [
+                "pnpm",
+                "-r",
+                "--if-present",
+                "run",
+                "lint"
+              ],
+              "timeoutMs": 300000,
+              "terminal": true
+            },
+            "types": {
+              "argv": [
+                "pnpm",
+                "-r",
+                "--filter",
+                "@repo/ui",
+                "--filter",
+                "@repo/auth",
+                "--filter",
+                "@repo/realtime",
+                "--filter",
+                "@repo/knowledge",
+                "run",
+                "check-types"
+              ],
+              "timeoutMs": 300000,
+              "terminal": true
+            }
+          }
+        },
+        {
+          "key": "admin",
+          "path": "/example/repos/delta/admin",
+          "tests": {
+            "lint": {
+              "argv": [
+                "pnpm",
+                "exec",
+                "eslint",
+                "."
+              ],
+              "timeoutMs": 300000,
+              "terminal": true
+            },
+            "types": {
+              "argv": [
+                "pnpm",
+                "exec",
+                "tsc",
+                "--noEmit"
+              ],
+              "timeoutMs": 300000,
+              "terminal": true
+            }
+          }
+        },
+        {
+          "key": "specs",
+          "path": "/example/repos/delta/specs"
+        }
+      ]
+    },
+    {
+      "key": "beta",
+      "repos": [
+        {
+          "key": "beta",
+          "path": "/example/repos/beta",
+          "tests": {
+            "rapide": {
+              "argv": [
+                "pnpm",
+                "run",
+                "test",
+                "--project=unit",
+                "lib/tree/rank.test.ts",
+                "lib/tree/hierarchy.test.ts",
+                "--passWithNoTests=false"
+              ],
+              "timeoutMs": 120000,
+              "terminal": true
+            },
+            "complet-local": {
+              "argv": [
+                "pnpm",
+                "run",
+                "test",
+                "--project=unit",
+                "lib/tree",
+                "lib/items",
+                "lib/validation",
+                "lib/serialization",
+                "--passWithNoTests=false"
+              ],
+              "timeoutMs": 600000,
+              "terminal": true
+            },
+            "types": {
+              "argv": [
+                "pnpm",
+                "run",
+                "typecheck"
+              ],
+              "timeoutMs": 300000,
+              "terminal": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "lba",
+      "repos": [
+        {
+          "key": "lba",
+          "path": "/example/repos/lba",
+          "tests": {
+            "rapide": {
+              "argv": [
+                "pnpm",
+                "--filter",
+                "web",
+                "run",
+                "test",
+                "--exclude",
+                "app/lib/address-store.test.ts",
+                "--exclude",
+                "app/models/gift-card-campaign.test.ts",
+                "--passWithNoTests=false"
+              ],
+              "timeoutMs": 120000,
+              "terminal": true
+            },
+            "complet-local": {
+              "argv": [
+                "pnpm",
+                "--recursive",
+                "--filter",
+                "web",
+                "--filter",
+                "admin",
+                "--filter",
+                "@lba/search",
+                "run",
+                "test",
+                "--exclude",
+                "app/lib/address-store.test.ts",
+                "--exclude",
+                "app/models/gift-card-campaign.test.ts",
+                "--exclude",
+                "app/api/media/image/route.test.ts",
+                "--passWithNoTests=false"
+              ],
+              "timeoutMs": 600000,
+              "terminal": true
+            },
+            "lint": {
+              "argv": [
+                "pnpm",
+                "--recursive",
+                "--filter",
+                "web",
+                "--filter",
+                "admin",
+                "run",
+                "lint"
+              ],
+              "timeoutMs": 300000,
+              "terminal": true
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

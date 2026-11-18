@@ -1,0 +1,61 @@
+{
+  "version": 2,
+  "worktreesRoot": "/absolute/path/to/worktrees",
+  "wip": {
+    "dev": 2,
+    "review": 3,
+    "maxParallelDevs": 2
+  },
+  "launch": {
+    "confirm": "each"
+  },
+  "projects": [
+    {
+      "key": "demo",
+      "name": "Projet exemple",
+      "color": "#6B6CF5",
+      "icon": "folder",
+      "leadLayout": "generated",
+      "ticketScope": {
+        "connection": "primary",
+        "scopeId": "EXAMPLE_SCOPE"
+      },
+      "kind": "produit",
+      "machine": null,
+      "preferredAgent": "codex",
+      "repos": [
+        {
+          "key": "app",
+          "path": "/absolute/path/to/demo",
+          "mainBranch": "main",
+          "tests": {
+            "unit": {
+              "argv": [
+                "npm",
+                "test"
+              ],
+              "timeoutMs": 120000,
+              "terminal": true
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "profiles": {
+    "version": "unconfigured",
+    "dev": {},
+    "review": {}
+  },
+  "owner": {
+    "id": "owner",
+    "displayName": "Responsable"
+  },
+  "ticketConnector": "primary",
+  "budgets": {
+    "lead": 800000,
+    "dev": 750000,
+    "reviewer": 400000,
+    "qa": 1000000
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "path": "vendor/herdr-sim/LICENSE",
+      "sha256": "c2f4c3e7db6b7f6749eb595a412e7de95980cc360beac2b797bb67550b817dde",
+      "rules": [
+        "private-name",
+        "ticket-system"
+      ]
+    },
+    {
+      "path": "vendor/herdr-sim/mods/herdr-sim/icons/LICENSE-lucide.txt",
+      "sha256": "d5cb7b74bdf8995ce30d54885810be8e0fbfae42929855ef27268be91684a0c6",
+      "rules": [
+        "private-name",
+        "ticket-system"
+      ]
+    },
+    {
+      "path": "mods/fabrique-console-v4-rail/fonts/OFL-Geist.txt",
+      "sha256": "021caa749f89fecd7c2e40a50499de29e84d2bc19251659b47d499c2fbfffc17",
+      "rules": [
+        "private-name",
+        "ticket-system"
+      ]
+    },
+    {
+      "path": "mods/fabrique-console-v4-rail/fonts/OFL-JetBrainsMono.txt",
+      "sha256": "30f0c136e3c88e422d0791acd97238870f9054a9729bc34cf2ff0d4ed8cac4ad",
+      "rules": [
+        "private-name",
+        "ticket-system"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@la-fabrique-ai/console",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node scripts/test.mjs",
+    "check": "node scripts/check.mjs",
+    "install:console": "node scripts/install.mjs",
+    "update:console": "node scripts/install.mjs",
+    "uninstall:console": "node scripts/uninstall.mjs",
+    "discover": "node scripts/discover.mjs",
+    "build:ui": "node scripts/build-ui.mjs",
+    "tickets:login": "node scripts/tickets-login.mjs",
+    "verify:macos": "node scripts/verify-macos.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2"
+  },
+  "bin": {
+    "fabrique-console": "src/cli.mjs"
+  }
+}

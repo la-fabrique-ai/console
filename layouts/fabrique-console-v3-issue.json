@@ -1,0 +1,144 @@
+{
+  "id": "root",
+  "type": "row",
+  "titlebar": "none",
+  "traffic_lights": [
+    12,
+    14
+  ],
+  "theme": "graphite",
+  "font": "JetBrains Mono",
+  "font_size": 13,
+  "ui_font": "Geist",
+  "background": "canvas",
+  "colors": {
+    "accent": "#C8CED6",
+    "canvas": "#111316",
+    "chrome": "#171A1F",
+    "surface": "#1D2127",
+    "border": "#272B31"
+  },
+  "terminal_padding": [
+    8,
+    8
+  ],
+  "gap": 0,
+  "preview": "layouts/fabrique-console-v3-issue.svg",
+  "children": [
+    {
+      "id": "fabrique-console-v3-bar",
+      "type": "block",
+      "content": {
+        "mod": "fabrique-console-v3-bar",
+        "props": {
+          "page": "issue"
+        }
+      },
+      "size": {
+        "px": 216
+      },
+      "window_drag": true
+    },
+    {
+      "id": "body",
+      "type": "column",
+      "size": {
+        "weight": 1
+      },
+      "children": [
+        {
+          "id": "top",
+          "type": "block",
+          "content": {
+            "mod": "fabrique-console-v3-top",
+            "props": {
+              "page": "issue"
+            }
+          },
+          "size": {
+            "px": 78
+          }
+        },
+        {
+          "id": "split",
+          "type": "row",
+          "size": {
+            "weight": 1
+          },
+          "divider": {
+            "width": 1,
+            "color": "border"
+          },
+          "children": [
+            {
+              "id": "center",
+              "type": "column",
+              "size": {
+                "weight": 11
+              },
+              "min": 420,
+              "children": [
+                {
+                  "id": "tabs",
+                  "type": "block",
+                  "content": {
+                    "mod": "tabs"
+                  },
+                  "size": {
+                    "px": 38
+                  }
+                },
+                {
+                  "id": "terminal",
+                  "type": "block",
+                  "min": 180,
+                  "content": {
+                    "tab": "active",
+                    "pane": {
+                      "lone": true,
+                      "gap": 6,
+                      "radius": 8,
+                      "border": {
+                        "width": 1,
+                        "color": "border"
+                      },
+                      "focus": {
+                        "width": 1,
+                        "color": "accent"
+                      },
+                      "header": {
+                        "content": {
+                          "mod": "pane"
+                        },
+                        "height": 28,
+                        "position": "top",
+                        "reveal": "always"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "side",
+              "type": "column",
+              "size": {
+                "weight": 9
+              },
+              "min": 360,
+              "children": [
+                {
+                  "id": "issue",
+                  "type": "block",
+                  "content": {
+                    "mod": "fabrique-console-v3-issue"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

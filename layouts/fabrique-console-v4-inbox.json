@@ -1,0 +1,84 @@
+{
+  "id": "root",
+  "type": "row",
+  "titlebar": "none",
+  "traffic_lights": [
+    7,
+    18
+  ],
+  "theme": "graphite",
+  "font": "JetBrains Mono",
+  "font_size": 13,
+  "ui_font": "Geist",
+  "background": "canvas",
+  "colors": {
+    "accent": "#6B6CF5",
+    "canvas": "#0F1115",
+    "chrome": "#161920",
+    "surface": "#1C2029",
+    "border": "#262A33"
+  },
+  "terminal_padding": [
+    8,
+    8
+  ],
+  "gap": 0,
+  "resizable": false,
+  "preview": "layouts/fabrique-console-v4-inbox.svg",
+  "children": [
+    {
+      "id": "fabrique-console-v4-rail",
+      "type": "block",
+      "content": {
+        "mod": "fabrique-console-v4-rail"
+      },
+      "size": {
+        "px": 64
+      },
+      "window_drag": true
+    },
+    {
+      "id": "fabrique-console-v4-bar",
+      "type": "block",
+      "content": {
+        "mod": "fabrique-console-v4-bar",
+        "props": {
+          "page": "inbox"
+        }
+      },
+      "size": {
+        "px": 228
+      }
+    },
+    {
+      "id": "body",
+      "type": "column",
+      "size": {
+        "weight": 1
+      },
+      "children": [
+        {
+          "id": "fabrique-console-v4-tabs",
+          "type": "block",
+          "content": {
+            "mod": "fabrique-console-v4-tabs",
+            "props": {
+              "page": "inbox"
+            }
+          },
+          "size": {
+            "px": 44
+          },
+          "window_drag": true
+        },
+        {
+          "id": "fabrique-console-v4-inbox",
+          "type": "block",
+          "content": {
+            "mod": "fabrique-console-v4-inbox"
+          }
+        }
+      ]
+    }
+  ]
+}

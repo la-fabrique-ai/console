@@ -1,0 +1,20 @@
+# Export de la console
+
+La liste `manifest.json` contient uniquement des fichiers, sans glob ni copie de dossier. Un ajout dans le dépôt ne part jamais automatiquement. Les nouveaux fichiers et renommages des lots suivants demandent une mise à jour explicite du manifeste ; les configurations et documents publics devront être ajoutés après leur réécriture. Les tests et la sonde dépendant de la simulation privée sont exclus (approbation issue de la simulation, écrans et états de référence) ; leurs sources restent dans le dépôt de développement. Les références publiques `docs/backend-interface.json` et `.md` sont incluses pour les tests de contrat.
+
+Le dictionnaire privé est un tableau JSON non vide de chaînes non vides (noms et variantes), conservé hors du dépôt et hors du dossier exporté. Aucun nom réel ni dictionnaire privé ne doit être enregistré ici. `tests/fixtures/publish-guard-dictionary.example.json` est un exemple entièrement fictif : le copier hors dépôt pour les essais, sans le confondre avec un dictionnaire de publication.
+
+```sh
+FABRIQUE_CONSOLE_GUARD_DICT=/chemin/prive/interdits.json FABRIQUE_CONSOLE_GUARD_NAMES=/chemin/prive/noms.json node scripts/export-console.mjs /chemin/vers/console
+FABRIQUE_CONSOLE_GUARD_DICT=/chemin/prive/interdits.json node scripts/publish-guard.mjs /chemin/vers/console
+```
+
+La table `FABRIQUE_CONSOLE_GUARD_NAMES` est un objet JSON non vide `{"Ancien Exemple":"Nouveau Exemple"}`, conservé hors du dépôt et de la copie. Elle est obligatoire. Après le renommage de la marque, elle remplace les noms dans les textes UTF-8 et les chemins, entrées les plus longues d’abord, aux frontières de mots Unicode (les traits de soulignement séparent les mots). La casse suit exactement les entrées de la table : fournir chaque variante nécessaire. Les collisions et les remplacements non idempotents sont refusés avant toute écriture ; les binaires restent intacts et sont contrôlés par la garde. Aucun nom ni chemin de la table ne figure dans les diagnostics.
+
+La cible doit être absente ou vide, son parent doit exister. La copie passe dans un dossier temporaire voisin, puis la garde valide tous les chemins et contenus, y compris les fichiers binaires et les répertoires vides. Seul un résultat accepté est renommé vers la cible. Un refus ne laisse aucun export partiel et préserve une cible existante. Les liens symboliques et fichiers spéciaux sont refusés. Aucun historique Git n'est copié ni créé.
+
+La garde exige le dictionnaire et bloque aussi la marque privée, les fournisseurs de tickets connus hors de `integrations/tickets/<connecteur>/`, les chemins privés et plusieurs formats de jetons ou clés privées. Les règles de noms s'appliquent sans distinction de casse, avec normalisation Unicode. Le JSON de diagnostic contient uniquement un numéro d'entrée dans le parcours trié, l'emplacement (`path` ou `content`) et la règle ; aucune valeur interdite ni chemin privé n'est imprimé. Un code de sortie non nul interdit la publication. La détection de formats connus ne remplace pas l'inspection humaine des noms nouveaux ou secrets sans format reconnaissable.
+
+`guard-exceptions.json` énumère les seules exceptions légales : chemin exact, empreinte SHA-256 du contenu complet et règles autorisées. Seuls les contenus de licences identiques peuvent être exemptés des noms privés et des fournisseurs ; leurs chemins, la marque et les secrets restent contrôlés. Une modification de notice exige une vérification et une nouvelle empreinte. Le scanner utilise sa propre liste versionnée, jamais une liste fournie par le dossier inspecté. Aucune exception de dépendance n'est actuellement nécessaire ; un nouveau besoin doit être ajouté explicitement avec les mêmes contraintes.
+
+La licence globale est **MIT** : le fichier `LICENSE` racine est exporté. Les composants et icônes du simulateur conservent leurs notices MIT et ISC ; les polices conservent leurs notices OFL 1.1. Les fichiers de dépendances ne sont pas copiés, seul le lockfile est exporté. Les droits globaux de republication doivent être vérifiés avant publication.

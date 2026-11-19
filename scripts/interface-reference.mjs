@@ -10,7 +10,8 @@ export async function readSources(root=new URL('../',import.meta.url)) {
       const path=folder+entry.name;
       if(entry.isDirectory()&&entry.name!=='tests')await walk(path+'/');
       else if(entry.isFile()&&entry.name.endsWith('.mjs')&&!entry.name.endsWith('.test.mjs')) {
-        const key=path.replace(/^(integrations\/tickets\/)[^/]+\//,'$1<connector>/').replaceAll(ticketConnection({}).driver,'tracker');
+        // The default connector is documented as <connector>; another bundled connector keeps its own folder.
+        const key=path.replace(new RegExp('^(integrations/tickets/)'+ticketConnection({}).driver+'/'),'$1<connector>/').replaceAll(ticketConnection({}).driver,'tracker');
         const source=(await readFile(new URL(path,root),'utf8')).replace(/(['"`])([A-Z][A-Z0-9_]+)\1/g,(all,quote,code)=>quote+ticketError({code}).code+quote);
         sources.set(key,source);
       }

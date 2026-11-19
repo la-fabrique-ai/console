@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "files": [
+    "README.md",
+    "agent-instructions.md",
+    "agent-read-instructions.md",
+    "connector.mjs",
+    "definition.mjs",
+    "export.json",
+    "markdown.test.mjs",
+    "runtime.mjs",
+    "store.mjs"
+  ]
+}

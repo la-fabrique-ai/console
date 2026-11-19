@@ -63,7 +63,26 @@ Replace the scope and repository path with values you have checked. The `main` b
 
 `primary` must resolve to a local connection whose driver and options are validated by its connector. Driver selection is connector-specific; see [ticket connectors](ticket-connectors.md). It does not belong in a provider-specific engine schema.
 
-**TODO(console):** The local connection registry's storage shape, exact validation constraints, and complete driver-selection example must come from the integrated connector implementation. Do not add speculative `connections` fields to the JSON above.
+## Choosing the ticket connector
+
+One connector serves the whole Console. It is chosen by `tracker.driver`; without it, the default bundled connector is used, so existing configurations need no change. An unknown driver is refused.
+
+For tickets kept as Markdown files in each project's repository, under `la-fabrique/output/tickets/`:
+
+```json
+{
+  "tracker": { "driver": "markdown" },
+  "projects": [
+    {
+      "key": "demo",
+      "ticketScope": { "connection": "primary", "scopeId": "demo" },
+      "repos": [{ "key": "app", "path": "/absolute/path/to/demo", "mainBranch": "main" }]
+    }
+  ]
+}
+```
+
+With Markdown, `scopeId` is the project key and tickets are named `DEMO-1.md`, `DEMO-2.md`… in the first repository of the project. The other fields of the example above stay as they are. See `integrations/tickets/markdown/README.md` for the file format.
 
 ## Tests, agents, models, and budgets
 

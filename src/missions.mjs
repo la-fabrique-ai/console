@@ -6,6 +6,7 @@ import { reservationLimits } from './workspace-policy.mjs';
 import { legacyClaims } from './workspace-reservations.mjs';
 import { missionSource } from './mission-source.mjs';
 import { missionPrompt } from './mission-prompt.mjs';
+import { connectorAgentContext } from '../integrations/tickets/factory.mjs';
 import { createMissionStore } from './mission-store.mjs';
 import { ticketSections } from './ticket-qualification.mjs';
 
@@ -48,7 +49,7 @@ export function createMissions(context,options={}) {
         profile:source.profile,machine:null,base:{...plan.base,branch:plan.base.mainBranch,sha:plan.base.chosenSha,checkedAt:plan.base.fetch.attemptedAt,upToDate:plan.base.verified&&plan.base.relation==='equal'},
         worktree:plan.worktree,branch:plan.branch,context:{parent:issue.parent,plan:source.plan,dependencies:issue.dependencies.blockedBy.items,design:{url:null},untrusted:true},
         qaProfiles:{...source.repository.tests},ready:qualification.ready,configRevision,source:{observedAt:source.observedAt,sourceHash:source.sourceHash,untrusted:true},workspacePlan:plan,promptVersion:'dev-1'};
-      mission.prompt=missionPrompt(mission,qualification.template);
+      mission.prompt=missionPrompt(mission,qualification.template,{connector:connectorAgentContext(config)});
       const {value:state}=await context.store.read(),legacy=await legacyClaims(context.loadState,context.git),active=state.attempts.filter(activeAttempt),limits=reservationLimits(config,source.project.key);
       const dev=active.filter(a=>a.role==='dev').length+legacy.claims.filter(a=>a.role==='dev').length;
       const review=active.filter(a=>a.role==='review'&&a.projectKey===source.project.key).length+legacy.claims.filter(a=>a.role==='review'&&a.projectKey===source.project.key).length;

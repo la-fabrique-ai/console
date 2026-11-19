@@ -69,8 +69,8 @@ calling the adapter's `settings()` (`undefined` when nothing else is set) and ke
 Compatibility shims for persisted data and legacy options (`mission`, `ticketState`, `action`,
 `backendOptions`, `factoryOptions`, `error`, legacy setting aliases) come from the default connector.
 
-Until the engine vocabulary is renamed, every connector returns tickets in the shape the engine
-already consumes (`id`, `identifier`, `team.id` = scope id, `state.type`, …) next to the normalized
-`status`, `reference` and `untrusted` fields.
+A new connector speaks the common `Ticket` payload defined in `ticket.mjs`. Until the engine reads it
+directly, `engineIssue` and `enrichedIssue` in that same file derive the issue shapes the engine consumes
+today; no connector builds them by hand. The payload grows when a Console feature needs a field.
 
 Each adapter folder provides `definition.mjs`, its runtime, instructions and documentation.

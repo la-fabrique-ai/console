@@ -367,17 +367,25 @@ html,body{margin:0;background:#12151D}
 .f-prompt .f-ta{min-height:64px;border-radius:14px;padding:14px 16px}
 .f-prow{display:flex !important;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
 #issues .f-li{padding:13px 12px;font-size:15px}
+
+.f-tabs{flex:none;display:flex;align-items:stretch;gap:0;height:44px;margin:-16px -24px 0;border-bottom:1px solid #2A2F40;background:#0F1218}
+.f-tab{display:flex;align-items:center;gap:8px;padding:0 18px;border:none;border-right:1px solid #2A2F40;background:none;color:#C9CFDB;font:12.5px "JetBrains Mono",ui-monospace,Menlo,monospace;letter-spacing:.06em;cursor:pointer}
+.f-tab i{width:7px;height:7px;border-radius:50%;background:#3DD6B0}
+.f-tab small{font-size:11.5px;color:#8C93A6;letter-spacing:0}
+.f-tab.on{background:#1C2040;color:#fff}
+.f-tab.plus{color:#8C93A6;font-size:16px;border-right:none}
+.f-term{top:44px}
 html,body{height:100%}body>.q{min-height:100vh;height:100vh}.qm{min-height:0}
 </style></head>
 <body>
-<div class="q"><div class="qsb"><b>Mission Control</b><div class="it">▣ Inbox<span class="cn am">1</span></div><div class="it">☰ Issues</div><div class="it on">‹/› Development</div><div class="sec">PROJETS</div><div class="pj"><i style="border-color:rgb(63, 191, 90);background:rgb(21, 58, 32)"></i><span>FlashGolf<small>3 missions</small></span></div><div class="cur"><span>FG-729</span><span>Préparer</span></div><div class="cur mu"><span>FG-752</span><span>Préparer</span></div><div class="cur mu"><span>FG-760</span><span>Développer</span></div><div class="pj"><i style="border-color:rgb(217, 87, 140);background:rgb(58, 26, 43)"></i><span>Gonzesses<small>1 mission</small></span></div><div class="pj"><i style="border-color:rgb(142, 124, 255);background:rgb(38, 31, 74)"></i><span>Jiroo<small>1 mission</small></span></div><div class="pj"><i style="border-color:rgb(213, 162, 74);background:rgb(58, 46, 18)"></i><span>LBA<small>Aucune mission en cours</small></span></div><div class="pj"><i style="border-color:rgb(0, 182, 237);background:rgb(14, 46, 58)"></i><span>FooDeCuisine<small>Aucune mission en cours</small></span></div></div><div class="qm"><div class="qhd"><div class="ic">⚑</div><div style="min-width:0;flex:1"><h1>Messages automatiques : espace dédié du golf et du partenaire</h1><div class="sub"><span>FlashGolf · FG-729</span><span><i class="dot on"></i><b>Préparer</b></span><span>›</span><span><i class="dot"></i>Développer</span><span>›</span><span><i class="dot"></i>Tester</span><span>›</span><span><i class="dot"></i>Valider</span></div></div><button class="f-pilot" id="pilotbtn">Ouvrir Pilot</button><button class="hb" title="Retour">‹</button><button class="hb" title="Menu">⋯</button></div><div class="f-term" id="term"><header><span>Pilot · terminal</span><button class="f-alt" id="termx">Fermer</button></header>
-<pre>● Pilot — FG-729 Messages automatiques
+<div class="q"><div class="qsb"><b>Mission Control</b><div class="it">▣ Inbox<span class="cn am">1</span></div><div class="it">☰ Issues</div><div class="it on">‹/› Development</div><div class="sec">PROJETS</div><div class="pj"><i style="border-color:rgb(63, 191, 90);background:rgb(21, 58, 32)"></i><span>FlashGolf<small>3 missions</small></span></div><div class="cur"><span>FG-729</span><span>Préparer</span></div><div class="cur mu"><span>FG-752</span><span>Préparer</span></div><div class="cur mu"><span>FG-760</span><span>Développer</span></div><div class="pj"><i style="border-color:rgb(217, 87, 140);background:rgb(58, 26, 43)"></i><span>Gonzesses<small>1 mission</small></span></div><div class="pj"><i style="border-color:rgb(142, 124, 255);background:rgb(38, 31, 74)"></i><span>Jiroo<small>1 mission</small></span></div><div class="pj"><i style="border-color:rgb(213, 162, 74);background:rgb(58, 46, 18)"></i><span>LBA<small>Aucune mission en cours</small></span></div><div class="pj"><i style="border-color:rgb(0, 182, 237);background:rgb(14, 46, 58)"></i><span>FooDeCuisine<small>Aucune mission en cours</small></span></div></div><div class="qm"><div class="f-tabs"><button class="f-tab" id="pilottab"><i></i>PILOT <small>⌂ épinglé</small></button><button class="f-tab plus" title="Ouvrir un autre terminal">+</button></div><div class="qhd"><div class="ic">⚑</div><div style="min-width:0;flex:1"><h1>Messages automatiques : espace dédié du golf et du partenaire</h1><div class="sub"><span>FlashGolf · FG-729</span><span><i class="dot on"></i><b>Préparer</b></span><span>›</span><span><i class="dot"></i>Développer</span><span>›</span><span><i class="dot"></i>Tester</span><span>›</span><span><i class="dot"></i>Valider</span></div></div><button class="hb" title="Retour">‹</button><button class="hb" title="Menu">⋯</button></div><div class="f-term" id="term"><header><span>Pilot</span><button class="f-alt" id="termx">Fermer</button></header>
+<pre>● Pilot
 
-J'ai lu l'issue, le contexte du projet et 4 décisions qui s'y rapportent.
-J'ai 6 questions pour préciser la demande. Elles sont affichées dans la page.
+Bonjour. Je connais vos projets : FlashGolf, Gonzesses, Jiroo, LBA, FooDeCuisine.
+Posez-moi une question sur un projet, une mission en cours, ou une décision passée.
 
-> en attente de vos réponses (0 sur 6)
-</pre><div class="in"><input class="f-in" placeholder="Écrire directement à Pilot…"><button class="f-main">Envoyer</button></div></div>
+Mission ouverte : FG-729 Messages automatiques — 6 questions vous attendent dans la page.
+</pre><div class="in"><input class="f-in" placeholder="Poser une question à Pilot…"><button class="f-main">Envoyer</button></div></div>
 <div class="f-wrap">
 <div class="f-steps" id="steps" style="display:none">
 <button class="f-step" data-go="1"><i>1</i>Demande</button>
@@ -452,7 +460,7 @@ J'ai 6 questions pour préciser la demande. Elles sont affichées dans la page.
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
   const go=n=>{view=n;$$('.f-view').forEach(v=>v.classList.toggle('on',+v.dataset.view===n));
     $$('.f-step').forEach(b=>{const k=+b.dataset.go;b.classList.toggle('on',k===n);b.classList.toggle('ok',k<n);b.querySelector('i').textContent=k<n?'✓':k;});
-    $('#steps').style.display=n?'':'none';$('#pilotbtn').style.display=n>1?'inline-block':'none';if(!n)$('#term').classList.remove('on');head(n);
+    $('#steps').style.display=n?'':'none';head(n);
     if(n===3)answers();if(n===1)request();};
   $$('[data-go]').forEach(b=>b.onclick=()=>go(+b.dataset.go));
   $$('[data-next]').forEach(b=>b.onclick=()=>go(view+1));
@@ -498,7 +506,8 @@ J'ai 6 questions pour préciser la demande. Elles sont affichées dans la page.
     $('#asksend').textContent=x?'Préparer avec Pilot':'Créer et envoyer à Pilot';
     T.textContent=x?x[1]:'Nouveau ticket';if(!x)SUB.innerHTML='<span>FlashGolf</span>';}
   $('#asksend').onclick=()=>{if(pick<0&&!$('#ask').value.trim()){$('#ask').focus();return;}go(2);};
-  $('#pilotbtn').onclick=()=>$('#term').classList.toggle('on');$('#termx').onclick=()=>$('#term').classList.remove('on');
+  const pt=on=>{$('#term').classList.toggle('on',on);$('#pilottab').classList.toggle('on',on);};
+  $('#pilottab').onclick=()=>pt(!$('#term').classList.contains('on'));$('#termx').onclick=()=>pt(false);
   $('#newbtn').onclick=()=>{pick=-1;go(1);};
   issues();card();go(0);
 })();

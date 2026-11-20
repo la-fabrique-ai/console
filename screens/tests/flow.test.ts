@@ -14,6 +14,8 @@ registerHooks({
 });
 const { default: MissionControl } = await import(new URL("../mission-control/main.ts", import.meta.url).href);
 
+const STAGES = ["Préparer", "Développer", "Tester", "Valider"];
+
 function project(t: TestContext) {
   screen.home = mkdtempSync(join(tmpdir(), "mission-control-screen-"));
   screen.failure = "";
@@ -26,19 +28,23 @@ function project(t: TestContext) {
 function window() {
 
   const pending: unknown[] = [];
-  const cx = { notify() {}, spawn(body: (cx: unknown) => unknown) { pending.push(body(cx)); } };
+  let stale = true; // Herdr draws once at start, then only when the window asks for it
+  const cx = { notify() { stale = true; }, spawn(body: (cx: unknown) => unknown) { pending.push(body(cx)); } };
   const view = new MissionControl();
   view.init(undefined, cx);
+  /** What the operator sees right now, replies still on their way. */
+  const now = () => {
+    if (stale) draw(view.render());
+    stale = false;
+  };
+  now();
   return {
+    now,
     /** What the operator sees once every engine reply has arrived. */
     async shown() {
       while (pending.length) await pending.shift();
-      draw(view.render());
+      now();
       return screen.texts;
-    },
-    /** What the operator sees right now, replies still on their way. */
-    now() {
-      draw(view.render());
     },
     click(id: string) {
       const handler = screen.clicks.get(id);
@@ -128,6 +134,7 @@ test("a mission is listed and opens on its page while Linear does not answer", a
   click("mission-DEMO-1");
   releases.forEach((release) => release());
   const texts = await shown();
-  assert.ok(texts.includes("First issue") && texts.includes("Préparer"), "the page keeps the title and the stage");
+  assert.ok(texts.includes("First issue") && texts.includes("Jiroo · DEMO-1"), "the page header is the mission's");
+  assert.ok(STAGES.every((stage) => texts.includes(stage)), "with its line of stages");
   assert.ok(texts.includes("Impossible de joindre Linear."));
 });

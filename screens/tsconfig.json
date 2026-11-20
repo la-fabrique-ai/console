@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "types": [],
+    "skipLibCheck": true,
+    "paths": { "herdr": ["./herdr-types/herdr.d.ts"] }
+  },
+  "include": ["mission-control/**/*.ts", "herdr-types/gpui-kit.d.ts"]
+}

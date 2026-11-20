@@ -11,17 +11,17 @@ date: 2026-11-20
 ## Décisions
 | N° | Décision | Statut |
 |---|---|---|
-| 0001 | [[0001-repartir-a-neuf]] | acceptée |
-| 0002 | [[0002-parcours-et-ecrans]] | acceptée |
-| 0003 | [[0003-roles-et-devs]] | acceptée |
-| 0004 | [[0004-tickets-et-connecteurs]] | acceptée |
-| 0005 | [[0005-ecritures-dans-l-outil-de-tickets]] | acceptée |
-| 0006 | [[0006-demandes]] | acceptée |
-| 0007 | [[0007-revue-et-niveau-fort]] | acceptée |
-| 0008 | [[0008-pr-empilees]] | acceptée |
-| 0009 | [[0009-plans-et-memoire-dans-docs]] | acceptée |
-| 0010 | [[0010-jetons]] | acceptée |
-| 0011 | [[0011-premier-jalon]] | acceptée |
+| 0001 | [[0001-start-from-scratch]] | acceptée |
+| 0002 | [[0002-flow-and-screens]] | acceptée |
+| 0003 | [[0003-roles-and-devs]] | acceptée |
+| 0004 | [[0004-tickets-and-connectors]] | acceptée |
+| 0005 | [[0005-writes-to-the-ticket-tool]] | acceptée |
+| 0006 | [[0006-requests]] | acceptée |
+| 0007 | [[0007-review-and-high-risk-tickets]] | acceptée |
+| 0008 | [[0008-stacked-prs]] | acceptée |
+| 0009 | [[0009-plans-and-memory-in-docs]] | acceptée |
+| 0010 | [[0010-tokens]] | acceptée |
+| 0011 | [[0011-first-milestone]] | acceptée |
 | 0012 | [[0012-typescript]] | proposée |
 
 ## Missions

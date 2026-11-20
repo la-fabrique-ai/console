@@ -1,10 +1,10 @@
 # Mission Control — règles pour les agents
 
 ## Avant de travailler
-Lis `docs/contexte.md`, puis la spec ou le plan de ta mission dans `docs/missions/<ticket>/`, puis les décisions qu'il cite dans `docs/decisions/`. Un dev ne lit que son ticket, sa mission et les décisions citées.
+Lis `docs/context.md`, puis la spec ou le plan de ta mission dans `docs/missions/<ticket>/`, puis les décisions qu'il cite dans `docs/decisions/`. Un dev ne lit que son ticket, sa mission et les décisions citées.
 
 ## Où vont les documents
-- `docs/contexte.md` : le projet en une page. Mis à jour par Pilot à la clôture d'une mission, si une décision a changé l'architecture ou une règle.
+- `docs/context.md` : le projet en une page. Mis à jour par Pilot à la clôture d'une mission, si une décision a changé l'architecture ou une règle.
 - `docs/decisions/` : une décision par fichier, numérotée. Une décision ne se modifie pas : une nouvelle la remplace et le dit. Elle n'est valable qu'avec l'accord de Nicolas.
 - `docs/missions/<ticket>/` : `spec.md`, `decoupage.md`, `bilan.md`. Un fichier par auteur : deux agents n'écrivent jamais le même fichier.
 - `docs/index.md` : généré, jamais écrit à la main.

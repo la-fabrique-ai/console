@@ -30,4 +30,4 @@ Pilot (spec), Lead (découpage et coordination), dev (1 ou 2), relecteur (autre 
 Limites et alertes de budget, pause et reprise, suivi des écarts au plan, récapitulatif « depuis ta dernière visite », Kanban, plus de deux devs, reprise de l'historique de l'ancien système.
 
 ## Règle de conduite
-Chaque cas particulier ne devient pas une règle. Avant d'ajouter un état ou une commande, on vérifie qu'aucun existant ne suffit. Voir [[0001-repartir-a-neuf]].
+Chaque cas particulier ne devient pas une règle. Avant d'ajouter un état ou une commande, on vérifie qu'aucun existant ne suffit. Voir [[0001-start-from-scratch]].

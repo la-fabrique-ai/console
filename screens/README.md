@@ -1,3 +1,10 @@
+---
+title: Screens — how they are built, installed and launched
+status: in force
+date: 2026-11-20
+author: Lead
+---
+
 # Screens
 
 The screens are native Herdr App panels ("mods"), written in TypeScript. Herdr App loads only JavaScript, so `install.ts` strips the types with Node 24 and copies the result into a Herdr App home (decision 0012).

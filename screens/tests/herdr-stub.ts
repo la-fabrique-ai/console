@@ -14,8 +14,8 @@ export const screen = {
   home: "",
   /** "network": Linear cannot be reached (see the engine's Linear fixture). */
   failure: "",
-  /** The next engine call waits for this before answering: a slow reply. */
-  gate: Promise.resolve(),
+  /** The next call of an action waits for its promise before answering: a slow reply. */
+  slow: new Map<string, Promise<void>>(),
 };
 
 const drawn = new WeakMap<object, Drawn>();
@@ -60,8 +60,8 @@ export const TextView = { markdown: (_id: string, text: string) => element(text)
 export const checking = () => false;
 export const props = () => ({ engine: "engine.sh" });
 export async function exec(_command: string, [, ...args]: string[]) {
-  const gate = screen.gate;
-  screen.gate = Promise.resolve();
+  const gate = screen.slow.get(args[0]);
+  screen.slow.delete(args[0]);
   const fixture = new URL("../../engine/tests/linear-fixture.ts", import.meta.url).href;
   const cli = fileURLToPath(new URL("../../engine/cli.ts", import.meta.url));
   const child = spawnSync(process.execPath, ["--import", fixture, cli, ...args], { env: { MISSION_CONTROL_HOME: screen.home, TEST_LINEAR_FAILURE: screen.failure }, encoding: "utf8" });

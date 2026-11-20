@@ -6,7 +6,7 @@ Read `GLOSSARY.md` and `docs/context.md`, then the spec or the plan of your miss
 ## Where documents go
 - `docs/context.md`: the project in one page. Updated by Pilot when a mission is closed, if a decision changed the architecture or a rule.
 - `docs/adr/`: one decision per file, numbered. A decision is never edited: a new one supersedes it and says so. It is valid only with Nicolas's agreement.
-- `docs/missions/<ticket>/`: `spec.md`, `split.md`, `report.md`. One file per author: two agents never write the same file.
+- `docs/missions/<ticket>/`: `spec.md`, `answers.md`, `split.md`, `report.md`. One file per author: two agents never write the same file.
 - `docs/index.md`: generated, never written by hand.
 - Each document carries a header: title, status, date, author.
 

@@ -12,7 +12,7 @@ ticket: MC-1
 An operator runs a whole mission from the screens, without typing in a terminal: a request in Linear, a spec written with Pilot, a validated split, tickets built and reviewed, a QA, a validation, stacked PRs. First on the Linear team Jiroo, used as the test ground, then on a real FlashGolf ticket.
 
 ## Decisions
-All in `docs/adr/` (0001 to 0015). This plan does not repeat them. The method is decision 0014; the screens-first rule is decision 0015.
+All in `docs/adr/` (0001 to 0016). This plan does not repeat them. The method is decision 0014; the screens-first rule is decision 0015.
 
 ## Limits
 - Nothing is taken from the old code without an explicit decision, piece by piece.
@@ -27,9 +27,9 @@ Each slice is a thin, complete path that can be shown alone.
 | Slice | What the operator can do when it is done | Blocked by |
 |---|---|---|
 | 1 A mission appears | Pick a ticket of the Linear team Jiroo, create a mission from it, see it in the Development list and open its page (title, stage) in the separate Herdr | the Linear access key |
-| 2 Talk to Pilot | Discuss the request with Pilot in a panel of the page. Pilot asks its questions in rounds, each with a recommended answer and buttons. An answer reaches Pilot once | 1 |
+| 2 The request and the questions | Describe the request on a screen, then answer Pilot's questions one at a time, each with a proposed answer to validate or change, with the list of questions beside it. An answer reaches Pilot once | 1 |
 | 3 The spec | Read the spec Pilot wrote, in the page. It is in `docs/missions/<ticket>/spec.md` on the mission branch; the main ticket carries its summary and link | 2 |
-| 4 The split | Read the Lead's draft split into slices with what blocks each one, ask for changes, validate. The sub-tickets are then created in Linear | 3 |
+| 4 The plan and the launch | Read Pilot's draft split into slices with what blocks each one, ask for changes, validate, then launch: the sub-tickets are created in Linear and the Lead takes the mission with a fresh context | 3 |
 | 5 One ticket, built and reviewed | Follow one ticket from start to accepted: a dev builds it test-first, a reviewer of the other family reviews it, its stacked PR is merged into the mission branch. Answer a dev's request in place | 4 |
 | 6 All the tickets | See the next ready ticket start by itself until all are accepted. A high-risk ticket has its approach reviewed before code and two reviews | 5 |
 | 7 Test and validate | Read the QA report, validate or say what is wrong (the Lead turns it into fix tickets in the same mission), close. The merge of the main PR is a separate step for the technical owner | 6 |
@@ -53,4 +53,4 @@ Slice 1 also settles the base: TypeScript strict, tests, project check, the sepa
 
 ## What depends on Nicolas
 - Create a Linear access key for the connector, and name the Jiroo tickets used for the tests.
-- Mockups still missing: the Pilot discussion panel, Test, Validate, Inbox, Development.
+- Mockups: the preparation flow is validated as a direction (`docs/mockups/suggestions/prepare-flow.html`). Still to simplify with Nicolas, slice by slice: Development, Inbox, Test, Validate.

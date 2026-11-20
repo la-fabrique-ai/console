@@ -26,6 +26,7 @@ Written by hand until the engine exists; the engine will generate it from the fi
 | 0013 | [[0013-project-language]] | accepted |
 | 0014 | [[0014-ai-hero-method-and-thin-engine]] | accepted |
 | 0015 | [[0015-screens-first-for-people]] | accepted |
+| 0016 | [[0016-pilot-prepares-lead-executes]] | accepted |
 
 ## Missions
 | Ticket | Mission | Step |

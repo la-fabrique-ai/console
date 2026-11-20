@@ -18,11 +18,12 @@ The words of the project. Code, documents and skills use these words and no syno
 | Connector | The piece that links our ticket base to one ticket tool (Linear, Markdown files, Jiroo, Jira). One per project. |
 | Write gesture | One of the four writes allowed to the ticket tool: create sub-tickets, change a status, add a comment, put the spec summary and link in the main ticket. |
 | Spec | What the mission must deliver, written by Pilot with the operator. `docs/missions/<ticket>/spec.md`. |
-| Split | The Lead's breakdown of the spec into slices. A draft until the operator validates it. `split.md`. |
+| Split | Pilot's breakdown of the spec into slices, also called the plan on screen. A draft until the operator validates it. `split.md`. |
 | Report | What was done and learned, written by the Lead at closing. `report.md`. |
+| Answers | The operator's answers to Pilot's questions, kept in `docs/missions/<ticket>/answers.md` for the Lead. |
 | Request | Anything an agent needs from the operator. It carries a recommended answer and is answered in place, once. |
-| Pilot | The role that writes the spec with the operator. |
-| Lead | The role that splits the spec and coordinates. |
+| Pilot | The role that prepares the mission with the operator: interview, spec, split. |
+| Lead | The role that executes the validated plan: it coordinates the devs, the reviews and the QA. It starts with a fresh context at launch. |
 | Dev | The role that builds one ticket. One or two per mission. |
 | Reviewer | The role that reviews a ticket. Other model family than the dev. Never fixes. |
 | QA | The role that tests the mission against the spec. |

@@ -15,6 +15,7 @@ The screenshots (37 MB of PNG) stay outside the repository, in `~/Developer/mock
 |---|---|---|
 | Prepare | `docs/mockups/prepare/` | Claude Design, validated by Nicolas on 2026-11-19. Read `README.md`. |
 | Develop | `docs/mockups/develop/` | Claude Design, validated by Nicolas on 2026-11-19, 83 states. Read `README.md`. |
+| Preparation flow (request, questions, spec, plan, launch) | `docs/mockups/suggestions/prepare-flow.html` | Direction validated by Nicolas on 2026-11-20; to refine in Claude Design. |
 | Test, Validate | to do | Two or three variants in the same frame, to be validated by Nicolas before the code. |
 | Inbox, Development | to do | Variants to propose with the first screens. |
 

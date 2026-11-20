@@ -353,6 +353,20 @@ html,body{margin:0;background:#12151D}
 .f-say{margin-top:auto;padding-top:18px;border-top:1px solid #2A2F40}
 .f-say .row{display:flex;gap:8px}
 #qcard{display:flex;flex-direction:column}
+
+.f-chat{display:flex;flex-direction:column;padding:0}
+.f-thread{flex:1;min-height:0;overflow:auto;padding:28px 32px;display:flex;flex-direction:column}
+.f-thread .in{max-width:860px;width:100%;margin:0 auto}
+.f-thread.empty{align-items:center;justify-content:center;text-align:center}
+.f-thread.empty h2{font-size:26px}
+.f-meta{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 18px}
+.f-meta span{font-size:12.5px;padding:3px 9px;border-radius:6px;border:1px solid #363C50;color:#C9CFDB}
+.f-body p{margin:0 0 12px}
+.f-prompt{flex:none;padding:14px 32px 20px;border-top:1px solid #2A2F40}
+.f-prompt>*{max-width:860px;margin-left:auto;margin-right:auto;display:block}
+.f-prompt .f-ta{min-height:64px;border-radius:14px;padding:14px 16px}
+.f-prow{display:flex !important;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
+#issues .f-li{padding:13px 12px;font-size:15px}
 html,body{height:100%}body>.q{min-height:100vh;height:100vh}.qm{min-height:0}
 </style></head>
 <body>
@@ -366,28 +380,32 @@ J'ai 6 questions pour préciser la demande. Elles sont affichées dans la page.
 </pre><div class="in"><input class="f-in" placeholder="Écrire directement à Pilot…"><button class="f-main">Envoyer</button></div></div>
 <div class="f-wrap">
 <div class="f-steps" id="steps" style="display:none">
-<button class="f-step" data-go="1"><i>1</i>Questions</button>
-<button class="f-step" data-go="2"><i>2</i>Spec</button>
-<button class="f-step" data-go="3"><i>3</i>Plan</button>
-<button class="f-step" data-go="4"><i>4</i>Lancement</button>
+<button class="f-step" data-go="1"><i>1</i>Demande</button>
+<button class="f-step" data-go="2"><i>2</i>Questions</button>
+<button class="f-step" data-go="3"><i>3</i>Spec</button>
+<button class="f-step" data-go="4"><i>4</i>Plan</button>
+<button class="f-step" data-go="5"><i>5</i>Lancement</button>
 </div>
 
-<div class="f-view on" data-view="0"><div class="f-grid">
-<div class="f-card">
+<div class="f-view on" data-view="0"><div class="f-card f-one">
 <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:10px"><h2 style="margin:0">Issues</h2><button class="f-go" id="newbtn">Nouveau ticket</button></div>
 <div class="f-list" id="issues"></div>
-</div>
-<div class="f-card" id="side"></div>
 </div></div>
 
-<div class="f-view" data-view="1"><div class="f-grid">
+<div class="f-view" data-view="1"><div class="f-card f-one f-chat">
+<div class="f-thread" id="thread"></div>
+<div class="f-prompt"><textarea class="f-ta" id="ask" rows="2"></textarea>
+<div class="f-prow"><span class="f-hint" id="askhint"></span><button class="f-go" id="asksend">Envoyer à Pilot</button></div></div>
+</div></div>
+
+<div class="f-view" data-view="2"><div class="f-grid">
 <div class="f-card" id="qcard"></div>
 <div class="f-card"><div class="f-kl">Les questions de Pilot</div><div class="f-list" id="qlist"></div>
 <div class="f-acts"><button class="f-go" id="qdone" data-next style="display:none">Voir la spec</button></div>
 <p class="f-hint" style="margin-top:14px">Pilot peut ajouter une question selon vos réponses.</p></div>
 </div></div>
 
-<div class="f-view" data-view="2"><div class="f-grid">
+<div class="f-view" data-view="3"><div class="f-grid">
 <div class="f-card">
 <h2>La spec, écrite par Pilot</h2>
 <p class="f-lead">Relisez-la. C'est elle qui guide tout le développement.</p>
@@ -402,7 +420,7 @@ J'ai 6 questions pour préciser la demande. Elles sont affichées dans la page.
 <div class="f-card"><div class="f-kl">Vos réponses</div><div class="f-list" id="answers"></div></div>
 </div></div>
 
-<div class="f-view" data-view="3"><div class="f-grid">
+<div class="f-view" data-view="4"><div class="f-grid">
 <div class="f-card">
 <h2>Le plan : 4 tickets</h2>
 <p class="f-lead">Chaque ticket livre quelque chose que vous pourrez voir. Ils se font dans cet ordre.</p>
@@ -419,11 +437,11 @@ J'ai 6 questions pour préciser la demande. Elles sont affichées dans la page.
 <div class="f-rows"><div class="f-row"><span>Durée estimée</span><b id="est">≈ 3 h 10</b></div><div class="f-row"><span>Tickets</span><b>4</b></div><div class="f-row"><span>Relecture</span><b>chaque ticket</b></div><div class="f-row"><span>Test et validation</span><b>à la fin</b></div></div></div>
 </div></div>
 
-<div class="f-view" data-view="4"><div class="f-card f-one">
+<div class="f-view" data-view="5"><div class="f-card f-one">
 <h2>Tout est prêt</h2>
 <p class="f-lead">La spec et le plan sont validés. En lançant, les 4 tickets sont créés et le Lead prend la mission en main.</p>
 <div class="f-rows" style="max-width:520px"><div class="f-row"><span>Mission</span><b>FG-729 · Messages automatiques</b></div><div class="f-row"><span>Spec</span><b>validée</b></div><div class="f-row"><span>Plan</span><b>4 tickets, validé</b></div><div class="f-row"><span>Équipe</span><b id="team2">1 développeur</b></div><div class="f-row"><span>Durée estimée</span><b id="est2">≈ 3 h 10</b></div></div>
-<div class="f-acts"><button class="f-go" id="launch">Lancer le développement</button><button class="f-alt" data-go="3">Revoir le plan</button></div>
+<div class="f-acts"><button class="f-go" id="launch">Lancer le développement</button><button class="f-alt" data-go="4">Revoir le plan</button></div>
 <div class="f-done" id="launched">✓ Mission lancée. Le Lead démarre le premier ticket. Vous serez prévenu dans l'Inbox s'il a besoin de vous.</div>
 </div></div>
 </div></div></div>
@@ -434,8 +452,8 @@ J'ai 6 questions pour préciser la demande. Elles sont affichées dans la page.
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
   const go=n=>{view=n;$$('.f-view').forEach(v=>v.classList.toggle('on',+v.dataset.view===n));
     $$('.f-step').forEach(b=>{const k=+b.dataset.go;b.classList.toggle('on',k===n);b.classList.toggle('ok',k<n);b.querySelector('i').textContent=k<n?'✓':k;});
-    $('#steps').style.display=n?'':'none';$('#pilotbtn').style.display=n?'inline-block':'none';if(!n)$('#term').classList.remove('on');head(n);
-    if(n===2)answers();};
+    $('#steps').style.display=n?'':'none';$('#pilotbtn').style.display=n>1?'inline-block':'none';if(!n)$('#term').classList.remove('on');head(n);
+    if(n===3)answers();if(n===1)request();};
   $$('[data-go]').forEach(b=>b.onclick=()=>go(+b.dataset.go));
   $$('[data-next]').forEach(b=>b.onclick=()=>go(view+1));
   $$('[data-toggle]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.toggle).classList.toggle('on'));
@@ -469,14 +487,20 @@ J'ai 6 questions pour préciser la demande. Elles sont affichées dans la page.
   function head(n){if(n){T.textContent=titleTxt;SUB.innerHTML=subHtml;}else{T.textContent='FlashGolf';SUB.innerHTML='<span>140 issues · 3 missions en cours</span>';}
     document.querySelectorAll('.qsb .it').forEach(e=>e.classList.toggle('on',n?/Development/.test(e.textContent):/Issues/.test(e.textContent)));}
   var pick=0;
-  function issues(){$('#issues').innerHTML=ISS.map((x,i)=>`<button class="f-li ${i===pick?'on':''}" data-i="${i}"><span class="m" style="width:auto;padding:0 8px;border-radius:6px;font-size:12px">${x[0]}</span><span style="flex:1"><b>${esc(x[1])}</b></span><small style="white-space:nowrap">${x[2]}</small></button>`).join('');
-    $$('#issues .f-li').forEach(b=>b.onclick=()=>{pick=+b.dataset.i;issues();side();});}
-  function side(){const x=ISS[pick];if(pick<0){$('#side').innerHTML=`<div class="f-kl">Nouveau ticket</div><span class="f-label" style="margin-top:0">Titre</span><input class="f-in" placeholder="En quelques mots"><span class="f-label">Ce que vous voulez obtenir</span><textarea class="f-ta" placeholder="Décrivez votre besoin avec vos mots…"></textarea><div class="f-acts"><button class="f-go" id="dev">Créer et préparer</button></div><p class="f-hint" style="margin-top:12px">Le ticket est créé dans FlashGolf, puis Pilot vous pose ses questions.</p>`;}
-    else{const busy=x[2]!=='À faire';$('#side').innerHTML=`<div class="f-kl">${x[0]} · ${x[2]}</div><h2 style="font-size:18px">${esc(x[1])}</h2><p style="margin-top:8px">${esc(x[3]||'Cette issue est déjà en mission.')}</p><div class="f-acts"><button class="f-go" id="dev">${busy?'Ouvrir la mission':'Faire développer'}</button></div>${busy?'':'<p class="f-hint" style="margin-top:12px">Pilot lit l\'issue et le projet, puis vous pose ses questions.</p>'}`;}
-    $('#dev').onclick=()=>go(1);}
+  function issues(){$('#issues').innerHTML=ISS.map((x,i)=>`<button class="f-li" data-i="${i}"><span class="m" style="width:auto;padding:0 8px;border-radius:6px;font-size:12px">${x[0]}</span><span style="flex:1"><b>${esc(x[1])}</b></span><small style="white-space:nowrap">${x[2]}</small></button>`).join('');
+    $$('#issues .f-li').forEach(b=>b.onclick=()=>{pick=+b.dataset.i;go(1);});}
+  function request(){const x=pick<0?null:ISS[pick],th=$('#thread');
+    th.classList.toggle('empty',!x);
+    th.innerHTML=x?`<div class="in"><div class="f-num">${x[0]}</div><h2 style="margin-top:6px;font-size:24px">${esc(x[1])}</h2><div class="f-meta"><span>${x[2]}</span><span>FlashGolf</span><span>Créée par vous · 12 nov.</span></div><div class="f-body"><p>${esc(x[3]||'Cette issue est déjà en mission.')}</p><p>Les messages concernés : confirmation d'inscription, rappel de la veille, départ publié, résultats disponibles, et sept autres.</p><p>Chaque golf doit pouvoir garder la main sur ce qui part en son nom.</p></div></div>`
+      :`<div class="in"><h2>Que voulez-vous faire dans FlashGolf ?</h2><p style="margin-top:8px">Décrivez votre besoin avec vos mots. Le ticket est créé, puis Pilot vous pose ses questions.</p></div>`;
+    $('#ask').value='';$('#ask').placeholder=x?'Ajouter une précision pour Pilot (facultatif)…':'Décrivez ce que vous voulez obtenir…';
+    $('#askhint').textContent=x?'Pilot lit l\'issue et le projet, puis vous pose ses questions.':'';
+    $('#asksend').textContent=x?'Préparer avec Pilot':'Créer et envoyer à Pilot';
+    T.textContent=x?x[1]:'Nouveau ticket';if(!x)SUB.innerHTML='<span>FlashGolf</span>';}
+  $('#asksend').onclick=()=>{if(pick<0&&!$('#ask').value.trim()){$('#ask').focus();return;}go(2);};
   $('#pilotbtn').onclick=()=>$('#term').classList.toggle('on');$('#termx').onclick=()=>$('#term').classList.remove('on');
-  $('#newbtn').onclick=()=>{pick=-1;issues();side();};
-  issues();side();card();go(0);
+  $('#newbtn').onclick=()=>{pick=-1;go(1);};
+  issues();card();go(0);
 })();
 </script>
 </body></html>

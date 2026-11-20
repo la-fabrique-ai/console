@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 
-function project(t: TestContext) {
+function project(t: TestContext, linearFailure = "") {
   const home = mkdtempSync(join(tmpdir(), "mission-control-"));
   t.after(() => rmSync(home, { recursive: true, force: true }));
   writeFileSync(join(home, "settings.json"), JSON.stringify({
@@ -15,7 +15,7 @@ function project(t: TestContext) {
   return (action: string, payload = {}, noKey = false) => {
     const child = spawnSync(process.execPath, ["--import", new URL("./linear-fixture.ts", import.meta.url).href,
       fileURLToPath(new URL("../cli.ts", import.meta.url)), action, JSON.stringify(payload)], {
-      env: { MISSION_CONTROL_HOME: home, TEST_NO_KEY: noKey ? "1" : "" }, encoding: "utf8",
+      env: { MISSION_CONTROL_HOME: home, TEST_LINEAR_FAILURE: linearFailure, TEST_NO_KEY: noKey ? "1" : "" }, encoding: "utf8",
     });
     assert.equal(child.stderr, "");
     const reply = JSON.parse(child.stdout);
@@ -59,3 +59,14 @@ test("refuses a mission outside the operator's list before contacting Linear", t
   assert.equal(run("missions.create", { issueKey: "DEMO-2" }, true).error.code, "issue_not_allowed");
   assert.deepEqual(run("missions.list", {}, true), { data: [] });
 });
+
+for (const [failure, message] of [
+  ["unauthorized", "Linear refuse l’accès avec cette clé."],
+  ["network", "Impossible de joindre Linear."],
+  ["graphql", "Linear a rejeté la requête de lecture des tickets."],
+]) {
+  test(`reports the Linear ${failure} failure on screen`, t => {
+    const run = project(t, failure);
+    assert.deepEqual(run("issues.list"), { error: { code: "failed", message } });
+  });
+}

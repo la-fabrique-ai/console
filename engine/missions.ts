@@ -1,5 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { linkSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Mission } from "./contract.ts";
 
@@ -8,10 +7,7 @@ function hasCode(error: unknown, code: string) {
 }
 
 function load(dir: string, file: string): Mission {
-  const { issueKey, title, stage } = JSON.parse(readFileSync(join(dir, file), "utf8"));
-  if (typeof issueKey !== "string" || issueKey + ".json" !== file || typeof title !== "string" ||
-      !["prepare", "develop", "test", "validate"].includes(stage)) throw new Error("Invalid mission file");
-  return { issueKey, title, stage };
+  return JSON.parse(readFileSync(join(dir, file), "utf8")) as Mission;
 }
 
 export function readMission(dir: string, key: string): Mission | undefined {
@@ -35,19 +31,12 @@ export function listMissions(dir: string): Mission[] {
 
 export function createMission(dir: string, mission: Mission): Mission {
   mkdirSync(dir, { recursive: true });
-  const pending = join(dir, randomUUID() + ".tmp");
   const file = mission.issueKey + ".json";
   try {
-    writeFileSync(pending, JSON.stringify(mission, null, 2) + "\n", { flag: "wx" });
-    // Publish the complete file only if no other CLI process has already created it.
-    try {
-      linkSync(pending, join(dir, file));
-    } catch (error) {
-      if (!hasCode(error, "EEXIST")) throw error;
-      return load(dir, file);
-    }
+    writeFileSync(join(dir, file), JSON.stringify(mission, null, 2) + "\n", { flag: "wx" });
     return mission;
-  } finally {
-    rmSync(pending, { force: true });
+  } catch (error) {
+    if (hasCode(error, "EEXIST")) return load(dir, file);
+    throw error;
   }
 }

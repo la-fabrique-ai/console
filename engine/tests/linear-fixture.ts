@@ -3,11 +3,16 @@
 import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 
-if (!process.env.TEST_NO_KEY) process.env.LINEAR_API_KEY = randomUUID();
+if (!process.env.TEST_NO_KEY) process.env.LINEAR_API_KEY = " " + randomUUID() + " ";
 globalThis.fetch = async (url, init) => {
   assert.equal(String(url), "https://api.linear.app/graphql");
   assert.equal(init?.method, "POST");
-  assert.ok(new Headers(init.headers).get("Authorization") === process.env.LINEAR_API_KEY);
+  assert.ok(new Headers(init.headers).get("Authorization") === process.env.LINEAR_API_KEY?.trim());
+  switch (process.env.TEST_LINEAR_FAILURE) {
+    case "unauthorized": return new Response(null, { status: 401 });
+    case "network": throw new TypeError("fetch failed");
+    case "graphql": return Response.json({ errors: [{ message: "Internal diagnostic" }] });
+  }
   const { query, variables: { filter, after } } = JSON.parse(String(init.body));
   assert.match(query, /issues\s*\([^)]*filter:\s*\$filter/);
   assert.equal(filter.team.key.eq, "DEMO");

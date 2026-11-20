@@ -35,3 +35,12 @@ export interface Results {
 export type Action = keyof Payloads;
 export type ErrorCode = "issue_not_allowed" | "linear_key_missing" | "failed";
 export type Reply<A extends Action> = { data: Results[A] } | { error: { code: ErrorCode; message: string } };
+
+/** Only fixed operator-facing messages cross the CLI boundary. */
+export class CommandError extends Error {
+  readonly code: ErrorCode;
+  constructor(message: string, code: ErrorCode = "failed") {
+    super(message);
+    this.code = code;
+  }
+}

@@ -5,7 +5,7 @@ The screens are native Herdr App panels ("mods"), written in TypeScript. Herdr A
 They run in a **separate Herdr installation**, never in the operator's own Herdr or in the old system's.
 
 ## The separate installation
-One folder holds a copy of Herdr App, a copy of its Core, and their own settings, state and sockets. `env.sh` in that folder exports what points every command at it: `HERDR_APP_HOME`, `HC_SESSION`, `HC_SOCKET`, the `XDG_*` folders and `MISSION_CONTROL_HOME`. `launch.sh` expects the folder at `~/.mc1` (`MISSION_CONTROL_INSTALL` picks another).
+One folder holds a copy of Herdr App, a copy of its Core, and their own settings, state and sockets. `env.sh` in that folder exports what points every command at it: `HERDR_APP_HOME`, `HC_SESSION`, `HC_SOCKET`, the `XDG_*` folders and `MISSION_CONTROL_HOME`. `launch.sh` expects the folder at `~/.mc1` (`MISSION_CONTROL_INSTALL` picks another). An empty file `.mission-control` in its Herdr App home marks it as ours: `install.ts` writes to no other home.
 
 Source `env.sh` before any `herdr-app` command meant for this installation: without `HERDR_APP_HOME` those commands reach the default one.
 

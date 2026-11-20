@@ -12,6 +12,8 @@ export const screen = {
   texts: [] as string[],
   clicks: new Map<string, Click>(),
   home: "",
+  /** "network": Linear cannot be reached (see the engine's Linear fixture). */
+  failure: "",
   /** The next engine call waits for this before answering: a slow reply. */
   gate: Promise.resolve(),
 };
@@ -62,7 +64,7 @@ export async function exec(_command: string, [, ...args]: string[]) {
   screen.gate = Promise.resolve();
   const fixture = new URL("../../engine/tests/linear-fixture.ts", import.meta.url).href;
   const cli = fileURLToPath(new URL("../../engine/cli.ts", import.meta.url));
-  const child = spawnSync(process.execPath, ["--import", fixture, cli, ...args], { env: { MISSION_CONTROL_HOME: screen.home }, encoding: "utf8" });
+  const child = spawnSync(process.execPath, ["--import", fixture, cli, ...args], { env: { MISSION_CONTROL_HOME: screen.home, TEST_LINEAR_FAILURE: screen.failure }, encoding: "utf8" });
   await gate;
   return { code: child.status, stdout: child.stdout, stderr: child.stderr };
 }

@@ -1,15 +1,14 @@
 // Copies the screens into the Herdr App home of the separate installation:
 // types stripped, one layout that shows the Mission Control window and tells
 // it how to run the engine.
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
-import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 
 const home = process.env.HERDR_APP_HOME;
-if (!home || resolve(home) === join(homedir(), ".config", "herdr-app")) {
-  // Unset or default, the home is the operator's own Herdr App: never ours to write in.
-  console.error("HERDR_APP_HOME must name the separate installation. Source its env.sh first.");
+if (!home || !existsSync(join(home, ".mission-control"))) {
+  // Only a home marked as ours is written to: any other is someone's own Herdr App.
+  console.error("HERDR_APP_HOME must name the separate installation (the home that holds a .mission-control file). Source its env.sh first.");
   process.exit(1);
 }
 

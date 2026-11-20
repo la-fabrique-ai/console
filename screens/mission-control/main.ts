@@ -34,6 +34,7 @@ export default class MissionControl extends View {
   missions: Mission[] | null = null;
   missionsError = "";
   refreshes = 0;
+  opens = 0;
   requested = "";
   issue: IssueDetail | null = null;
   requestError = "";
@@ -44,16 +45,26 @@ export default class MissionControl extends View {
   }
 
   refresh(cx: Spawner) {
-    const turn = ++this.refreshes;
+    const turn = ++this.refreshes; // a later refresh has the last word
+    // The missions are local: they never wait for Linear.
     cx.spawn(async (cx) => {
-      const [issues, missions] = await Promise.all([call("issues.list", {}), call("missions.list", {})]);
-      if (turn !== this.refreshes) return; // a later refresh has the last word
-      this.issuesError = "error" in issues ? issues.error.message : "";
-      if ("data" in issues) this.issues = issues.data;
-      this.missionsError = "error" in missions ? missions.error.message : "";
-      if ("data" in missions) this.missions = missions.data;
+      const reply = await call("missions.list", {});
+      if (turn !== this.refreshes) return;
+      this.missionsError = "error" in reply ? reply.error.message : "";
+      if ("data" in reply) this.missions = reply.data;
       cx.notify();
     });
+    cx.spawn(async (cx) => {
+      const reply = await call("issues.list", {});
+      if (turn !== this.refreshes) return;
+      this.issuesError = "error" in reply ? reply.error.message : "";
+      if ("data" in reply) this.issues = reply.data;
+      cx.notify();
+    });
+  }
+
+  mission(key: string): Mission | undefined {
+    return this.missions?.find((mission) => mission.issueKey === key);
   }
 
   show(page: "issues" | "development", cx: Context) {
@@ -63,6 +74,7 @@ export default class MissionControl extends View {
   }
 
   open(key: string, cx: Context) {
+    const turn = ++this.opens;
     this.page = "request";
     this.requested = key;
     this.issue = null;
@@ -70,7 +82,7 @@ export default class MissionControl extends View {
     cx.notify();
     cx.spawn(async (cx) => {
       const reply = await call("issues.show", { key });
-      if (this.requested !== key) return; // the operator opened another issue meanwhile
+      if (turn !== this.opens) return; // the operator opened a page again meanwhile
       if ("data" in reply) this.issue = reply.data;
       else this.requestError = reply.error.message;
       cx.notify();
@@ -80,6 +92,7 @@ export default class MissionControl extends View {
   validate(cx: Context) {
     const issue = this.issue;
     if (!issue || this.creating) return;
+    const turn = this.opens;
     this.creating = true;
     this.requestError = "";
     cx.notify();
@@ -87,7 +100,7 @@ export default class MissionControl extends View {
       const reply = await call("missions.create", { issueKey: issue.key });
       this.creating = false;
       if ("data" in reply) this.missions = [...(this.missions ?? []).filter((mission) => mission.issueKey !== issue.key), reply.data];
-      else if (this.requested === issue.key) this.requestError = reply.error.message;
+      else if (turn === this.opens) this.requestError = reply.error.message;
       this.refresh(cx);
       cx.notify();
     });
@@ -182,8 +195,8 @@ export default class MissionControl extends View {
   }
 
   // ---- request (mockup 02) -------------------------------------------------
-  stages(issue: IssueDetail, current: Stage): NativeElement {
-    const parts: NativeElement[] = [div().child(`${PROJECT} · ${issue.key}`)];
+  stages(key: string, current: Stage): NativeElement {
+    const parts: NativeElement[] = [div().child(`${PROJECT} · ${key}`)];
     STAGES.forEach(([stage, label], index) => {
       if (index > 0) parts.push(div().text_color("#5C6378").child("›"));
       const on = stage === current;
@@ -249,17 +262,19 @@ export default class MissionControl extends View {
   requestPage(): NativeElement[] {
     const issue = this.issue;
     if (!issue) {
+      // Loading, or the issue could not be read: a mission still shows its title and stage.
+      const mission = this.mission(this.requested);
       return [
-        this.header(PROJECT, h_flex().child("La demande")),
+        mission ? this.header(mission.title, this.stages(mission.issueKey, mission.stage)) : this.header(PROJECT, h_flex().child("La demande")),
         this.card().px(24).py(22).child(this.note(this.requestError || "Chargement…", this.requestError ? "#F2C14E" : "#8C93A6")),
       ];
     }
     // The local list of missions knows first: it is updated the moment one is created.
-    const stage = this.missions?.find((mission) => mission.issueKey === issue.key)?.stage ?? issue.missionStage;
+    const stage = this.mission(issue.key)?.stage ?? issue.missionStage;
     const created = stage !== undefined;
     const chip = (text: string) => h_flex().h(26).px(9).items_center().rounded(6).border_1().border_color("#363C50").text_size(12.5).text_color("#C9CFDB").child(text);
     return [
-      this.header(issue.title, this.stages(issue, stage ?? "prepare")),
+      this.header(issue.title, this.stages(issue.key, stage ?? "prepare")),
       this.steps(created),
       h_flex().flex_1().min_h_0().gap(14).items_stretch()
         .child(this.card().h_full()

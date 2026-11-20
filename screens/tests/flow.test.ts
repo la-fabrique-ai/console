@@ -16,6 +16,7 @@ const { default: MissionControl } = await import(new URL("../mission-control/mai
 
 function window(t: TestContext) {
   screen.home = mkdtempSync(join(tmpdir(), "mission-control-screen-"));
+  screen.failure = "";
   t.after(() => rmSync(screen.home, { recursive: true, force: true }));
   writeFileSync(join(screen.home, "settings.json"), JSON.stringify({ teamKey: "DEMO", allowedIssueKeys: ["DEMO-1"] }));
 
@@ -29,6 +30,10 @@ function window(t: TestContext) {
       while (pending.length) await pending.shift();
       draw(view.render());
       return screen.texts;
+    },
+    /** What the operator sees right now, replies still on their way. */
+    now() {
+      draw(view.render());
     },
     click(id: string) {
       const handler = screen.clicks.get(id);
@@ -71,14 +76,34 @@ test("a ticket outside the operator's list is refused on its request page", asyn
 });
 
 test("a slow reply for one issue never replaces the issue opened after it", async (t) => {
-  const { shown, click } = window(t);
+  const { shown, now, click } = window(t);
   await shown();
   let release = () => {};
   screen.gate = new Promise((resolve) => { release = resolve; });
   click("issue-DEMO-1");
+  now();
+  click("nav-issues");
+  now();
   click("issue-DEMO-2");
   release();
   const texts = await shown();
   assert.ok(texts.includes("DEMO-2 · LA DEMANDE"));
   assert.ok(!texts.includes("DEMO-1 · LA DEMANDE"));
+});
+
+test("a mission still opens on its page when Linear cannot be reached", async (t) => {
+  const { shown, click } = window(t);
+  await shown();
+  click("issue-DEMO-1");
+  await shown();
+  click("validate");
+  await shown();
+
+  screen.failure = "network";
+  click("nav-development");
+  assert.ok((await shown()).includes("First issue"), "the missions are listed without Linear");
+  click("mission-DEMO-1");
+  const texts = await shown();
+  assert.ok(texts.includes("First issue") && texts.includes("Préparer"), "the page keeps the title and the stage");
+  assert.ok(texts.includes("Impossible de joindre Linear."));
 });

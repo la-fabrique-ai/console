@@ -1,6 +1,6 @@
 ---
 title: The engine is written in strict TypeScript
-status: proposed
+status: accepted
 date: 2026-11-20
 author: Pilot
 supersedes: none
@@ -16,3 +16,6 @@ The engine and the connectors are in strict TypeScript. Node 24 runs TypeScript 
 
 ## Why
 Types enforce the contract between engine, connectors and screens, where the old system relied on tests and conventions.
+
+## Accepted
+Nicolas, 2026-11-20: « S'il y a moyen de faire du TypeScript, on fait tout en TypeScript » (if TypeScript is possible, everything is in TypeScript). Engine, connectors and tests are in TypeScript. The screens too, if Herdr App loads them or if a build step from TypeScript stays simple; slice 1 settles it.

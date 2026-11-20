@@ -22,7 +22,7 @@ Written by hand until the engine exists; the engine will generate it from the fi
 | 0009 | [[0009-plans-and-memory-in-docs]] | accepted |
 | 0010 | [[0010-tokens]] | accepted |
 | 0011 | [[0011-first-milestone]] | accepted |
-| 0012 | [[0012-typescript]] | proposed |
+| 0012 | [[0012-typescript]] | accepted |
 | 0013 | [[0013-project-language]] | accepted |
 | 0014 | [[0014-ai-hero-method-and-thin-engine]] | accepted |
 | 0015 | [[0015-screens-first-for-people]] | accepted |

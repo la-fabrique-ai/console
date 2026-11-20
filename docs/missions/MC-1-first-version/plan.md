@@ -53,6 +53,4 @@ Slice 1 also settles the base: TypeScript strict, tests, project check, the sepa
 
 ## What depends on Nicolas
 - Create the Linear test team and an access key for the connector.
-- Say whether the repository is published on GitHub (private), needed for the project's own PRs.
 - Mockups still missing: the Pilot discussion panel, Test, Validate, Inbox, Development.
-- Confirm decision 0012 (TypeScript).

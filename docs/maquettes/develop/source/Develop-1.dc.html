@@ -1,0 +1,909 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Develop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#12151D}
+.q{width:1800px;height:1100px;display:flex;background:#12151D;color:#E6E9F0;font-family:Geist,system-ui,sans-serif;font-size:14px;overflow:hidden}
+.q *{box-sizing:border-box}
+.q button{font:inherit;cursor:pointer}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.sp{flex:1}
+/* menu de gauche (inchangé, simplifié ici) */
+.qsb{width:248px;flex:none;background:#151821;border-right:1px solid #232838;padding:18px 14px;display:flex;flex-direction:column;gap:4px;font-size:14px;color:#C9CFDB}
+.qsb b{font-size:15px;color:#fff;margin:0 6px 14px}
+.qsb .it{height:34px;display:flex;align-items:center;gap:10px;padding:0 10px;border-radius:8px}
+.qsb .it.on{background:#1F2440;color:#fff;border:1px solid #3A4180}
+.qsb .sec{margin:16px 10px 6px;font-size:11.5px;letter-spacing:.08em;color:#6F7689}
+.qsb .pj{display:flex;align-items:center;gap:10px;padding:6px 10px}
+.qsb .pj i{width:22px;height:22px;border-radius:6px;border:1.5px solid}
+.qsb .pj small{display:block;font-size:11.5px;color:#6F7689}
+.qsb .cur{display:flex;justify-content:space-between;padding:4px 10px 8px 42px;font-size:13px;color:#fff;font-weight:600}
+
+
+
+.qm{position:relative;flex:1;min-width:0;padding:16px 24px 20px;display:flex;flex-direction:column;gap:14px}
+.qhd{display:flex;align-items:center;gap:14px;height:52px;flex:none}
+.qhd .ic{width:44px;height:44px;border-radius:10px;border:1.5px solid #5563D8;background:#1C2040;display:flex;align-items:center;justify-content:center;color:#C9D0FF}
+.qhd h1{margin:0;font-size:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qhd .sub{display:flex;gap:10px;align-items:center;font-size:13px;color:#8C93A6;margin-top:3px}
+.qhd .sub b{color:#fff;font-weight:600}
+.qhd .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#5C6378;margin-right:5px}
+.qhd .dot.on{background:#7B8CFF}
+.hb{height:36px;padding:0 14px;border-radius:9px;border:1px solid #2A2F40;background:#1B1F2B;color:#E6E9F0;font-size:14px}
+.hb.pilot{border-color:#4A52A8;background:#262B5E;color:#D6DAFF}
+.qband{height:76px;flex:none;display:flex;align-items:center;gap:16px;padding:0 22px;border-radius:12px;border:1px solid #2E8F6C;background:#132823}
+.qband .bi{width:38px;height:38px;border-radius:50%;background:#1C3A31;color:#5DE3B8;display:flex;align-items:center;justify-content:center;font-weight:700}
+.qband .big{font-size:20px;font-weight:600}
+.qband .det{font-size:14px;color:#A9C9BE;margin-top:4px}
+.go{height:46px;padding:0 22px;border-radius:10px;border:1px solid #2E8F6C;background:#163028;color:#5DE3B8;font-size:15px;font-weight:600;white-space:nowrap}
+.card{border-radius:12px;border:1px solid #2A2F40;background:#1B1F2B}
+.kl{display:block;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:#8C93A6;font-weight:600}
+/* le plan : équipe, phases (macro), tickets (micro) */
+.qplan{flex:1;min-height:0;padding:20px 24px 18px;display:flex;flex-direction:column;gap:18px}
+.team{display:flex;align-items:center;gap:10px;height:44px;flex:none;white-space:nowrap}
+.team .tt{font-size:18px;font-weight:600;margin-right:8px}
+.devw{position:relative;display:flex;align-items:center;border-radius:9px;border:1px solid #3A4052;background:#161923}
+.devc{height:36px;display:flex;align-items:center;gap:8px;padding:0 8px 0 6px;border:0;background:transparent;color:#E6E9F0;font-size:13.5px}
+.devc .av{min-width:26px;height:22px;padding:0 5px;border-radius:11px;border:1.5px solid #7B8CFF;color:#C9D0FF;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-style:normal}
+.devc .av.cl{border-color:#C9A27B;color:#F0D6B8}
+.devc small{color:#8C93A6;font-size:12.5px}
+.devc .car{color:#8C93A6;font-size:11px}
+.dx{width:26px;height:36px;border:0;border-left:1px solid #2A2F40;background:transparent;color:#6F7689;font-size:11px}
+.dx:hover{color:#FF8A80}
+.add{height:38px;padding:0 12px;border-radius:9px;border:1px dashed #4A5066;background:transparent;color:#A9B4FF;font-size:13.5px}
+.seg{display:inline-flex;border:1px solid #2A2F40;border-radius:9px;overflow:hidden;margin-left:6px}
+.seg button{height:36px;padding:0 13px;border:0;background:transparent;color:#8C93A6;font-size:13px}
+.seg button.on{background:#262B3A;color:#fff}
+.menu{position:absolute;top:42px;left:0;z-index:8;width:270px;padding:6px;border-radius:10px;border:1px solid #3A4052;background:#1D2130;box-shadow:0 14px 34px rgba(0,0,0,.45)}
+.menu .mh{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:#8C93A6;padding:6px 8px}
+.mi{width:100%;display:flex;align-items:center;gap:9px;padding:8px;border:0;border-radius:7px;background:transparent;color:#E6E9F0;font-size:13.5px;text-align:left}
+.mi:hover{background:#2A2F40}
+.mi small{display:block;color:#8C93A6;font-size:12px}
+.mi .ck{margin-left:auto;color:#5DE3B8}
+.estc{height:44px;display:flex;align-items:center;gap:12px;padding:0 14px;border-radius:10px;border:1px solid #2A2F40;background:#161923;color:#C9CFDB;font-size:13px}
+.estc:hover,.estc.on{border-color:#7B8CFF}
+.estc b{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:19px;font-weight:500;color:#fff}
+.estc em{font-style:normal;color:#A9B4FF}
+.macw{position:relative;flex:none;height:66px;overflow:clip}
+.mac{display:flex;align-items:stretch;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.macv{position:absolute;top:0;bottom:0;overflow:clip}
+.macv.fl::before,.macv.fr::after{content:'';position:absolute;top:0;bottom:0;width:22px;z-index:2;pointer-events:none}
+.macv.fl::before{left:0;background:linear-gradient(90deg,#1B1F2B,rgba(27,31,43,0))}
+.macv.fr::after{right:0;background:linear-gradient(270deg,#1B1F2B,rgba(27,31,43,0))}
+.mnav{position:absolute;top:0;width:26px;height:66px;border-radius:8px;border:1px solid #2A2F40;background:transparent;color:#A3AABB;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:15px;line-height:1}
+.mnav small{font-size:10.5px;color:#6F7689}
+.mnav:hover{border-color:#5C6378;color:#E6E9F0}
+.mnav.off{opacity:.28;pointer-events:none}
+.mnav.l{left:0}.mnav.r{right:0}
+.vp .pg button{height:22px;padding:0 9px;border:1px solid #2A2F40;background:#1B1F2B;color:#A3AABB;font-weight:500}
+.vp .pg button:hover{border-color:#5C6378;color:#E6E9F0}
+.tnote{font-size:13px;color:#8C93A6}
+.tile .hd{min-height:22px}
+.cd .top{min-height:20px}
+.cd .top .ph{text-transform:none;letter-spacing:0;font-size:11px}
+.cd .top .dv{margin-left:8px;font-family:Geist,sans-serif}
+.cd .md{margin-left:auto;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:#A3AABB;white-space:nowrap}
+.devc{padding:0 8px 0 6px;gap:7px}
+.dsel button{font-size:12.5px}
+.kv.who{margin-top:14px;padding:12px 14px;border-radius:10px;border:1px solid #2A2F40;background:#161923;grid-template-columns:70px minmax(0,1fr);align-items:center}
+.kv.who .k{padding-top:0}
+.cd .md{font-family:Geist,sans-serif;font-size:11.5px}
+.ma{width:14px;flex:none;display:flex;align-items:center;justify-content:center;color:#4A5066;font-size:15px}
+.mc{flex:none;min-width:0;height:66px;display:flex;flex-direction:column;gap:4px;padding:11px 12px;border-radius:10px;border:1px solid #2A2F40;background:#161923;color:#C9CFDB;text-align:left;transition:border-color .2s,background .2s}
+.mc:hover{border-color:#5C6378}
+.mc.on{border-color:#7B8CFF;background:#1A1E33}
+.mc .h{display:flex;align-items:center;gap:9px;min-width:0}
+.mc .h i{flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid #4A5066;color:#E6E9F0;font-style:normal;font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.mc .h b{font-size:14px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc .e{margin-top:auto;padding-left:31px;font-size:12.5px;color:#A3AABB;white-space:nowrap}
+.mc.val{border-style:dashed;background:transparent}
+.board{position:relative;display:flex;gap:16px;flex:none}
+.lanes{flex:none;position:relative;width:118px}
+.lab{position:absolute;width:118px;display:flex;flex-direction:column;justify-content:center;gap:3px;font-size:13.5px;font-weight:600;color:#E6E9F0}
+.lab small{font-size:12px;font-weight:400;color:#8C93A6}
+.vp{position:relative;flex:1;min-width:0;overflow:clip}
+.trk{position:relative;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.band{position:absolute;top:0;height:22px;transition:left .5s cubic-bezier(.2,.8,.2,1),width .5s cubic-bezier(.2,.8,.2,1);border-bottom:2px solid #2F3547;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:#A3AABB;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.band.v{border-bottom-style:dashed}
+.lane{position:absolute;left:0;border-radius:10px;background:#171A24}
+.cd{position:absolute;display:flex;flex-direction:column;gap:6px;padding:12px 13px 11px;border-radius:10px;border:1px solid #2A2F40;background:#1B1F2B;color:#C9CFDB;text-align:left;transition:left .5s cubic-bezier(.2,.8,.2,1),top .5s cubic-bezier(.2,.8,.2,1),width .5s cubic-bezier(.2,.8,.2,1),height .5s,border-color .2s,box-shadow .2s,opacity .2s}
+.cd:hover{border-color:#5C6378}
+.cd .top{display:flex;align-items:center;gap:6px;font-size:11px;color:#8C93A6;font-family:"JetBrains Mono",ui-monospace,monospace}
+.cd .top .ph{margin-left:auto;font-family:Geist,sans-serif;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#6F7689}
+.cd .t{font-size:14.5px;font-weight:600;color:#fff;line-height:1.26;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.cd .r{font-size:13px;color:#A3AABB;line-height:1.4;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden}
+.cd.c2 .r{-webkit-line-clamp:3}
+.cd.c3 .t{-webkit-line-clamp:3}
+.cd.c3 .r{-webkit-line-clamp:2}
+.cd.c1{padding:14px 15px 13px}
+.cd.c1 .t{font-size:15.5px}
+.cd.c1 .r{font-size:13.5px;color:#C9CFDB;-webkit-line-clamp:6}
+.cd .ft{margin-top:auto;display:flex;align-items:center;gap:6px;min-height:20px}
+.cd .hr{font-size:12.5px;color:#C9CFDB}
+.cd .af{margin-left:auto;font-size:11.5px;color:#6F7689;white-space:nowrap}
+.cd .af:not(.hid)+.dv{margin-left:8px}
+.cd .sec{display:flex;flex-direction:column;gap:3px;margin-top:8px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07);font-size:12.5px;line-height:1.4;color:#A3AABB}
+.cd .sec>b{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:#6F7689;font-weight:600;margin-bottom:1px}
+.cd .sec>em{font-style:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden}
+.cd .sec>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cd .sec.ck>span::before{content:'✓';color:#3DD6B0;font-size:10px;margin-right:6px}
+.cd .sec.ck>span.more{color:#6F7689}
+.cd .sec.ck>span.more::before{content:none}
+.cd .sec.wt>span{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.cd.c2 .sec{margin-top:2px;padding-top:8px}
+.cd.c2 .sec>b{display:none}
+.tg{height:19px;padding:0 6px;border-radius:5px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;border:1px solid #363C50;color:#A3AABB}
+.tg.hv{background:#3A2F6B;border-color:#6E5BD6;color:#E3DAFF}
+.cd .dv{margin-left:auto;min-width:24px;height:20px;padding:0 5px;border-radius:10px;border:1.5px solid #7B8CFF;color:#C9D0FF;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.cd .dv.cl{border-color:#C9A27B;color:#F0D6B8}
+.cd.hv{border-color:#6E5BD6;background:#221D3A}
+.cd.vq{border-style:dashed;background:#1B1F2B repeating-linear-gradient(135deg,rgba(255,255,255,.025) 0 6px,transparent 6px 12px)}
+.cd.vq .top{color:#A9B4FF}
+.cd.sel{outline:2px solid #E6E9ED;outline-offset:2px}
+.cd.dep{box-shadow:0 0 0 2px #5EA8FF}
+.cd.unb{box-shadow:0 0 0 2px #3DD6B0}
+.cd.dim{opacity:.3}
+.gl{position:absolute;color:#5C6378;font-size:13px}
+.pg{position:absolute;right:0;top:0;z-index:4;height:23px;display:flex;align-items:flex-start;gap:6px;padding-left:14px;background:#1B1F2B}
+.pg button{height:22px;padding:0 10px;border-radius:11px;border:1px solid #4A52A8;background:#262B5E;color:#D6DAFF;font-size:12px;font-weight:600;white-space:nowrap}
+/* trois blocs réduits : une ligne chacun, le détail au clic */
+.tiles{display:flex;gap:12px;flex:none}
+.tile{flex:1;min-width:0;height:84px;display:flex;align-items:center;gap:10px;padding:0 16px 0 18px;color:#E6E9F0;text-align:left;transition:border-color .2s}
+.tile:hover{border-color:#5C6378}
+.tile.on{border-color:#C8CED6}
+.tile .tx{flex:1;min-width:0}
+.tile .hd{display:flex;align-items:center;gap:10px}
+.tile .hd b{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#A3AABB;font-weight:600}
+.cn{height:22px;padding:0 8px;border-radius:11px;background:#262B3A;color:#E6E9F0;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center}
+.cn.ok{background:#163028;color:#5DE3B8}
+.cn.am{background:#3A2E12;color:#F2C14E}
+.tile .ln{display:block;margin-top:7px;font-size:13.5px;color:#C9CFDB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .ch{color:#6F7689;font-size:18px}
+/* le tiroir */
+/* le panneau : ancré à droite, il pousse le plan au lieu de le recouvrir */
+.body{flex:1;min-height:0;display:flex;gap:14px}
+.left{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px}
+.dw{flex:none;width:440px;min-height:0;display:flex;flex-direction:column;border-radius:12px;border:1px solid #3A4052;background:#1D2130}
+.dw .ih{height:52px;flex:none;display:flex;align-items:center;gap:8px;padding:0 18px;border-bottom:1px solid #2A2F40}
+.dw .ih .k{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#A3AABB;font-weight:600}
+.ib{width:30px;height:30px;border-radius:8px;border:1px solid #2A2F40;background:#1B1F2B;color:#C9CFDB}
+.dw .bd{flex:1;min-height:0;overflow-y:auto;padding:16px 20px 18px;scrollbar-width:thin;scrollbar-color:#3A4052 transparent}
+.dw .bd .kl{margin:20px 0 8px}
+.dw .bd .kl.am{color:#F2C14E}
+.dw .ft{flex:none;padding:12px 20px;border-top:1px solid #2A2F40;font-size:12.5px;line-height:1.4;color:#8C93A6}
+.dw .id{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;color:#A9B4FF}
+.h2{font-size:20px;font-weight:600;color:#fff;line-height:1.3;margin-top:4px}
+.pp{margin:0;font-size:14.5px;line-height:1.5;color:#D6DAE6}
+.pp.mu{font-size:13.5px;color:#8C93A6;margin-top:6px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.chp{height:26px;padding:0 9px;border-radius:6px;border:1px solid #363C50;font-size:12.5px;display:inline-flex;align-items:center;color:#C9CFDB;white-space:nowrap}
+.chp.hv{background:#3A2F6B;border-color:#6E5BD6;color:#E3DAFF}
+.rl{display:flex;gap:11px;align-items:flex-start;padding:7px 0;font-size:14px;color:#E6E9F0}
+.rl .o{flex:none;min-width:22px;height:22px;padding:0 4px;border-radius:6px;background:#262B3A;color:#C9CFDB;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.rl .o.ok{background:#163028;color:#5DE3B8}
+.rl .o.am{background:#3A2E12;color:#F2C14E}
+.rl .x{flex:1;min-width:0}
+.rl small{display:block;color:#8C93A6;font-size:13px;line-height:1.4;margin-top:2px}
+.pls{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.pls:empty{display:none}
+.pl{height:24px;padding:0 8px;border-radius:6px;border:1px solid #3A4180;background:#1F2440;color:#C9D0FF;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px}
+.amb{height:32px;padding:0 12px;border-radius:8px;border:1px solid #8A6B1F;background:#2A2416;color:#F2C14E;font-size:13px;margin:4px 0 0 33px}
+.kv{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px 12px;margin-top:18px;font-size:14px;align-items:start}
+.kv .k{color:#8C93A6;padding-top:2px}
+.dsel{display:flex;gap:6px;flex-wrap:wrap}
+.dsel button{height:30px;padding:0 10px;border-radius:8px;border:1px solid #3A4052;background:#161923;color:#C9CFDB;font-size:13px}
+.dsel button.on{border-color:#7B8CFF;background:#1F2440;color:#fff}
+/* tiroir d'estimation */
+.tot{display:flex;align-items:baseline;gap:12px}
+.tot b{flex:none;white-space:nowrap}
+.tot b{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:34px;font-weight:500;color:#fff}
+.tot>span{font-size:13.5px;color:#8C93A6}
+.prt{display:grid;grid-template-columns:120px minmax(0,1fr) 58px;align-items:center;gap:12px;height:28px;font-size:13.5px;color:#C9CFDB}
+.prt .v{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px;text-align:right;color:#E6E9F0}
+.bw{display:block;height:8px;border-radius:4px;background:#232838}
+.bw i{display:block;height:8px;border-radius:4px;background:#7B8CFF}
+.bw i.q{background:#A9B4FF}.bw i.y{background:#F2C14E}.bw i.m{background:#5C6378}
+.opt{width:100%;display:grid;grid-template-columns:140px minmax(0,1fr) 58px 60px;align-items:center;gap:12px;min-height:52px;padding:6px 10px;margin-bottom:6px;border-radius:9px;border:1px solid #2A2F40;background:#161923;color:#E6E9F0;font-size:14px;text-align:left}
+.opt:hover{border-color:#7B8CFF}
+.opt.cur{border-color:#2E8F6C;background:#132823}
+.opt.cur .bw i{background:#3DD6B0}
+.opt small{display:block;font-size:12px;color:#8C93A6;margin-top:1px}
+.opt .v{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;text-align:right}
+.opt .tag{font-size:12.5px;color:#A9B4FF;text-align:right}
+.opt.cur .tag{color:#5DE3B8;font-weight:600}
+.note{margin-top:14px;padding:9px 12px;border-radius:9px;border:1px solid #4A52A8;background:#1A1E33;font-size:13.5px;line-height:1.45;color:#D6DAFF}
+.thumb{margin:6px 0 4px 33px;height:118px;border-radius:9px;background:#F4F5F2;position:relative;overflow:hidden}
+.thumb i{position:absolute;left:14px;height:9px;border-radius:5px;background:#C9CFC8}
+.thumb i:nth-child(1){top:16px;width:120px;background:#8FA596}.thumb i:nth-child(2){top:40px;width:230px}.thumb i:nth-child(3){top:60px;width:190px}.thumb i:nth-child(4){top:80px;width:210px}
+.thumb span{position:absolute;right:10px;bottom:8px;font-size:12px;color:#3A4180;font-weight:600}
+.dw .ft .lnk,.lnk{border:0;background:none;color:#A9B4FF;font-size:13.5px;padding:0}
+.hid{display:none !important}
+
+/* ============ Develop : même page que Prepare, le plan est figé et il avance ============ */
+.q *{letter-spacing:0 !important}
+.root{width:1800px;background:#0C0E14}
+.proto{height:84px;display:flex;flex-wrap:wrap;align-content:center;align-items:center;gap:6px;padding:0 16px;border-bottom:1px solid #232838;font-family:Geist,system-ui,sans-serif;font-size:12.5px;color:#8C93A6;white-space:nowrap}
+.proto b{color:#C9CFDB;font-weight:600;margin-right:6px}
+.proto button{height:28px;padding:0 9px;border-radius:7px;border:1px solid #2A2F40;background:#161923;color:#C9CFDB;font:inherit;cursor:pointer}
+.proto button.on{border-color:#7B8CFF;background:#1F2440;color:#fff}
+.qhd .dot.dn{background:#3DD6B0}
+.more{top:42px;left:auto;right:0;width:300px}
+.more .mi i{flex:none;width:8px;height:8px;border-radius:50%;background:#5C6378}
+/* bandeau : un message à la fois, sa couleur dit la situation */
+.qband.b{border-color:#3A4AB8;background:#151A38}.qband.b .bi{background:#1F2756;color:#A9B4FF}.qband.b .det{color:#A9B1D6}
+.qband.a{border-color:#8A6B1F;background:#2A2416}.qband.a .bi{background:#3A2E12;color:#F2C14E}.qband.a .det{color:#D9C79A}
+.qband.r{border-color:#8F3A3A;background:#2A1618}.qband.r .bi{background:#3D1F22;color:#FF8A80}.qband.r .det{color:#E0B4B0}
+.qband.n{border-color:#3A4052;background:#1B1F2B}.qband.n .bi{background:#262B3A;color:#C9CFDB}.qband.n .det{color:#A3AABB}
+.arc{display:block;width:20px;height:20px;border-radius:50%;border:2.5px solid #2F3A80;border-top-color:#A9B4FF;animation:spin 1.1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{opacity:.3}}
+.go.a{border-color:#B8892B;background:#3A2E12;color:#F2C14E}
+.go.r{border-color:#B84A4A;background:#3D1F22;color:#FF8A80}
+.go2{height:40px;padding:0 16px;border-radius:10px;border:1px solid #3A4052;background:#1B1F2B;color:#E6E9F0;font-size:14px;white-space:nowrap}
+.qband .go,.qband .go2{margin-left:10px}
+/* zone 1 : l'équipe figée, la vue, l'avancement, le temps réel à côté de l'estimé */
+.team{height:32px;gap:8px}
+.team .tt{font-size:17px;margin-right:4px}
+.dchip{height:30px;display:flex;align-items:center;gap:7px;padding:0 10px 0 5px;border-radius:9px;border:1px solid #2A2F40;background:#161923;font-size:13px;color:#E6E9F0;white-space:nowrap}
+.dchip .av{min-width:26px;height:20px;padding:0 5px;border-radius:10px;border:1.5px solid #7B8CFF;color:#C9D0FF;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-style:normal}
+.dchip .av.cl{border-color:#C9A27B;color:#F0D6B8}
+.dchip small{color:#8C93A6;font-size:12.5px}
+.d{flex:none;width:8px;height:8px;border-radius:50%;background:#5C6378}
+.d.run{background:#7B8CFF;animation:pulse 1.4s ease-in-out infinite}.d.wait{background:#F2C14E}.d.blk{background:#FF6B6B}.d.ok{background:#3DD6B0}
+.lock{font-size:12px;color:#6F7689;white-space:nowrap}
+.vw{display:inline-flex;border:1px solid #2A2F40;border-radius:9px;overflow:hidden;flex:none}
+.vw button{height:28px;padding:0 12px;border:0;background:transparent;color:#8C93A6;font-size:13px}
+.vw button.on{background:#262B3A;color:#fff}
+.prog{display:flex;align-items:center;gap:9px;font-size:13px;color:#C9CFDB;white-space:nowrap}
+.sg{display:flex;gap:3px}
+.sg i{width:11px;height:6px;border-radius:3px;background:#2A2F40}
+.sg i.ok{background:#3DD6B0}.sg i.run{background:#7B8CFF}.sg i.wait{background:#F2C14E}.sg i.blk{background:#FF6B6B}
+.estc{height:30px;padding:0 11px;gap:7px;font-size:13px;border-radius:9px;white-space:nowrap}
+.estc b{font-size:14px}
+/* zone 2 : les phases avancent */
+.macw{height:52px}
+.mc{height:52px;padding:7px 12px;gap:1px}
+.mnav{height:52px}
+.mc.dn .h i{border-color:#2E8F6C;background:#163028;color:#5DE3B8}
+.mc.ac{border-color:#3A4AB8}
+.mc.ac .h i{border-color:#7B8CFF;color:#C9D0FF}
+/* zone 3 : la carte d'un ticket porte son état */
+.vp .pg button{border:1px solid #4A52A8;background:#262B5E;color:#D6DAFF;font-weight:600}
+.band.now{color:#A9B4FF;border-bottom-color:#5E7BFF}
+.cd .bdg{display:inline-flex;gap:3px}
+.cd .bdg i{width:16px;height:16px;border-radius:4px;border:1px solid #4A5066;color:#C9CFDB;font-style:normal;font-size:10.5px;font-weight:700;font-family:Geist,sans-serif;display:inline-flex;align-items:center;justify-content:center}
+.cd .bdg i.am{border-color:#B8892B;color:#F2C14E}
+.cd .stl{display:flex;align-items:center;gap:7px;min-height:20px;font-size:12.5px;font-weight:600;color:#8C93A6;white-space:nowrap}
+.cd .stl>i.hd{flex:none;width:8px;height:8px;border-radius:50%;background:#5C6378}
+/* qui tient le ticket : la pastille du dev, du relecteur ou « You », devant l'état */
+.hav{flex:none;min-width:24px;height:18px;padding:0 5px;border-radius:9px;border:1.5px solid #7B8CFF;color:#C9D0FF;font-style:normal;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.hav.cl{border-color:#C9A27B;color:#F0D6B8}
+.hav.rv{border-style:dashed;border-color:#A3AABB;color:#E6E9F0}
+.hav.ld{border-color:#A3AABB;color:#E6E9F0}
+.hav.you{border-color:#F2C14E;background:#F2C14E;color:#241F12}
+.hav.bk{border-color:#FF6B6B;background:#FF6B6B;color:#261517}
+.hav.on{animation:havp 1.6s ease-in-out infinite}
+.hav.cl.on{animation-name:havc}
+@keyframes havp{50%{background:rgba(123,140,255,.38)}}
+@keyframes havc{50%{background:rgba(201,162,123,.38)}}
+.cd .pb{position:absolute;left:12px;right:12px;top:-1px;height:3px;border-radius:0 0 3px 3px;background:rgba(123,140,255,.18);overflow:hidden}
+.cd .pb>i{display:block;height:3px;background:#7B8CFF;border-radius:0 0 3px 3px}
+.cd.k-wait .pb{background:rgba(242,193,78,.18)}.cd.k-wait .pb>i{background:#F2C14E}
+.cd.k-blk .pb{background:rgba(255,107,107,.18)}.cd.k-blk .pb>i{background:#FF6B6B}
+.cd.k-pau .pb{background:rgba(163,170,187,.18)}.cd.k-pau .pb>i{background:#8C93A6}
+.cd.k-off{border-style:dashed;opacity:.55}
+.cd .bdg i.rd{border-color:#B84A4A;color:#FF8A80}
+.lab em.run::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#7B8CFF;margin-right:6px;animation:pulse 1.4s ease-in-out infinite}
+.body.frz .left,.body.frz .dw{opacity:.5;pointer-events:none}
+.cd .stl>em{margin-left:auto;font-style:normal;font-weight:500;font-size:12px;color:#8C93A6}
+.cd.k-dev,.cd.k-rev,.cd.k-fix{border-color:#5E7BFF;background:#171C36}
+.cd.k-dev .stl,.cd.k-rev .stl,.cd.k-fix .stl{color:#A9B4FF}
+
+.cd.k-wait{border-color:#B8892B;background:#241F12}.cd.k-wait .stl{color:#F2C14E}
+.cd.k-blk{border-color:#B84A4A;background:#261517}.cd.k-blk .stl{color:#FF8A80}
+.cd.k-ok{border-color:#1F4A3B;background:#141C1B}.cd.k-ok .stl{color:#5DE3B8}.cd.k-ok .stl>i.hd{background:#3DD6B0}.cd.k-ok .t{color:#C9CFDB}
+.cd.k-pau{border-color:#4A5066}.cd.k-pau .stl{color:#C9CFDB}
+.cd.k-new{border-style:dashed;border-color:#B8892B}
+.cd.pho{border-color:#7B8CFF;background:#1A1E33}
+.cd .dv.on{animation:pulse 1.4s ease-in-out infinite}
+.cd .dv.rv{border-style:dashed;border-color:#8C93A6;color:#C9CFDB;border-radius:6px;padding:0 6px;font-weight:600}
+.cd .sec.stp>span{display:flex;align-items:center;gap:7px}
+.cd .sec.stp>span>i{flex:none;width:12px;text-align:center;font-style:normal;color:#3DD6B0}
+.cd .sec.stp>span>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cd .sec.stp>span>em{font-style:normal;color:#8C93A6}
+.cd .sec.stp>span.run{color:#E6E9F0}.cd .sec.stp>span.run>i{color:#7B8CFF}
+.cd .sec.stp>span.no{color:#6F7689}.cd .sec.stp>span.no>i{color:#5C6378}
+.cd .sec.stp>span.ko>i{color:#F2C14E}.cd .sec.stp>span.bk>i{color:#FF6B6B}
+.cd.c3 .r{-webkit-line-clamp:1}
+.cd.vq.c3 .r{-webkit-line-clamp:3}
+.lab em{font-style:normal;font-size:12px;font-weight:500;color:#A9B4FF}
+.lab em.wait{color:#F2C14E}.lab em.blk{color:#FF8A80}.lab em.idle{color:#8C93A6}.lab em.ok{color:#5DE3B8}
+/* Kanban : les mêmes cartes, rangées par état */
+.kb{position:relative;flex:none}
+.kcol{position:absolute;top:28px;bottom:0;border-radius:10px;background:#171A24}
+.kh{position:absolute;top:0;height:22px;display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:600;text-transform:uppercase;color:#A3AABB;border-bottom:2px solid #2F3547}
+.kh em{font-style:normal;color:#6F7689}
+.kmore{position:absolute;font-size:12.5px;color:#8C93A6}
+.cd.kc{padding:10px 12px}
+.cd.kc .t{font-size:13.5px;-webkit-line-clamp:2}
+.cd.kc .ft{display:none}
+/* colonne de droite */
+.tabs{display:flex;gap:2px;margin-top:16px;border-bottom:1px solid #2A2F40}
+.tabs button{height:32px;padding:0 10px;border:0;border-bottom:2px solid transparent;background:none;color:#8C93A6;font-size:13.5px}
+.tabs button.on{color:#fff;border-bottom-color:#7B8CFF}
+.chp.s-dev,.chp.s-rev,.chp.s-fix{border-color:#3A4AB8;background:#171C36;color:#A9B4FF}
+.chp.s-wait{border-color:#8A6B1F;background:#2A2416;color:#F2C14E}
+.chp.s-blk{border-color:#8F3A3A;background:#2A1618;color:#FF8A80}
+.chp.s-ok{border-color:#2E8F6C;background:#132823;color:#5DE3B8}
+.rl .o.np{display:none}
+.rl .o.rd{background:#3D1F22;color:#FF8A80}
+.rl .o.bl{background:#1F2756;color:#A9B4FF}
+.rl .x .lnk{display:block;margin-top:4px;font-size:13px}
+.use{display:grid;grid-template-columns:92px minmax(0,1fr);gap:3px 12px;align-items:center;padding:6px 0;font-size:13.5px;color:#C9CFDB}
+.use .v{grid-column:2;font-size:12.5px;color:#8C93A6}
+.bw2{display:block;height:8px;border-radius:4px;background:#232838}
+.bw2 i{display:block;height:8px;border-radius:4px;background:#7B8CFF}
+.bw2 i.cl{background:#C9A27B}.bw2 i.cx{background:#7B8CFF}.bw2 i.tm{background:#3DD6B0}
+.who{display:flex;align-items:center;gap:11px;padding:7px 0;font-size:14px;color:#E6E9F0}
+.who .x{flex:1;min-width:0}
+.who small{display:block;margin-top:1px;font-size:12.5px;color:#8C93A6}
+.who .lnk{font-size:12.5px;white-space:nowrap}
+.ln2{display:flex;gap:10px;padding:4px 0;font-size:13.5px;line-height:1.4;color:#C9CFDB}
+.ln2 .tm{flex:none;width:40px;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;color:#6F7689;padding-top:1px}
+.ln2.am{color:#F2C14E}
+.qc{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-top:10px;border-radius:10px;border:1px solid #2A2F40;background:#161923}
+.qc.rec{border-color:#2E8F6C;background:#132823}
+.qc.dim{opacity:.45}
+.qc .x{flex:1;min-width:0}
+.qc b{font-size:14.5px;font-weight:600;color:#fff}
+.qc small{display:block;margin-top:4px;font-size:13px;line-height:1.4;color:#A3AABB}
+.recm{margin-left:8px;height:18px;padding:0 6px;border-radius:5px;background:#1C3A31;color:#5DE3B8;font-style:normal;font-size:11px;font-weight:600;display:inline-flex;align-items:center}
+.qb{flex:none;height:32px;padding:0 12px;border-radius:8px;border:1px solid #3A4052;background:#1B1F2B;color:#E6E9F0;font-size:13px}
+.qb.rec{border-color:#2E8F6C;background:#163028;color:#5DE3B8}
+.qb.done{border-color:transparent;background:transparent;color:#5DE3B8}
+.qalt{width:100%;height:38px;margin-top:10px;border-radius:9px;border:1px dashed #4A5066;background:transparent;color:#A9B4FF;font-size:13.5px}
+.inp{height:40px;margin-top:10px;display:flex;align-items:center;padding:0 12px;border-radius:9px;border:1px solid #2A2F40;background:#12151D;color:#6F7689;font-size:13.5px}
+.pbtn{height:36px;padding:0 16px;border-radius:9px;border:1px solid #2E8F6C;background:#163028;color:#5DE3B8;font-size:14px;font-weight:600;white-space:nowrap}
+.pbtn.am{border-color:#B8892B;background:#3A2E12;color:#F2C14E}
+.dlgw{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(10,12,18,.76)}
+.dlg{width:540px;padding:24px 26px;border-radius:14px;border:1px solid #3A4052;background:#1D2130}
+.dlg h3{margin:0 0 8px;font-size:19px;font-weight:600}
+.dlg p{margin:0 0 10px;font-size:14px;line-height:1.5;color:#C9CFDB}
+.dlg .bts{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+</style>
+</helmet>
+
+<div class="root">
+<div class="proto"><b>Maquette · {{protoTeam}} · aller à</b><sc-for list="{{proto}}" as="b" hint-placeholder-count="13"><button class="{{b.cls}}" onClick="{{b.go}}">{{b.t}}</button></sc-for></div>
+<div class="q">
+<div class="qsb"><b>Mission Control</b>
+<div class="it">▣ Inbox</div><div class="it">☰ Issues</div><div class="it on">‹/› Development</div>
+<div class="sec">PROJECTS</div>
+<div class="pj"><i style="border-color:#3FBF5A;background:#153A20"></i><span>FlashGolf<small>1 mission</small></span></div>
+<div class="cur"><span>FG-729</span><span>Develop</span></div>
+<div class="pj"><i style="border-color:#D9578C;background:#3A1A2B"></i><span>Gonzesses<small>No active missions</small></span></div>
+<div class="pj"><i style="border-color:#8E7CFF;background:#261F4A"></i><span>Jiroo<small>No active missions</small></span></div>
+<div class="pj"><i style="border-color:#D5A24A;background:#3A2E12"></i><span>LBA<small>No active missions</small></span></div>
+<div class="pj"><i style="border-color:#00B6ED;background:#0E2E3A"></i><span>FooDeCuisine<small>No active missions</small></span></div>
+</div>
+<div class="qm">
+<div class="qhd"><div class="ic">⚑</div><div style="min-width:0;flex:1"><h1>Messages automatiques : espace dédié du golf et du partenaire, 11 messages préfaits (V1)</h1><div class="sub"><span>FlashGolf · FG-729</span><span><i class="dot dn"></i>Prepare</span><span>›</span><span><i class="dot on"></i><b>Develop</b></span><span>›</span><span><i class="dot"></i>Validate</span></div></div><button class="hb">‹</button><button class="hb pilot">Talk to Pilot</button><div style="position:relative"><button class="hb" onClick="{{toggleMore}}">⋯</button><sc-if value="{{ moreOn }}" hint-placeholder-val="{{ false }}"><div class="menu more"><sc-for list="{{more}}" as="m" hint-placeholder-count="5"><button class="mi"><i class="{{m.dot}}"></i><span>{{m.t}}<small>{{m.s}}</small></span></button></sc-for></div></sc-if></div></div>
+
+<div class="{{band.cls}}"><div class="bi"><span class="{{band.icCls}}">{{band.ic}}</span></div><div style="min-width:0"><div class="big">{{band.big}}</div><div class="det">{{band.det}}</div></div><span class="sp"></span><sc-for list="{{band.btns}}" as="b" hint-placeholder-count="1"><button class="{{b.cls}}" onClick="{{b.go}}">{{b.t}}</button></sc-for></div>
+
+<div class="{{bodyCls}}"><div class="left">
+<div class="card qplan">
+<div class="team"><span class="tt">Plan</span>
+<sc-for list="{{devs}}" as="d" hint-placeholder-count="2"><div class="dchip" title="{{d.tip}}"><i class="{{d.avCls}}">{{d.i}}</i><span>{{d.tool}}</span><small class="{{d.stCls}}">{{d.st}}</small><i class="{{d.dot}}"></i></div></sc-for>
+<span class="vw" style="margin-left:6px"><button class="{{vLine}}" onClick="{{setLine}}">Line</button><button class="{{vKan}}" onClick="{{setKan}}">Kanban</button></span>
+<span class="sp"></span>
+<button class="{{estCls}}" onClick="{{openNow}}" title="Right now"><b>{{elTxt}}</b><span>of ≈ {{estTxt}}</span></button>
+</div>
+
+<div class="macw"><div class="{{macvCls}}" style="left: {{mPad}}px; right: {{mPad}}px"><div class="mac" style="transform: translateX(-{{mOff}}px)"><sc-for list="{{mac}}" as="m" hint-placeholder-count="5"><span class="{{m.arr}}">→</span><button class="{{m.cls}}" style="width: {{m.w}}px" onClick="{{m.go}}" title="{{m.g}}"><span class="h"><i>{{m.n}}</i><b>{{m.t}}</b></span><span class="e">{{m.e}}</span></button></sc-for></div></div>
+<sc-if value="{{ mPaged }}" hint-placeholder-val="{{ false }}"><button class="{{mLCls}}" onClick="{{mPanL}}" title="Previous phases">‹<small>{{mBefore}}</small></button><button class="{{mRCls}}" onClick="{{mPanR}}" title="Next phases">›<small>{{mAfter}}</small></button></sc-if></div>
+
+<sc-if value="{{ isLine }}" hint-placeholder-val="{{ true }}"><div class="board" style="height: {{boardH}}px">
+<sc-if value="{{ multi }}" hint-placeholder-val="{{ false }}"><div class="lanes" style="height: {{boardH}}px"><sc-for list="{{labs}}" as="l" hint-placeholder-count="2"><div class="lab" style="top: {{l.y}}px; height: {{l.h}}px">{{l.n}}<small>{{l.tool}}</small><small>{{l.c}}</small><small>{{l.tm}}</small><em class="{{l.sc}}">{{l.s}}</em></div></sc-for></div></sc-if>
+<div class="vp"><div class="trk" style="transform: translateX(-{{off}}px); height: {{boardH}}px">
+<sc-for list="{{bands}}" as="b" hint-placeholder-count="5"><div class="{{b.cls}}" style="left: {{b.x}}px; width: {{b.w}}px">{{b.t}}</div></sc-for>
+<sc-for list="{{lanesBg}}" as="l" hint-placeholder-count="0"><div class="lane" style="top: {{l.y}}px; width: {{l.w}}px; height: {{l.h}}px"></div></sc-for>
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="12"><button class="{{c.cls}}" style="left: {{c.x}}px; top: {{c.y}}px; width: {{c.w}}px; height: {{c.h}}px" onClick="{{c.go}}" title="{{c.title}}"><span class="top"><span>{{c.n}}</span><span>{{c.id}}</span><span class="bdg"><sc-for list="{{c.bdg}}" as="g" hint-placeholder-count="0"><i class="{{g.c}}">{{g.t}}</i></sc-for></span><span class="ph">{{c.ph}}</span><span class="{{c.dvCls}}">{{c.dv}}</span></span><span class="t">{{c.title}}</span><span class="{{c.barCls}}"><i style="width: {{c.barW}}%"></i></span><span class="{{c.stCls}}"><i class="{{c.hAvCls}}">{{c.hAv}}</i><span>{{c.stTxt}}</span><em>{{c.marks}}</em></span><span class="{{c.stpCls}}"><b>Steps</b><sc-for list="{{c.steps}}" as="s" hint-placeholder-count="0"><span class="{{s.c}}"><i>{{s.ic}}</i><span>{{s.t}}</span><em>{{s.d}}</em></span></sc-for></span><span class="{{c.rCls}}">{{c.res}}</span><span class="{{c.howCls}}"><b>How</b><em>{{c.how}}</em></span><span class="{{c.cvCls}}"><b>Covers</b><sc-for list="{{c.cv}}" as="v" hint-placeholder-count="0"><span class="{{v.c}}">{{v.t}}</span></sc-for></span><span class="ft"><span class="{{c.dfCls}}">{{c.df}}</span><span class="hr">{{c.hr}}</span><span class="{{c.mdCls}}">{{c.md}}</span></span></button></sc-for>
+</div>
+<sc-if value="{{ paged }}" hint-placeholder-val="{{ true }}"><div class="pg"><button class="{{pgL}}" onClick="{{panL}}" title="Previous">‹ {{nBefore}}</button><button class="{{pgR}}" onClick="{{panR}}" title="Next">{{nAfter}} ›</button></div></sc-if>
+</div>
+</div></sc-if>
+
+<sc-if value="{{ isKan }}" hint-placeholder-val="{{ false }}"><div class="kb" style="height: {{boardH}}px">
+<sc-for list="{{kcols}}" as="k" hint-placeholder-count="5"><div class="kcol" style="left: {{k.x}}px; width: {{k.w}}px"></div><div class="kh" style="left: {{k.x}}px; width: {{k.w}}px"><span>{{k.t}}</span><em>{{k.n}}</em></div><div class="{{k.moreCls}}" style="left: {{k.mx}}px; top: {{k.my}}px">{{k.more}}</div></sc-for>
+<sc-for list="{{kcards}}" as="c" hint-placeholder-count="12"><button class="{{c.cls}}" style="left: {{c.x}}px; top: {{c.y}}px; width: {{c.w}}px; height: {{c.h}}px" onClick="{{c.go}}" title="{{c.title}}"><span class="top"><span>{{c.n}}</span><span>{{c.id}}</span><span class="bdg"><sc-for list="{{c.bdg}}" as="g" hint-placeholder-count="0"><i class="{{g.c}}">{{g.t}}</i></sc-for></span><span class="ph">{{c.ph}}</span><span class="{{c.dvCls}}">{{c.dv}}</span></span><span class="t">{{c.title}}</span><span class="{{c.barCls}}"><i style="width: {{c.barW}}%"></i></span><span class="{{c.stCls}}"><i class="{{c.hAvCls}}">{{c.hAv}}</i><span>{{c.stTxt}}</span><em>{{c.marks}}</em></span><span class="{{c.stpCls}}"><b>Steps</b><sc-for list="{{c.steps}}" as="s" hint-placeholder-count="0"><span class="{{s.c}}"><i>{{s.ic}}</i><span>{{s.t}}</span><em>{{s.d}}</em></span></sc-for></span><span class="{{c.rCls}}">{{c.res}}</span><span class="{{c.howCls}}"><b>How</b><em>{{c.how}}</em></span><span class="{{c.cvCls}}"><b>Covers</b><sc-for list="{{c.cv}}" as="v" hint-placeholder-count="0"><span class="{{v.c}}">{{v.t}}</span></sc-for></span><span class="ft"><span class="{{c.dfCls}}">{{c.df}}</span><span class="hr">{{c.hr}}</span><span class="{{c.mdCls}}">{{c.md}}</span></span></button></sc-for>
+</div></sc-if>
+</div>
+
+<div class="tiles"><sc-for list="{{tiles}}" as="t" hint-placeholder-count="4"><button class="{{t.cls}}" onClick="{{t.go}}"><span class="tx"><span class="hd"><b>{{t.k}}</b><span class="{{t.cnCls}}">{{t.cn}}</span><span class="{{t.alCls}}">{{t.al}}</span></span><span class="ln">{{t.ln}}</span></span><span class="ch">›</span></button></sc-for></div>
+</div>
+
+<sc-if value="{{ vNow }}" hint-placeholder-val="{{ true }}"><div class="dw">
+<div class="ih"><span class="k">Right now</span></div>
+<div class="bd"><span class="kl" style="margin-top:0">Time and usage · real next to estimated</span>
+<sc-for list="{{now.use}}" as="u" hint-placeholder-count="4"><div class="use"><span>{{u.k}}</span><span class="bw2"><i class="{{u.c}}" style="width: {{u.w}}%"></i></span><span class="v">{{u.v}}</span></div></sc-for>
+<p class="pp mu" style="font-size:12.5px">{{now.note}}</p>
+<span class="kl">Who is working</span>
+<sc-for list="{{now.who}}" as="w" hint-placeholder-count="4"><div class="who"><i class="{{w.dot}}"></i><span class="x">{{w.n}}<small>{{w.s}}</small></span><button class="lnk">Open tab ›</button></div></sc-for>
+<span class="kl">Since your last visit · {{now.at}}</span>
+<sc-for list="{{now.since}}" as="l" hint-placeholder-count="3"><div class="{{l.c}}"><span class="tm">{{l.tm}}</span><span>{{l.t}}</span></div></sc-for>
+<span class="kl">Recent activity</span>
+<sc-for list="{{now.act}}" as="l" hint-placeholder-count="3"><div class="ln2"><span class="tm">{{l.tm}}</span><span>{{l.t}}</span></div></sc-for>
+<span class="kl">References</span>
+<div class="kv" style="margin-top:0"><sc-for list="{{now.refs}}" as="r" hint-placeholder-count="4"><span class="k">{{r.k}}</span><span>{{r.v}}</span></sc-for></div>
+</div></div></sc-if>
+
+<sc-if value="{{ vTk }}" hint-placeholder-val="{{ false }}"><div class="dw">
+<div class="ih"><span class="k">{{d.pos}}</span><span class="sp"></span><button class="ib" onClick="{{prev}}">‹</button><button class="ib" onClick="{{next}}">›</button><button class="ib" onClick="{{close}}">✕</button></div>
+<div class="bd"><span class="id">{{d.id}}</span><div class="h2">{{d.title}}</div>
+<div class="chips"><span class="{{d.stCls}}">{{d.st}}</span><span class="{{d.szCls}}">{{d.size}}</span><span class="chp">{{d.phase}}</span></div>
+<div class="tabs"><sc-for list="{{d.tabs}}" as="t" hint-placeholder-count="4"><button class="{{t.cls}}" onClick="{{t.go}}">{{t.t}}</button></sc-for></div>
+<sc-for list="{{d.secs}}" as="sec" hint-placeholder-count="2"><span class="{{sec.kCls}}">{{sec.k}}</span><sc-for list="{{sec.items}}" as="f" hint-placeholder-count="2"><div class="rl"><span class="{{f.ocls}}">{{f.n}}</span><span class="x">{{f.t}}<small>{{f.s}}</small><span class="pls"><sc-for list="{{f.tk}}" as="p" hint-placeholder-count="0"><button class="pl" onClick="{{p.go}}">{{p.id}}</button></sc-for></span><button class="{{f.navCls}}" onClick="{{f.navGo}}">{{f.nav}}</button></span></div></sc-for><sc-if value="{{ sec.thumb }}" hint-placeholder-val="{{ false }}"><div class="thumb"><i></i><i></i><i></i><i></i><span>Variant A · Open mockup ›</span></div></sc-if></sc-for></div>
+<div class="ft" style="display:flex"><button class="lnk">Full report ›</button><span class="sp"></span><button class="lnk">Open in the tracker ›</button></div>
+</div></sc-if>
+
+<sc-if value="{{ vQ }}" hint-placeholder-val="{{ false }}"><div class="dw">
+<div class="ih"><span class="k">{{qv.kind}}</span><span class="sp"></span><button class="ib" onClick="{{close}}">✕</button></div>
+<div class="bd"><div class="h2" style="margin-top:0">{{qv.title}}</div><p class="pp mu" style="color:#C9CFDB">{{qv.ctx}}</p>
+<sc-for list="{{qv.ch}}" as="c" hint-placeholder-count="2"><div class="{{c.cls}}"><span class="x"><b>{{c.t}}</b><i class="{{c.recCls}}">Recommended</i><small>{{c.s}}</small></span><button class="{{c.bCls}}" onClick="{{c.go}}">{{c.b}}</button></div></sc-for>
+<button class="{{qv.altCls}}" onClick="{{qv.lead}}">Let the Lead decide</button>
+<div class="{{qv.inpCls}}">Answer differently… (opens Pilot)</div>
+<span class="kl">Tickets concerned</span><span class="pls"><sc-for list="{{qv.tk}}" as="p" hint-placeholder-count="1"><button class="pl" onClick="{{p.go}}">{{p.id}}</button></sc-for></span>
+</div>
+<div class="ft">{{qv.foot}}</div>
+</div></sc-if>
+
+<sc-if value="{{ vGen }}" hint-placeholder-val="{{ false }}"><div class="dw">
+<div class="ih"><span class="k">{{g.kind}}</span><span class="sp"></span><button class="ib" onClick="{{close}}">✕</button></div>
+<div class="bd"><div class="h2" style="margin-top:0">{{g.title}}</div><p class="pp mu">{{g.intro}}</p>
+<sc-for list="{{g.secs}}" as="sec" hint-placeholder-count="2"><span class="{{sec.kCls}}">{{sec.k}}</span><sc-for list="{{sec.items}}" as="f" hint-placeholder-count="2"><div class="rl"><span class="{{f.ocls}}">{{f.n}}</span><span class="x">{{f.t}}<small>{{f.s}}</small><span class="pls"><sc-for list="{{f.tk}}" as="p" hint-placeholder-count="0"><button class="pl" onClick="{{p.go}}">{{p.id}}</button></sc-for></span><button class="{{f.navCls}}" onClick="{{f.navGo}}">{{f.nav}}</button></span></div></sc-for><sc-if value="{{ sec.thumb }}" hint-placeholder-val="{{ false }}"><div class="thumb"><i></i><i></i><i></i><i></i><span>Variant A · Open mockup ›</span></div></sc-if></sc-for></div>
+<sc-if value="{{ g.hasFt }}" hint-placeholder-val="{{ false }}"><div class="ft" style="display:flex;align-items:center;gap:14px"><button class="{{g.btnCls}}" onClick="{{g.btnGo}}">{{g.btn}}</button><button class="{{g.linkCls}}">{{g.link}}</button></div></sc-if>
+</div></sc-if>
+</div>
+
+<sc-if value="{{ vDlg }}" hint-placeholder-val="{{ false }}"><div class="dlgw"><div class="dlg"><h3>{{dlg.t}}</h3><p>{{dlg.s}}</p><sc-for list="{{dlg.items}}" as="i" hint-placeholder-count="2"><div class="rl"><span class="o am">≠</span><span class="x">{{i.t}}</span></div></sc-for><div class="bts"><button class="go2" onClick="{{dlgNo}}">Cancel</button><button class="pbtn" onClick="{{dlgYes}}">{{dlg.yes}}</button></div></div></div></sc-if>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1800,"height":1184}}'>
+class Component extends DCLogic {
+  constructor(...a) { super(...a); this.state = { p: 'dev', view: 'line', sel: null, tab: 'sum', dw: null, c0: null, m0: 0, phl: -1, dlg: false, ans: {}, appr: false, qa: false, more: false, fr: 0 };
+    try { const re = () => setTimeout(() => { try { this.setState({ fr: Date.now() }); } catch (e) {} }, 60); if (document.fonts) { document.fonts.ready.then(re); document.fonts.addEventListener('loadingdone', re); } } catch (e) {} }
+  renderVals() {
+    const S = Object.assign({ p: 'dev', view: 'line', sel: null, tab: 'sum', dw: null, c0: null, m0: 0, phl: -1, dlg: false, ans: {}, appr: false, qa: false, more: false }, this.state || {});
+    const set = (o) => this.setState(o);
+    // ---------- La demande : les mêmes données que la page Prepare (FG-729, 10 tickets, 4 phases)
+    const P = [['Contrat partagé', "Fixer le catalogue des messages et la marque « automatique »."], ['Envois automatiques', 'Un seul moteur envoie tous les messages, jamais deux fois.'], ['Espace du golf et du partenaire', 'Chacun voit, active et personnalise ses messages.'], ['Textes', 'Les textes des 11 messages et de l’espace.']];
+    // id, phase, taille (1 Light, 2 Standard, 3 Heavy), titre, ce que ça change, attend, points à surveiller
+    const T0 = [
+      ['FG-730', 0, 2, "Contrat des messages automatiques", "Le catalogue des 11 messages et la marque « automatique » sont fixés, sans casser les anciennes apps.", [], ['risk']],
+      ['FG-731', 0, 1, "L'app lit les messages automatiques", "L'app affiche un message automatique comme un message ordinaire, avec sa marque.", ['FG-730'], []],
+      ['FG-732', 1, 3, "Socle d'envoi, prouvé avec « Gagnant »", "Un moteur unique envoie « Gagnant », boîte et notification, jamais deux fois.", ['FG-730'], ['risk']],
+      ['FG-733', 1, 3, "Messages existants migrés, rappels retirés arrêtés", "Les anciens messages passent sur le moteur ; les rappels retirés ne partent plus.", ['FG-732'], ['risk']],
+      ['FG-734', 1, 3, "Nouveaux messages des compétitions", "Inscription, départ et résultats d'une compétition partent tout seuls.", ['FG-732'], ['risk']],
+      ['FG-735', 1, 3, "Rappels planifiés avant le départ", "Un rappel part la veille et une heure avant le départ.", ['FG-732'], ['risk']],
+      ['FG-736', 2, 3, "Espace « Messages automatiques » dans le menu", "Le golf retrouve ses 11 messages dans un espace dédié du menu.", ['FG-731'], ['copy', 'mockup']],
+      ['FG-737', 2, 2, "Activer, couper, personnaliser un message", "Chaque message s'active, se coupe et se personnalise, golf par golf.", ['FG-736'], []],
+      ['FG-738', 2, 2, "Espace du partenaire", "Le partenaire voit et règle ses propres messages, rien d'autre.", ['FG-736'], ['risk']],
+      ['FG-739', 3, 1, "Textes des 11 messages et de l'espace", "Les 11 textes et ceux de l'espace sont relus et en place, en FR, EN et ES.", ['FG-737', 'FG-738'], ['copy']]];
+    // le ticket que le Lead ajoute en cours de route (écart avec le plan approuvé)
+    const X740 = ['FG-740', 1, 2, "Lien de désabonnement dans chaque message", "Chaque message automatique porte un lien pour ne plus le recevoir.", ['FG-733'], []];
+    const HOW = { 'FG-730': "Spec publiée et épinglée ; messaging, game-module et events mis à jour sans casser les anciennes apps.", 'FG-731': "Lecture du nouveau type de message dans l'app, sans toucher aux autres écrans.", 'FG-732': "Moteur d'envoi commun, clé d'envoi unique, plafond par minute ; prouvé sur le message « Gagnant ».", 'FG-733': "Migration des envois existants vers le moteur commun ; arrêt des rappels retirés.", 'FG-734': "Branchement des événements de compétition sur le moteur.", 'FG-735': "Planification des envois, reprise après redémarrage, vérification au moment d'envoyer.", 'FG-736': "Nouvel écran d'après la maquette choisie (variante A).", 'FG-737': "Réglages par golf, stockés avec le message.", 'FG-738': "Droits du partenaire limités à ses propres messages.", 'FG-739': "Textes proposés par le dev pendant le ticket, choisis par toi.", 'FG-740': "Lien signé dans le message ; un clic coupe ce message pour ce joueur." };
+    const RK = { 'FG-730': 'Anciennes apps cassées par le contrat', 'FG-732': "Envoi de masse le jour d'une compétition", 'FG-733': 'Un message envoyé deux fois pendant la migration', 'FG-734': "Envoi de masse le jour d'une compétition", 'FG-735': 'Rappel envoyé après un départ annulé', 'FG-738': 'Droits du partenaire trop larges' };
+    const COV = [['Espace dédié dans le menu', ['736', '738']], ['Activer, couper, personnaliser', ['736', '737']], ['Les 11 messages préfaits', ['731', '732', '733', '734', '735']], ['Absents de « Messages »', ['732']], ['Jamais deux envois', ['732', '733']], ['Préférences du joueur', ['732', '740']], ['État à la livraison', ['732', '733']], ['Aucun accès croisé', ['736', '737', '738']], ['Textes FR, EN, ES', ['739']], ['Contrat publié', ['730', '731']]];
+    // zones du code touchées par chaque ticket : deux tickets d'une même étape sur la même zone peuvent entrer en conflit
+    const ZN = { 'FG-730': ['specs', 'messaging/contract'], 'FG-731': ['app/messages'], 'FG-732': ['messaging/send', 'notifications'], 'FG-733': ['messaging/send', 'reminders'], 'FG-734': ['messaging/send', 'competitions'], 'FG-735': ['reminders', 'scheduler'], 'FG-736': ['admin/menu', 'admin/messages'], 'FG-737': ['admin/messages'], 'FG-738': ['partner/messages', 'rights'], 'FG-739': ['i18n'], 'FG-740': ['messaging/send', 'preferences'] };
+    const CM = { 'FG-730': [['4f1a9c2', 'specs : catalogue des 11 messages'], ['9be03d7', 'contract : marque « automatique »']], 'FG-731': [['c27e510', 'app : lecture du type automatique']], 'FG-732': [['a41c9e2', "moteur : clé d'envoi unique"], ['b7d0f15', 'moteur : plafond par minute']], 'FG-733': [['e90b3a1', 'migration des envois existants'], ['1d6c7f4', 'arrêt des rappels retirés']], 'FG-734': [['7a3e8b0', 'compétitions : inscription et départ'], ['f52d1c9', 'compétitions : résultats publiés']], 'FG-735': [['30c4aa8', 'planification : veille et H-1']], 'FG-736': [['8d17e62', 'espace : écran et entrée de menu']] };
+    // ---------- L'équipe, figée à l'approbation. C'est le Lead qui a décidé qui fait quoi et à quelle étape.
+    const M = { codex: { tool: 'Codex', sh: 'Codex', fam: 'Codex', models: ['luna · medium', 'sol · high', 'sol · high'] }, claude: { tool: 'Claude Code', sh: 'Claude', fam: 'Claude', models: ['haiku 5.5', 'sonnet 5.5', 'opus 5.5'] } };
+    const mk = (devs, par, lanes, use) => { const who = {}, slot = {}; lanes.forEach((l, k) => l.forEach((x) => { who['FG-' + x[0]] = k; slot['FG-' + x[0]] = x[1]; })); return { devs: devs, par: par, who: who, slot: slot, use: use }; };
+    const TEAMS = {
+      T1: mk(['codex'], false, [[[730, 0], [731, 1], [732, 2], [733, 3], [734, 4], [735, 5], [736, 6], [737, 7], [738, 8], [739, 9]]], [0, 1.9]),
+      T2: mk(['codex', 'claude'], true, [[[730, 0], [731, 1], [733, 2], [735, 3], [737, 4], [739, 5]], [[732, 1], [734, 2], [736, 3], [738, 4]]], [1.4, 0.7]),
+      T3: mk(['codex', 'claude', 'codex'], true, [[[730, 0], [731, 1], [735, 2], [737, 4], [739, 5]], [[732, 1], [733, 2], [736, 3]], [[734, 2], [738, 4]]], [1.0, 1.2])
+    };
+    // ---------- Les situations de la maquette. Dans le produit, tout ceci vient des agents.
+    // Une planche par équipe (TK) ; chaque situation est appliquée au plan de cette équipe.
+    const TK = 'T1';
+    const TM = TEAMS[TK], NDV = TM.devs.length;
+    // Durées réelles (min) d'un ticket accepté : dev, revue 1, revue 2 ; et temps de dev déjà passé sur un ticket en cours
+    const OKD = { 730: [16, 3], 731: [8, 2], 732: [38, 6, 4], 733: [40, 5, 4], 734: [33, 6, 5], 735: [47, 6, 5], 736: [41, 7, 4], 737: [17, 3], 738: [19, 4], 739: [9, 2] };
+    const DEVT = { 730: 4, 732: 24, 733: 36, 734: 31, 735: 14, 736: 20 };
+    const ALL = [730, 731, 732, 733, 734, 735, 736, 737, 738, 739];
+    // trois moments du plan : « z » le départ, « a » pendant les envois, « b » quand l'espace du golf démarre ; « e » tout est accepté
+    const MOM = { T1: { z: [[], [730]], a: [[730, 731], [732]], b: [[730, 731, 732, 733, 734, 735], [736]] },
+      T2: { z: [[], [730]], a: [[730, 731, 732], [733, 734]], b: [[730, 731, 732, 733, 734], [735, 736]] },
+      T3: { z: [[], [730]], a: [[730, 731, 732], [735, 733, 734]], b: [[730, 731, 732, 733, 734, 735], [736]] } }[TK];
+    // le ticket où il se passe quelque chose, et un second pour « deux choses à la fois »
+    const F = { z: 730, a: TK === 'T1' ? 732 : 734, b: 736 }, G2 = TK === 'T2' ? 733 : 735;
+    const sit = (t, mom, f, o) => Object.assign({ t: t, mom: mom || 'a', f: f || null }, o || {});
+    const SIT = {
+      start: sit('Démarrage', 'z'),
+      env: sit('Environnement en échec', 'z', null, { env: true }),
+      dev: sit('En dev'),
+      rev: sit('En revue', 'a', { st: 'rev', r1: 5 }),
+      fix: sit('Corrections demandées', 'a', { st: 'fix', r1: 7, fx: 6, round: 1 }),
+      time: sit('Ticket · Timeline', 'a', { st: 'fix', r1: 7, fx: 6, round: 1 }, { sel: 'FG-' + F.a, tab: 'time' }),
+      qdev: sit("Question d'un dev", 'a', { st: 'wait', w: 9, q: 'd' + F.a }, { dw: 'q' }),
+      qrev: sit('Question en revue', 'a', { st: 'wait', r1: 8, w: 4, q: 'r' + F.a, inrev: true }, { dw: 'q' }),
+      blk: sit('Bloqué', 'a', { st: 'blk', b: 25 }),
+      both: sit('Question + blocage', 'a', { st: 'blk', b: 25 }, { g: { st: 'wait', w: 9, q: 'd' + G2 } }),
+      copy: sit('Texte à choisir', 'b', { st: 'wait', w: 3, q: 'c736' }, { dw: 'q' }),
+      pausing: sit('Pause demandée', 'a', null, { pausing: true }),
+      paused: sit('En pause', 'a', null, { paused: true }),
+      lead: sit('Le Lead met à jour le plan', 'b', null, { lead: true }),
+      leadDone: sit('Réponse du Lead', 'b', null, { drift: true, byYou: true }),
+      drift: sit('Écart avec le plan', 'b', null, { drift: true }),
+      gone: sit('Fusionné, annulé', 'b', null, { gone: true }),
+      merge: sit('Fusion des branches', 'e', null, { merge: 'run' }),
+      conf: sit('Conflit à la fusion', 'e', null, { merge: 'conf' }),
+      ready: sit('Prêt pour la QA', 'e', null, { merge: 'ok' }),
+      kan: sit('Kanban', 'a', { st: 'rev', r1: 5 }, { view: 'kan' })
+    };
+    const ORDER = ['start', 'env', 'dev', 'rev', 'fix', 'time', 'qdev', 'qrev', 'blk'].concat(NDV > 1 ? ['both'] : [], ['copy', 'pausing', 'paused', 'lead', 'leadDone', 'drift', 'gone'], NDV > 1 ? ['merge', 'conf'] : [], ['ready', 'kan']);
+    const goP = (p) => () => { const z = SIT[p]; set({ p: p, view: z.view || 'line', sel: z.sel || null, tab: z.tab || 'sum', dw: z.dw || null, c0: null, m0: 0, phl: -1, dlg: false, ans: {}, appr: false, qa: false, more: false }); };
+    const Z0 = SIT[S.p] || SIT.dev, mo = Z0.mom === 'e' ? [ALL, []] : Z0.env ? [[], []] : MOM[Z0.mom];
+    const run0 = {}; mo[1].forEach((k) => { run0[k] = { st: 'dev', dev: DEVT[k] }; });
+    if (Z0.f) run0[F[Z0.mom]] = Object.assign({ dev: DEVT[F[Z0.mom]] }, Z0.f);
+    if (Z0.g && run0[G2]) run0[G2] = Object.assign({ dev: DEVT[G2] }, Z0.g);
+    if (Z0.paused) Object.keys(run0).forEach((k) => { run0[k] = { st: 'pau', dev: run0[k].dev, was: 'dev' }; });
+    const Z = Object.assign({}, Z0, { ok: mo[0], run: run0 });
+    const HRS = { 1: 10, 2: 20, 3: 45 }, QA_M = 35, SO_M = 30, MERGE_M = 5;
+    const fm = (m) => { m = Math.round(m); const h = Math.floor(m / 60), r = m % 60; return h ? (r ? h + ' h ' + (r < 10 ? '0' : '') + r : h + ' h') : r + ' min'; };
+    const fT = (x) => x < 0.95 ? Math.round(x * 100) * 10 + 'k' : (Math.round(x * 10) / 10).toFixed(1) + 'M';
+    const pl = (n, w) => n + ' ' + w + (n > 1 ? 's' : '');
+    const shId = (id) => id.replace('FG-', '');
+    const szOf = (t) => t[2] === 3 ? 'Heavy' : t[2] === 1 ? 'Light' : 'Standard';
+    const drift = !!Z.drift, byYou = !!Z.byYou, appr = S.appr, x740 = (drift && !byYou) || !!Z.gone, nChg = byYou ? 1 : 2;
+    const T = x740 ? T0.concat([X740]) : T0, NP = P.length, ids = T.map((t) => t[0]);
+    const who = Object.assign({}, TM.who), slot = Object.assign({}, TM.slot); if (x740) { who['FG-740'] = NDV - 1; slot['FG-740'] = NDV === 1 ? 10 : 5; }
+    const devs = TM.devs, nd = devs.length, par = TM.par;
+    const nSlots = Math.max.apply(null, ids.map((id) => slot[id])) + 1;
+    const toolOf = (t) => devs[who[t[0]]];
+    const cl738 = devs[TM.who['FG-738']] === 'claude', b738 = cl738 ? 'sonnet 5.5' : 'sol · high', a738 = cl738 ? 'opus 5.5' : 'sol · xhigh';
+    const mdl = (t) => drift && t[0] === 'FG-738' ? a738 : M[toolOf(t)].models[t[2] - 1];
+    const rvw = (t) => toolOf(t) === 'claude' ? 'Codex' : 'Claude';
+    // état de chaque ticket
+    const stOf = {};
+    T.forEach((t) => { const k = shId(t[0]); let s = Z.ok.indexOf(+k) >= 0 ? { st: 'ok', dev: OKD[k][0], r1: OKD[k][1], r2: OKD[k][2] } : Z.run[k] ? Object.assign({}, Z.run[k]) : { st: 'todo' };
+      if (s.q && S.ans[s.q] != null) s = Object.assign({}, s, { st: s.inrev ? 'rev' : 'dev', q: null });
+      if (Z.gone && t[0] === 'FG-737') s = { st: 'mrg' }; if (Z.gone && t[0] === 'FG-740') s = { st: 'can' };
+      if (drift && t[0] === 'FG-740' && !appr) s.isNew = true; stOf[t[0]] = s; });
+    const isOff = (s) => s.st === 'mrg' || s.st === 'can' || !!s.isNew;
+    const live = T.filter((t) => !isOff(stOf[t[0]])), NT = live.length;
+    const realOf = (s) => (s.dev || 0) + (s.r1 || 0) + (s.r2 || 0) + (s.fx || 0);
+    const isAct = (s) => ['dev', 'rev', 'fix', 'wait', 'blk', 'pau'].indexOf(s.st) >= 0;
+    const okN = live.filter((t) => stOf[t[0]].st === 'ok').length;
+    const waits = T.filter((t) => stOf[t[0]].st === 'wait'), blks = T.filter((t) => stOf[t[0]].st === 'blk');
+    // l'estimation approuvée : étape par étape en parallèle, plus la fusion, la QA et la recette
+    const TE = live;
+    const estDev = (() => { if (!par) return TE.reduce((a, t) => a + HRS[t[2]], 0); let h = 0; for (let q = 0; q < nSlots; q++) { const l = TE.filter((t) => slot[t[0]] === q).map((t) => HRS[t[2]]); if (l.length) h += Math.max.apply(null, l); } return h; })();
+    const EST = estDev + (par ? MERGE_M : 0) + QA_M + SO_M;
+    const mg = Z.merge || 'todo';
+    const elOf = (s) => s.st === 'ok' ? realOf(s) : isAct(s) ? realOf(s) + (s.w || 0) + (s.b || 0) : 0;
+    let EL = 0; for (let q = 0; q < nSlots; q++) { const l = live.filter((t) => slot[t[0]] === q); if (!l.length) continue; EL += Math.max.apply(null, l.map((t) => elOf(stOf[t[0]]))); if (l.some((t) => stOf[t[0]].st !== 'ok')) break; }
+    EL += mg === 'run' ? 2 : mg === 'conf' ? 5 : mg === 'ok' && par ? 6 : 0;
+    const useOf = (tool, e) => { const l = live.filter((t) => toolOf(t) === tool), tot = l.reduce((a, t) => a + HRS[t[2]], 0), dn = l.reduce((a, t) => { const x = stOf[t[0]]; return a + (x.st === 'ok' ? HRS[t[2]] : isAct(x) ? Math.min(HRS[t[2]], realOf(x)) * 0.9 : 0); }, 0); return tot ? e * dn / tot : 0; };
+    const USE = [useOf('claude', TM.use[0]), useOf('codex', TM.use[1])];
+    const estUse = TM.use[0] + TM.use[1] + (drift && appr ? 0.2 : 0), used = USE[0] + USE[1];
+    const NOWM = 662 + EL + (Z.paused ? 30 : 0), fc = (m) => { m = Math.round(m); return (m / 60 < 10 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60); };
+    const EV = [], evB = NOWM - (Z.paused ? 30 : 0), actT = live.filter((t) => isAct(stOf[t[0]]));
+    const lastOk = live.filter((t) => stOf[t[0]].st === 'ok').sort((a, b) => (slot[b[0]] - slot[a[0]]) || (b[0] > a[0] ? 1 : -1))[0];
+    if (lastOk) EV.push([evB - Math.max.apply(null, [0].concat(actT.map((t) => elOf(stOf[t[0]])))) - (mg !== 'todo' ? 6 : 0), lastOk[0] + ' accepted' + (lastOk[2] === 3 ? ' after two reviews' : '') + (mo[1].length ? '' : ': ' + NT + ' of ' + NT)]);
+    actT.forEach((t) => { const x = stOf[t[0]], dn = 'Dev ' + (who[t[0]] + 1);
+      EV.push([evB - elOf(x), dn + ' started ' + t[0]]);
+      if (x.st === 'rev') EV.push([evB - x.r1, t[0] + ' went to review']);
+      if (x.fx != null) EV.push([evB - x.fx, 'Review 1 asked for 2 fixes on ' + t[0]]);
+      if (x.st === 'wait') EV.push([evB - x.w, (x.inrev ? 'The reviewer' : dn) + (x.q === 'c736' ? ' proposes 3 texts to choose on ' : ' asks you a question on ') + t[0], 1]);
+      if (x.st === 'blk') EV.push([evB - x.b, t[0] + ' is blocked: the test key is refused', 1]);
+      if (x.st === 'pau') EV.push([evB, t[0] + ' stopped in dev']); });
+    if (Z.pausing) EV.push([NOWM, 'You asked for a pause']); if (Z.paused) EV.push([evB, 'Paused at your request']);
+    if (Z.env) EV.push([NOWM - 1, 'You approved the plan'], [NOWM, 'The environment check failed: start held', 1]);
+    if (Z.lead) EV.push([NOWM - 1, 'You asked for FG-738 on ' + a738 + ' and FG-739 started now']);
+    if (drift && byYou) EV.push([NOWM - 4, 'You asked for FG-738 on ' + a738 + ' and FG-739 started now'], [NOWM - 1, 'The Lead answered: 1 change applied, 1 set aside', 1]);
+    if (drift && !byYou) EV.push([NOWM - 13, 'The Lead added FG-740 after the review of FG-733', 1], [NOWM - 13, 'The Lead changed the model of FG-738', 1]);
+    if (Z.gone) EV.push([NOWM - 20, 'FG-737 merged into FG-736, as you approved'], [NOWM - 18, 'FG-740 cancelled: you declined it']);
+    if (mg !== 'todo' && par) EV.push([NOWM - (mg === 'run' ? 2 : mg === 'conf' ? 5 : 6), 'The Lead started merging the branches']);
+    if (mg === 'conf') EV.push([NOWM - 3, 'Conflict in messaging/send.ts: the Lead resolves it']);
+    if (mg === 'ok' && par) EV.push([NOWM - 1, 'Branches merged after one conflict, resolved by the Lead']);
+    EV.sort((a, b) => a[0] - b[0]);
+    // les étapes d'un ticket : dev, revue 1, correction, revue 2
+    const stepsOf = (t) => { const s = stOf[t[0]], heavy = t[2] === 3, L = [], dn = 'D' + (who[t[0]] + 1);
+      if (s.st === 'todo' || s.st === 'mrg' || s.st === 'can') return L;
+      const cur = s.st === 'pau' ? s.was : s.st === 'wait' ? (s.inrev ? 'rev' : 'dev') : s.st === 'blk' ? 'dev' : s.st;
+      const add = (run, tx, d, c, ic) => L.push({ c: c || (run ? 'run' : ''), ic: ic || (run ? '●' : '✓'), t: tx, d: d != null ? fm(d) : '' });
+      const nx = (tx) => L.push({ c: 'no', ic: '○', t: tx, d: '' });
+      add(cur === 'dev', 'Dev · ' + dn, s.dev);
+      if (cur === 'dev') { nx('Review 1'); if (heavy) nx('Review 2'); }
+      else if (s.fx != null) { add(false, 'Review 1 · fixes asked', s.r1, 'ko', '✗'); add(cur === 'fix', 'Fix · round ' + (s.round || 1), s.fx); nx('Review 1 again'); if (heavy) nx('Review 2'); }
+      else { const in1 = cur === 'rev' && s.r2 == null; add(in1, 'Review 1 · ' + rvw(t), s.r1); if (heavy) { if (in1) nx('Review 2'); else add(cur === 'rev', 'Review 2 · ' + rvw(t), s.r2); } }
+      const r = L.find((x) => x.c === 'run'); if (r && s.st === 'dev') r.t = M[toolOf(t)].sh + ' is building'; if (r && s.st === 'rev') r.t = rvw(t) + ' is reviewing'; if (r && s.st === 'fix') r.t = M[toolOf(t)].sh + ' is fixing · round ' + (s.round || 1); if (r && s.st === 'wait') { r.c = 'ko'; r.ic = '◆'; } if (r && s.st === 'blk') { r.c = 'bk'; r.ic = '!'; } if (r && s.st === 'pau') { r.c = 'no'; r.ic = '❙❙'; }
+      return L; };
+    // qui tient le ticket maintenant : le dev, le relecteur, toi, ou personne
+    const stTxt = (t) => { const s = stOf[t[0]], heavy = t[2] === 3;
+      return s.st === 'ok' ? 'Accepted' : s.st === 'dev' ? 'Building' : s.st === 'rev' ? 'In review' + (heavy ? ' · 1 of 2' : '') : s.st === 'fix' ? 'Fixing · round ' + (s.round || 1)
+        : s.st === 'wait' ? 'Waiting on you' : s.st === 'blk' ? 'Blocked' : s.st === 'pau' ? 'Paused' : s.st === 'mrg' ? 'Merged into FG-736' : s.st === 'can' ? 'Cancelled · you declined it' : s.isNew ? 'Added by the Lead' : 'To do'; };
+    const stTm = (t) => { const s = stOf[t[0]]; return s.st === 'ok' ? fm(realOf(s)) : s.st === 'dev' ? fm(s.dev) : s.st === 'rev' ? fm(s.r1) : s.st === 'fix' ? fm(s.fx) : s.st === 'wait' ? fm(s.w) : s.st === 'blk' ? fm(s.b) : ''; };
+    const stFull = (t) => stTxt(t) + (stTm(t) ? ' · ' + stTm(t) : '');
+    const holder = (t) => { const s = stOf[t[0]], k = who[t[0]], cl = toolOf(t) === 'claude';
+      return s.st === 'dev' || s.st === 'fix' ? { t: 'D' + (k + 1), c: 'hav on' + (cl ? ' cl' : '') } : s.st === 'rev' ? { t: 'R', c: 'hav rv on' } : s.st === 'wait' ? { t: 'You', c: 'hav you' } : s.st === 'blk' ? { t: '!', c: 'hav bk' } : s.st === 'pau' ? { t: '❙❙', c: 'hav' } : { t: '', c: 'hd' }; };
+    const marksOf = (t) => { const s = stOf[t[0]], heavy = t[2] === 3; return s.st === 'ok' ? (heavy ? '✓ ✓' : '✓') : s.fx != null ? '✗' : ''; };
+    const cur = S.sel && ids.indexOf(S.sel) >= 0 ? T[ids.indexOf(S.sel)] : null;
+    const dw = cur ? null : S.dw;
+    const lanesN = par ? nd : 1, full = lanesN === 1;
+    // ---------- Zone micro : la même rangée que Prepare
+    const GAP = 12, TOP = 32, LG = 10, BH = 648, lanesH = BH - TOP, boardH = BH;
+    const CH = Math.floor((lanesH - (lanesN - 1) * LG) / lanesN);
+    const cols = nSlots + (par ? 1 : 2);
+    const vw = 1000 - (par ? 134 : 0), nVis = Math.max(1, Math.min(cols, Math.floor((vw + GAP) / ((full ? 220 : 176) + GAP)))), CW = Math.floor((vw + GAP) / nVis) - GAP, PITCH = CW + GAP;
+    // la rangée se cale seule sur l'étape en cours, avec une colonne déjà faite à gauche
+    const actS = T.filter((t) => isAct(stOf[t[0]])).map((t) => slot[t[0]]), todoS = T.filter((t) => stOf[t[0]].st === 'todo').map((t) => slot[t[0]]);
+    const auto = actS.length ? Math.min.apply(null, actS) - 1 : todoS.length ? Math.min.apply(null, todoS) - 1 : cols;
+    const maxC = cols - nVis, c0 = Math.min(maxC, Math.max(0, S.c0 != null ? S.c0 : auto)), off = c0 * PITCH;
+    const nowSlot = actS.length ? Math.min.apply(null, actS) : -1;
+    const unbOf = (id) => T.filter((t) => t[5].indexOf(id) >= 0).map((t) => t[0]);
+    const pick = (id) => () => { const c = slot[id]; let k = c0; if (c < k) k = c; if (c > k + nVis - 1) k = c - nVis + 1; set({ sel: id, dw: null, tab: S.sel ? S.tab : 'sum', phl: -1, c0: k, more: false }); };
+    const pills = (a) => a.map((id) => ({ id: id, go: pick(id.indexOf('FG-') === 0 ? id : 'FG-' + id) }));
+    const mkCard = (t, i, g, kan) => { const s = stOf[t[0]], k = who[t[0]], heavy = t[2] === 3, todo = s.st === 'todo';
+      const c = ['cd', kan ? 'kc' : 'c' + lanesN, 'k-' + (s.isNew ? 'new' : s.st === 'mrg' || s.st === 'can' ? 'off' : s.st)]; if (heavy && todo) c.push('hv');
+      const hl = holder(t), est = HRS[t[2]], bw = s.st === 'todo' || s.st === 'ok' || isOff(s) ? 0 : Math.max(6, Math.min(100, Math.round(100 * realOf(s) / est)));
+      if (cur && cur[0] === t[0]) c.push('sel'); if (cur && cur[5].indexOf(t[0]) >= 0) c.push('dep'); if (cur && unbOf(cur[0]).indexOf(t[0]) >= 0) c.push('unb'); if (S.phl === t[1]) c.push('pho');
+            const bdg = []; if (s.q) bdg.push({ t: '?', c: 'am' }); if (s.isNew || (drift && !appr && t[0] === 'FG-738')) bdg.push({ t: '≠', c: 'am' }); if (s.st === 'blk') bdg.push({ t: '!', c: 'rd' }); if (t[6].indexOf('copy') >= 0 && !kan) bdg.push({ t: 'T', c: '' });
+      const cov = COV.filter((v) => v[1].indexOf(shId(t[0])) >= 0).map((v) => ({ t: v[0], c: '' }));
+      const cv = full || cov.length <= 3 ? cov : [cov[0], cov[1], { t: '+' + (cov.length - 2) + ' more', c: 'more' }];
+      const steps = stepsOf(t);
+      return { cls: c.join(' '), x: g.x, y: g.y, w: g.w, h: g.h, n: String(i + 1), id: t[0] + (par && !kan ? ' · P' + (t[1] + 1) : ''), bdg: bdg, ph: '', title: t[3],
+        dv: 'D' + (k + 1), dvCls: nd > 1 ? 'dv' + (devs[k] === 'claude' ? ' cl' : '') : 'hid',
+        hAv: hl.t, hAvCls: hl.c, barCls: bw ? 'pb' : 'hid', barW: bw,
+        stCls: 'stl', stTxt: stTxt(t), marks: kan ? '' : (!marksOf(t) || lanesN < 3 ? '' : marksOf(t) + '  ') + stTm(t),
+        steps: steps, stpCls: !kan && lanesN < 3 && steps.length ? 'sec stp' : 'hid',
+        res: t[4], rCls: kan ? 'hid' : todo || full ? 'r' : 'hid', how: HOW[t[0]], howCls: !kan && full && todo ? 'sec' : 'hid',
+        cv: cv, cvCls: !kan && cv.length && ((todo && lanesN < 3) || full) ? 'sec ck' : 'hid',
+        df: heavy ? 'Heavy' : t[2] === 1 ? 'Light' : '', dfCls: heavy ? 'tg hv' : t[2] === 1 ? 'tg' : 'hid', hr: '~' + fm(HRS[t[2]]), md: mdl(t), mdCls: 'md', go: pick(t[0]) }; };
+    // Merge, QA et Sign-off ferment le plan. En parallèle, chaque dev a sa branche : elles sont fusionnées avant la QA.
+    const qaOn = mg === 'ok' && S.qa;
+    const VAL = [];
+    if (par) VAL.push({ key: 'merge', n: '⑂', title: 'Merge branches', res: 'Each dev worked on its own branch. They are merged before QA.', hr: '~' + fm(MERGE_M), k: mg === 'run' || mg === 'conf' ? 'dev' : mg === 'ok' ? 'ok' : 'todo',
+      av: 'L', tm: mg === 'run' ? '2 min' : mg === 'conf' ? '5 min' : mg === 'ok' ? '6 min' : '', st: mg === 'run' ? 'Lead is merging' : mg === 'conf' ? 'Conflict' : mg === 'ok' ? 'Merged' : 'To come', bdg: mg === 'conf' ? [{ t: '!', c: 'am' }] : [] });
+    VAL.push({ key: 'val', n: '▶', title: 'QA', res: 'Plays every flow of the plan, on its own.', hr: '~' + fm(QA_M), k: qaOn ? 'dev' : 'todo', av: 'QA', st: qaOn ? 'QA is starting' : 'To come', bdg: [] });
+    VAL.push({ key: 'val', n: '✓', title: 'Sign-off', res: 'You check only what QA cannot judge.', hr: '~' + fm(SO_M) + ' of your time', k: 'todo', st: 'To come', bdg: [] });
+    const mkVal = (v, g, kan) => ({ cls: 'cd vq ' + (kan ? 'kc' : full ? 'c1' : 'c3') + ' k-' + v.k + (S.phl === NP ? ' pho' : ''), x: g.x, y: g.y, w: g.w, h: g.h, n: v.n, id: 'Validate', bdg: v.bdg, ph: '', title: v.title, dv: '', dvCls: 'hid', stCls: 'stl', stTxt: v.st, marks: v.tm || '',
+      hAv: v.k === 'dev' ? v.av : '', hAvCls: v.k === 'dev' ? 'hav on' + (v.av === 'L' ? ' ld' : '') : 'hd', barCls: 'hid', barW: 0,
+      steps: [], stpCls: 'hid', res: v.res, rCls: kan ? 'hid' : 'r', how: '', howCls: 'hid', cv: [], cvCls: 'hid', df: '', dfCls: 'hid', hr: v.hr, md: '', mdCls: 'hid', go: () => set({ dw: v.key, sel: null, phl: -1, more: false }) });
+    const cards = T.map((t, i) => mkCard(t, i, { x: slot[t[0]] * PITCH, y: TOP + (par ? who[t[0]] * (CH + LG) : 0), w: CW, h: CH }, false));
+    const vH = par ? Math.floor((lanesH - (VAL.length - 1) * LG) / VAL.length) : CH;
+    VAL.forEach((v, j) => cards.push(mkVal(v, { x: (nSlots + (par ? 0 : j)) * PITCH, y: TOP + (par ? j * (vH + LG) : 0), w: CW, h: vH }, false)));
+    const bands = [];
+    const bd = (x, w, t, c) => { const xx = Math.max(x, Math.min(off, x + w - 60)); bands.push({ cls: 'band' + (c || ''), x: xx, w: x + w - xx, t: t }); };
+    if (!par) P.forEach((p, k) => { const cs = T.filter((t) => t[1] === k).map((t) => slot[t[0]]), a = Math.min.apply(null, cs), b = Math.max.apply(null, cs); bd(a * PITCH, (b - a) * PITCH + CW, (k + 1) + ' · ' + p[0], cs.indexOf(nowSlot) >= 0 ? ' now' : ''); });
+    else for (let q = 0; q < nSlots; q++) bd(q * PITCH, CW, 'Step ' + (q + 1) + (q === nowSlot ? ' · now' : ''), q === nowSlot ? ' now' : '');
+    bd(nSlots * PITCH, (par ? 1 : 2) * PITCH - GAP, 'Validate', ' v' + (mg !== 'todo' ? ' now' : ''));
+    const lanesBg = par ? devs.map((d, k) => ({ y: TOP + k * (CH + LG) - 4, w: nSlots * PITCH - GAP + 8, h: CH + 8 })) : [];
+    // ce que fait chaque dev maintenant
+    const devState = (k) => { const mine = live.filter((t) => who[t[0]] === k), f = (fn) => mine.find((t) => fn(stOf[t[0]])); let t;
+      if (Z.env) return { c: 'idle', s: 'held: the environment check failed' };
+      if (Z.paused) { t = f((s) => s.st === 'pau'); return { c: 'idle', s: t ? 'paused on ' + t[0] : 'paused', id: t ? t[0] : '' }; }
+      if ((t = f((s) => s.st === 'blk'))) return { c: 'blk', s: 'blocked on ' + t[0], id: t[0] };
+      if ((t = f((s) => s.st === 'wait' && !s.inrev))) return { c: 'wait', s: 'waits for you on ' + t[0], id: t[0] };
+      if ((t = f((s) => s.st === 'dev'))) return { c: 'run', s: 'building ' + t[0], id: t[0] };
+      if ((t = f((s) => s.st === 'fix'))) return { c: 'run', s: 'fixing ' + t[0], id: t[0] };
+      if ((t = f((s) => s.st === 'rev' || s.st === 'wait'))) return { c: 'idle', s: t[0] + ' in review', id: t[0] };
+      if ((t = f((s) => s.st === 'todo'))) { const dep = t[5].find((a) => stOf[a].st !== 'ok'); return dep ? { c: 'idle', s: 'waits for ' + dep } : { c: 'run', s: 'starting ' + t[0] }; }
+      return { c: 'ok', s: 'all accepted' }; };
+    const devInfo = devs.map((d, k) => { const mine = live.filter((t) => who[t[0]] === k), ok = mine.filter((t) => stOf[t[0]].st === 'ok').length;
+      return { n: mine.length, ok: ok, real: mine.reduce((a, t) => a + realOf(stOf[t[0]]), 0), est: mine.reduce((a, t) => a + HRS[t[2]], 0), st: devState(k) }; });
+    const labs = par ? devs.map((d, k) => ({ y: TOP + k * (CH + LG), h: CH, n: 'Dev ' + (k + 1), tool: M[d].tool, c: devInfo[k].ok + ' of ' + devInfo[k].n + ' accepted', tm: fm(devInfo[k].real) + ' of ≈ ' + fm(devInfo[k].est), s: devInfo[k].st.s, sc: devInfo[k].st.c })) : [];
+    // ---------- Vue Kanban : les mêmes tickets rangés par état
+    const KW = 190, KP = 202, KHH = 112, KG = 8, KT = 36, KMAX = 5;
+    const colOf = (s) => s.st === 'ok' ? 3 : s.st === 'todo' || isOff(s) ? 0 : s.st === 'rev' || (s.st === 'wait' && s.inrev) || (s.st === 'pau' && s.was === 'rev') ? 2 : 1;
+    const kl = [[], [], [], [], []]; T.forEach((t, i) => kl[colOf(stOf[t[0]])].push([t, i])); kl[3].reverse();
+    const kcards = [], kcols = ['To do', 'In dev', 'In review', 'Accepted', 'Validate'].map((n, k) => { const l = k < 4 ? kl[k] : VAL, vis = l.length > KMAX ? KMAX - 1 : l.length, more = l.length - vis;
+      l.slice(0, vis).forEach((x, j) => { const g = { x: k * KP + 8, y: KT + j * (KHH + KG), w: KW - 16, h: KHH }; kcards.push(k < 4 ? mkCard(x[0], x[1], g, true) : mkVal(x, g, true)); });
+      return { t: n, n: String(l.length), x: k * KP, w: KW, more: more ? '+' + more + ' more' : '', moreCls: more ? 'kmore' : 'hid', mx: k * KP + 12, my: KT + (KMAX - 1) * (KHH + KG) + 6 }; });
+    // ---------- Zone macro : chaque phase dit où elle en est
+    const goPh = (k) => () => { if (S.phl === k) return set({ phl: -1, dw: null }); const cs = k < NP ? T.filter((t) => t[1] === k).map((t) => slot[t[0]]) : [nSlots]; set({ phl: k, sel: null, more: false, dw: k < NP ? 'ph' + k : 'val', c0: Math.min(maxC, Math.max(0, Math.min.apply(null, cs))) }); };
+    const mt = (s, f) => { try { const c = this._cv || (this._cv = document.createElement('canvas').getContext('2d')); c.font = f; return c.measureText(s).width; } catch (e) { return s.length * 7.6; } };
+    const phOf = (k) => { const ts = live.filter((t) => t[1] === k); return { ts: ts, ok: ts.filter((t) => stOf[t[0]].st === 'ok').length, act: ts.some((t) => isAct(stOf[t[0]])), real: ts.reduce((a, t) => a + realOf(stOf[t[0]]), 0), est: ts.reduce((a, t) => a + HRS[t[2]], 0) }; };
+    const macR = P.map((p, k) => { const h = phOf(k), dn = h.ok === h.ts.length; return { n: dn ? '✓' : String(k + 1), t: p[0], g: p[1], e: dn ? h.ok + ' of ' + h.ts.length + ' · ' + fm(h.real) : h.ok || h.act ? h.ok + ' of ' + h.ts.length + ' · ' + fm(h.real) + ' of ~' + fm(h.est) : pl(h.ts.length, 'ticket') + ' · ~' + fm(h.est), cls: 'mc' + (dn ? ' dn' : h.act ? ' ac' : '') + (S.phl === k ? ' on' : ''), arr: k ? 'ma' : 'hid', go: goPh(k) }; })
+      .concat([{ n: '✓', t: 'Validate', g: 'The branches are merged, QA plays every flow, then your sign-off.', e: '~' + fm((par ? MERGE_M : 0) + QA_M + SO_M), cls: 'mc val' + (mg !== 'todo' ? ' ac' : '') + (S.phl === NP ? ' on' : ''), arr: 'ma', go: goPh(NP) }]);
+    const AR = 14, GUT = 34;
+    const mw0 = macR.map((m) => Math.ceil(57 + Math.max(mt(m.t, '600 14px Geist, system-ui, sans-serif'), mt(m.e, '400 12.5px Geist, system-ui, sans-serif')) + 2));
+    const mTot = mw0.reduce((a, b) => a + b, 0) + AR * (mw0.length - 1), mFits = mTot <= 1000, mExtra = mFits ? Math.floor((1000 - mTot) / mw0.length) : 0;
+    const AV = mFits ? 1000 : 1000 - 2 * GUT;
+    const mw = mw0.map((w) => w + mExtra), mx = []; mw.forEach((w, k) => { mx.push(k ? mx[k - 1] + mw[k - 1] + AR : 0); });
+    const maxM = mFits ? 0 : mx.findIndex((x) => mTot - x <= AV), m0 = Math.min(maxM, Math.max(0, S.m0 || 0)), mOff = mFits ? 0 : Math.min(mx[m0], mTot - AV);
+    const mBefore = mx.filter((x) => x < mOff - 1).length, mAfter = mx.filter((x, k) => x + mw[k] > mOff + AV + 1).length;
+    const mCutL = mBefore > 0 && !mx.some((x) => Math.abs(x - mOff) < 2), mCutR = mx.some((x, k) => x < mOff + AV - 1 && x + mw[k] > mOff + AV + 1);
+    const mac = macR.map((m, k) => Object.assign(m, { w: mw[k] }));
+    // ---------- Le bandeau : un seul message à la fois
+    const acc = okN + ' of ' + (NT - (drift && !appr ? 1 : 0)) + ' accepted', tu = fm(EL) + ' of ≈ ' + fm(EST) + ' · ' + fT(used) + ' of ≈ ' + fT(estUse) + ' tokens';
+    const B = (c, ic, big, det, btns) => ({ cls: 'qband ' + c, ic: ic === 'arc' ? '' : ic, icCls: ic === 'arc' ? 'arc' : '', big: big, det: det, btns: btns || [] });
+    const bt = (t, cls, go) => ({ t: t, cls: cls, go: go || (() => {}) });
+    const pause = bt('Pause', 'go2', goP('pausing')), resume = bt('Resume', 'go2', goP('dev'));
+    const qOf = (t) => stOf[t[0]].q;
+    const openQ = (q) => () => set({ dw: 'q:' + q, sel: null, more: false }), openBlk = () => set({ dw: 'blk', sel: null, more: false });
+    const asker = (t) => stOf[t[0]].inrev ? 'the reviewer' : 'Dev ' + (who[t[0]] + 1);
+    const runTxt = () => { const l = T.filter((t) => isAct(stOf[t[0]])).map((t) => { const s = stOf[t[0]]; return t[0] + (s.st === 'dev' ? ' in dev' : s.st === 'rev' ? ' in review' : s.st === 'fix' ? ' being fixed' : ''); }); return nd === 1 && l[0] && l[0].indexOf(' in dev') > 0 ? 'Dev 1 is building ' + l[0].replace(' in dev', '') : l.join(', '); };
+    const dOf = (id) => 'Dev ' + (who[id] + 1), actL = actT.map((t) => dOf(t[0]) + ' on ' + t[0]).join(', ');
+    let band;
+    if (Z.env) band = B('r', '!', 'Start held: the test environment check failed', 'The server did not start: migration 0026 is missing locally · nothing runs until the check passes', [bt('Run the check again', 'go r'), bt('See the check', 'go2', () => set({ dw: 'env', sel: null }))]);
+    else if (Z.lead) band = B('b', 'arc', 'The Lead is updating the plan for your request', 'You asked: FG-738 on ' + a738 + ', and FG-739 started now · the page is frozen until it answers · the devs keep going', []);
+    else if (mg === 'run') band = B('b', 'arc', 'All ' + NT + ' tickets accepted: merging the branches', (nd === 2 ? 'dev-2 into dev-1' : 'dev-2 and dev-3 into dev-1') + ' · QA starts right after · ' + tu, [pause]);
+    else if (mg === 'conf') band = B('b', 'arc', 'The Lead is resolving a merge conflict', 'messaging/send.ts was changed by FG-733 (' + dOf('FG-733') + ') and FG-734 (' + dOf('FG-734') + ') · nothing is needed from you', [bt('See the conflict', 'go2', () => set({ dw: 'merge', sel: null })), pause]);
+    else if (mg === 'ok') band = S.qa ? B('b', 'arc', 'QA is starting', 'It plays every flow and films each one · about ' + fm(QA_M) + ' · then your sign-off', [pause]) : B('', '✓', par ? 'Branches merged: ready for QA' : 'All ' + NT + ' tickets accepted: ready for QA', acc + ' · pull request #412 is up to date · ' + tu, [bt('Start QA', 'go', () => set({ qa: true, dw: null, sel: null }))]);
+    else if (Z.paused) band = B('n', '❙❙', 'Paused · ' + acc, 'Nothing runs. ' + actT.map((t) => t[0]).join(', ').replace(/, ([^,]*)$/, ' and $1') + ' stopped in dev. ' + (actT.length > 1 ? 'They pick' : 'It picks') + ' up where ' + (actT.length > 1 ? 'they' : 'it') + ' stopped.', [resume]);
+    else if (Z.pausing) band = B('b', 'arc', 'Pausing: the agents finish their turn', actL + ' · nothing else starts', [resume]);
+    else if (drift && !appr) band = byYou ? B('a', '≠', 'The Lead updated the plan: 1 change applied, 1 set aside', 'Applied: FG-738 on ' + a738 + ' · Set aside: FG-739 now, it waits for FG-737 and FG-738 · approve to continue', [bt('Review changes', 'go a', () => set({ dw: 'drift', sel: null }))])
+      : B('a', '≠', 'The plan changed since you approved it', '1 ticket added, 1 model changed · the devs keep going on what you approved', [bt('Review changes', 'go a', () => set({ dw: 'drift', sel: null }))]);
+    else if (waits.length && blks.length) band = B('a', '◆', 'Two things wait for you', 'A question from ' + asker(waits[0]) + ' on ' + waits[0][0] + ' · ' + blks[0][0] + ' is blocked · ' + acc, [bt('Answer', 'go a', openQ(qOf(waits[0]))), bt("See what's blocking", 'go2', openBlk)]);
+    else if (waits.length) band = qOf(waits[0]) === 'c736' ? B('a', '◆', 'Waiting on you: 3 texts to choose on ' + waits[0][0], dOf(waits[0][0]) + ' proposes three variants · ' + (actT.length > 1 ? 'the rest keeps going' : 'nothing else runs meanwhile') + ' · ' + acc, [bt('Choose', 'go a', openQ(qOf(waits[0])))])
+      : B('a', '◆', 'Waiting on you: a question from ' + asker(waits[0]) + ' on ' + waits[0][0], waits[0][0] + ' waits for your answer · ' + (actT.length > 1 ? 'the rest keeps going' : 'nothing else runs meanwhile') + ' · ' + acc, [bt('Answer', 'go a', openQ(qOf(waits[0])))]);
+    else if (blks.length) band = B('r', '!', blks[0][0] + ' is blocked', 'Blocked for ' + fm(stOf[blks[0][0]].b) + ' · it needs something from you · ' + (actT.length > 1 ? 'the rest keeps going · ' : '') + acc, [bt("See what's blocking", 'go r', openBlk)]);
+    else band = B('b', 'arc', 'On track: ' + runTxt(), acc + ' · ' + tu + (drift && appr ? ' · plan v2 approved' : ''), [pause]);
+    // ---------- Colonne de droite
+    const it = (n, t, s, tk, ocls, nav, navGo) => ({ n: n, t: t, s: s || '', tk: pills(tk || []), ocls: 'o' + (ocls || ''), nav: nav || '', navCls: nav ? 'lnk' : 'hid', navGo: navGo || (() => {}) });
+    const tx = (t, s) => it('', t, s, [], ' np');
+    const sec = (k, items, o) => Object.assign({ k: k, kCls: 'kl', items: items, thumb: false }, o || {});
+    const open = (k) => () => set({ dw: k, sel: null, more: false });
+    // Right now
+    const whoL = [{ dot: 'd ' + (mg === 'conf' || mg === 'run' ? 'run' : drift && !appr ? 'wait' : 'idle'), n: 'Lead', s: mg === 'conf' ? 'resolving the conflict in messaging/send.ts' : mg === 'run' ? 'merging dev-2 into dev-1' : drift && !appr ? 'proposed 2 changes · waits for your approval' : Z.paused ? 'paused' : 'watching · nothing to decide' }]
+      .concat(devs.map((d, k) => ({ dot: 'd ' + devInfo[k].st.c, n: 'Dev ' + (k + 1) + ' · ' + M[d].sh, s: devInfo[k].st.s })))
+      .concat(T.filter((t) => { const s = stOf[t[0]]; return s.st === 'rev' || (s.st === 'wait' && s.inrev); }).map((t) => ({ dot: 'd ' + (stOf[t[0]].st === 'wait' ? 'wait' : Z.pausing ? 'run' : 'run'), n: 'Reviewer · ' + rvw(t), s: stOf[t[0]].st === 'wait' ? 'waits for your answer on ' + t[0] : 'reviewing ' + t[0] + (t[2] === 3 ? ' · review 1 of 2' : '') })))
+      .concat([{ dot: 'd ' + (qaOn ? 'run' : 'idle'), n: 'QA agent', s: qaOn ? 'starting' : par ? 'starts after the merge' : 'starts after the last ticket' }]);
+    const pc = (a, b) => Math.max(2, Math.min(100, Math.round(100 * a / b)));
+    const useL = [{ k: 'Time', c: 'tm', w: pc(EL, EST), v: fm(EL) + ' of ≈ ' + fm(EST) }, { k: 'Tokens', c: '', w: pc(used, estUse), v: fT(used) + ' of ≈ ' + fT(estUse) }]
+      .concat(TM.use[0] ? [{ k: 'Claude', c: 'cl', w: pc(USE[0], TM.use[0]), v: fT(USE[0]) + ' of ≈ ' + fT(TM.use[0]) }] : [], TM.use[1] ? [{ k: 'Codex', c: 'cx', w: pc(USE[1], TM.use[1]), v: fT(USE[1]) + ' of ≈ ' + fT(TM.use[1]) }] : [])
+      .concat(par ? devs.map((d, k) => ({ k: 'Dev ' + (k + 1), c: devs[k] === 'claude' ? 'cl' : 'cx', w: pc(devInfo[k].real, devInfo[k].est), v: devInfo[k].ok + ' of ' + devInfo[k].n + ' accepted · ' + fm(devInfo[k].real) + ' of ≈ ' + fm(devInfo[k].est) })) : []);
+    const now = { use: useL, note: 'Estimated from 42 past tickets. Claude and Codex have separate quotas. QA and your sign-off are counted in the time.', who: whoL, at: fc(NOWM),
+      since: EV.slice(-4).map((l) => ({ c: 'ln2' + (l[2] ? ' am' : ''), tm: fc(l[0]), t: l[1] })), act: EV.slice(-5).reverse().map((l) => ({ tm: fc(l[0]), t: l[1] })),
+      refs: [{ k: 'Issue', v: 'FG-729 · open in the tracker ›' }, { k: 'Repository', v: 'flashgolf/platform' }, { k: par ? 'Branches' : 'Branch', v: par ? (mg === 'ok' ? 'mc/fg-729 · dev-1 and dev-2 merged' : 'mc/fg-729/dev-1 · mc/fg-729/dev-2') : 'mc/fg-729' }, { k: 'Code', v: 'pushed · pull request #412, draft ›' }] };
+    // Un ticket : Summary, Timeline, Technical, Tests & criteria
+    let d = { tabs: [], secs: [] };
+    if (cur) { const s = stOf[cur[0]], i = ids.indexOf(cur[0]), u = unbOf(cur[0]), k = who[cur[0]], steps = stepsOf(cur), sh = shId(cur[0]);
+      const sameStep = T.filter((t) => t[0] !== cur[0] && par && slot[t[0]] === slot[cur[0]] && ZN[t[0]].some((z) => ZN[cur[0]].indexOf(z) >= 0));
+      const eT = { 1: 0.05, 2: 0.12, 3: 0.3 }[cur[2]], rT = s.st === 'ok' ? eT * 1.05 : s.st === 'todo' ? 0 : eT * Math.min(1, realOf(s) / HRS[cur[2]]) * 0.9;
+      const secs = S.tab === 'time' ? [
+          sec('Steps · ' + (s.st === 'todo' ? 'not started' : fm(realOf(s)) + (s.st === 'ok' ? ' in total' : ' so far')) + ' · estimated ~' + fm(HRS[cur[2]]), steps.length ? steps.map((x) => it(x.ic, x.t, x.d, [], x.c === 'run' ? ' bl' : x.c === 'ko' ? ' am' : x.c === 'bk' ? ' rd' : x.c === 'no' ? '' : ' ok')) : [tx('It starts when ' + (cur[5].length ? cur[5].join(' and ') + ' are accepted' : 'the dev is free') + '.')])]
+          .concat(s.fx != null ? [sec('Review remarks · review 1', [it('1', 'Le message « Résultats publiés » part deux fois si la compétition est republiée.', 'The send key must include the publication.', [], ' am'), it('2', 'Aucun test ne couvre la republication.', 'Add a targeted test.', [], ' am')])] : [])
+          .concat([sec('Commits', (s.st === 'todo' ? [] : CM[cur[0]] || []).length ? CM[cur[0]].map((c) => it('·', c[1], c[0])) : [tx('No commit yet.')]),
+            sec('Tests run', [tx(s.st === 'ok' ? 'Targeted tests: all passed. E2E of the flow touched: passed.' : s.fx != null ? 'Targeted tests: 1 failed (republication). E2E not run yet.' : s.st === 'todo' ? 'None yet.' : 'Targeted tests: running.')]),
+            sec('Usage · this ticket', [tx(s.st === 'todo' ? 'Estimated ≈ ' + fT(eT) + ' tokens.' : fT(rT) + ' of ≈ ' + fT(eT) + ' tokens', s.st === 'todo' ? '' : M[toolOf(cur)].fam + ' for the dev, ' + rvw(cur) + ' for the review')])])
+        : S.tab === 'tech' ? [sec('How', [tx(HOW[cur[0]])]),
+            sec('Zones touched', ZN[cur[0]].map((z) => it('·', z, ''))),
+            sec('Parallel work', sameStep.length ? [it('!', 'May conflict in parallel', 'Same step and same zone as ' + sameStep.map((t) => t[0]).join(', ') + '. The Lead watches the merge.', sameStep.map((t) => shId(t[0])), ' am')] : [it('✓', 'No other ticket of this step touches the same zone', '', [], ' ok')]),
+            sec('Branch', [tx(par ? 'mc/fg-729/dev-' + (k + 1) : 'mc/fg-729', par ? 'merged with the other branches before QA' : '')])]
+        : S.tab === 'test' ? [sec('Acceptance criteria', COV.filter((c) => c[1].indexOf(sh) >= 0).map((c) => it(s.st === 'ok' ? '✓' : '○', c[0], '', [], s.st === 'ok' ? ' ok' : ''))),
+            sec('Planned tests', [it('1', 'Targeted tests on ' + ZN[cur[0]][0], ''), it('2', 'E2E of the flow touched', 'played again by QA in Validate')].concat(cur[6].indexOf('risk') >= 0 ? [it('▲', RK[cur[0]], 'a test must prove it cannot happen')] : []))]
+        : [sec('What it changes', [tx(cur[4])]), sec('How', [tx(HOW[cur[0]])]),
+            sec('Who does it · frozen at approval', [it('D' + (k + 1), 'Dev ' + (k + 1) + ' · ' + M[toolOf(cur)].tool + ' · ' + mdl(cur), drift && !appr && cur[0] === 'FG-738' ? 'was ' + b738 + ' in the plan you approved · waits for your approval' : 'a change needs a new approval', [], drift && !appr && cur[0] === 'FG-738' ? ' am' : '', 'Ask the Lead for a change ›'), it('R', 'Reviewer · ' + rvw(cur), cur[2] === 3 ? 'the other model family · two reviews for a Heavy ticket' : 'the other model family · one review')]),
+            sec('Estimate next to real', [tx(s.st === 'todo' ? 'Estimated ~' + fm(HRS[cur[2]]) + ' · ≈ ' + fT(eT) + ' tokens' : fm(realOf(s)) + ' of ~' + fm(HRS[cur[2]]) + ' · ' + fT(rT) + ' of ≈ ' + fT(eT) + ' tokens')]),
+            sec('Waits for', cur[5].length ? [it(cur[5].every((a) => stOf[a].st === 'ok') ? '✓' : '○', cur[5].every((a) => stOf[a].st === 'ok') ? 'Accepted' : 'Not accepted yet', '', cur[5], cur[5].every((a) => stOf[a].st === 'ok') ? ' ok' : '')] : [tx('Nothing.')]),
+            sec('Unblocks', u.length ? [it('→', pl(u.length, 'ticket'), '', u)] : [tx('Nothing.')])];
+      d = { pos: 'Ticket ' + (i + 1) + ' of ' + NT, id: cur[0], title: cur[3], st: stTxt(cur), stCls: 'chp s-' + s.st, size: szOf(cur), szCls: cur[2] === 3 ? 'chp hv' : 'chp', phase: 'Phase ' + (cur[1] + 1) + ' · ' + P[cur[1]][0],
+        tabs: [['sum', 'Summary'], ['time', 'Timeline'], ['tech', 'Technical'], ['test', 'Tests & criteria']].map((x) => ({ t: x[1], cls: S.tab === x[0] ? 'on' : '', go: () => set({ tab: x[0] }) })), secs: secs }; }
+    const step = (k) => () => pick(ids[(ids.indexOf(S.sel) + k + NT) % NT])();
+    // Une demande à répondre sur place
+    const QS = {
+      d732: { title: "« Gagnant » : la notification part-elle si le joueur a coupé les notifications du golf ?", ctx: "La demande parle des préférences du joueur sans trancher ce cas. Le dev a besoin d'une règle : c'est un choix de produit.",
+        ch: [['Non, seulement dans sa boîte', 'Avis du dev : on respecte la préférence ; le message reste lisible dans la boîte.'], ['Oui, un gain passe toujours', 'Le joueur est prévenu à coup sûr, mais sa préférence est ignorée.']] },
+      r732: { title: "Plafond d'envoi : 60 ou 120 messages par minute ?", ctx: "Le dev a mis 120. Le relecteur pense que c'est trop pour un jour de compétition. Aucun des deux ne peut trancher.",
+        ch: [['60 par minute', 'Avis du relecteur : plus lent, mais sans risque pour le fournisseur de notifications.'], ['120 par minute', "Deux fois plus rapide. À surveiller le jour d'une grosse compétition."]] },
+      d733: { title: 'Les rappels retirés déjà planifiés : les annuler ou les laisser partir ?', ctx: "Des rappels de l'ancien système sont déjà programmés pour les jours qui viennent. La demande dit « arrêter », sans parler de ceux-là.",
+        ch: [['Les annuler', "Avis du dev : c'est ce que « arrêter » veut dire ; aucun joueur ne reçoit un rappel retiré."], ['Les laisser partir', 'Rien à défaire, mais des rappels retirés partent encore quelques jours.']] },
+      d734: { title: "« Départ publié » : l'envoyer aussi aux joueurs en liste d'attente ?", ctx: "La demande dit « aux inscrits ». La liste d'attente n'est pas citée : c'est un choix de produit.",
+        ch: [['Non, seulement aux inscrits confirmés', "Avis du dev : un joueur en attente n'a pas de départ."], ['Oui, à tous', "Ils savent que la compétition approche, mais reçoivent un départ qui n'est pas le leur."]] },
+      r734: { title: 'Le message « Résultats publiés » part-il aussi aux joueurs qui ont abandonné ?', ctx: "Le dev l'envoie à tous les inscrits. Le relecteur pense que ce n'est pas ce que dit la demande. Aucun des deux ne peut trancher : c'est un choix de produit.",
+        ch: [['Non, seulement aux joueurs classés', "Avis du relecteur : un joueur qui a abandonné n'attend pas de résultat."], ['Oui, à tous les inscrits', "Plus simple, c'est ce que le dev a fait. Certains recevront un résultat qui ne les concerne pas."]] },
+      d735: { title: 'Le rappel de la veille : à quelle heure part-il ?', ctx: "La demande dit « la veille », sans heure. Le dev a besoin d'une règle pour planifier l'envoi : c'est un choix de produit.",
+        ch: [['18 h, heure du golf', 'Avis du dev : le joueur prépare son sac le soir ; une seule règle pour tous les départs.'], ["À l'heure du départ, la veille", 'Exactement 24 h avant. Les départs matinaux reçoivent le rappel très tôt.']] },
+      c736: { copy: true, title: "Le nom de l'espace dans le menu", ctx: 'Le dev propose trois textes pour ce ticket. Tu choisis ; il écrit les traductions EN et ES ensuite.',
+        ch: [['Messages automatiques', 'Avis du dev : le mot de ta demande, sans ambiguïté.'], ['Messages programmés', "Insiste sur le moment d'envoi ; « programmé » peut faire penser à une date à saisir."], ['Envois automatiques', 'Plus court ; « envoi » est moins parlant pour un gérant de golf.']] }
+    };
+    const qk = dw && dw.indexOf('q') === 0 ? (dw.split(':')[1] || Object.keys(QS).find((k) => Object.keys(Z.run).some((r) => Z.run[r].q === k))) : null, Q = qk ? QS[qk] : null, qAns = qk != null ? S.ans[qk] : null;
+    const qId = qk ? 'FG-' + qk.slice(1) : '', qFrom = qk ? (qk[0] === 'r' ? 'the reviewer' : dOf(qId)) : '';
+    const answer = (i) => () => { const o = Object.assign({}, S.ans); o[qk] = i; set({ ans: o }); };
+    const qv = Q ? { kind: (Q.copy ? 'Copy to choose · from ' : 'Question from ') + qFrom + (qAns != null ? ' · answered' : ' · yours to answer'), title: Q.title, ctx: Q.ctx,
+      ch: Q.ch.map((c, i) => ({ t: c[0], s: c[1], cls: 'qc' + (i === 0 ? ' rec' : '') + (qAns != null && qAns !== i ? ' dim' : ''), recCls: i === 0 ? 'recm' : 'hid', b: qAns === i ? '✓ Chosen' : 'Choose', bCls: 'qb' + (qAns === i ? ' done' : i === 0 ? ' rec' : ''), go: answer(i) })),
+      altCls: qAns != null ? 'hid' : 'qalt', inpCls: qAns != null ? 'hid' : 'inp', lead: answer(0), tk: pills([qk.slice(1)]),
+      foot: qAns != null ? 'Answer sent. ' + (qk[0] === 'r' ? 'The review of ' + qId + ' goes on with your answer.' : dOf(qId) + ' resumes ' + qId + ' with your answer.') : 'The ticket waits for your answer. ' + (nd > 1 ? 'The other tickets keep going.' : 'Nothing else is waiting.') } : { ch: [], tk: [] };
+    // Les panneaux génériques
+    const nQ = 2 + Object.keys(S.ans).length + (Z.gone ? 3 : 0), nWait = waits.length + blks.length + (drift && !appr ? 1 : 0);
+    const G = {
+      issue: { kind: 'Your request', title: 'Messages automatiques : espace dédié du golf et du partenaire, 11 messages préfaits (V1)', intro: 'FG-729 · FlashGolf · the issue as you wrote it with Pilot.', link: 'Open the full ticket page ›', secs: [
+        sec('Goal', [it('◎', "Le golf et son partenaire disposent chacun d'un espace où retrouver, activer et personnaliser 11 messages envoyés automatiquement aux joueurs.", '')]),
+        sec("How the Lead goes about it", [it('→', "Le contrat d'abord, puis un seul moteur d'envoi prouvé sur un message, puis les autres messages et l'espace, les textes à la fin.", '', [], '', "Lead's approach ›", open('approach'))]),
+        sec('What you asked · ' + COV.length, COV.map((c) => it('✓', c[0], '', c[1].filter((x) => ids.indexOf('FG-' + x) >= 0), ' ok')))] },
+      approach: { kind: "Lead's approach", title: 'One engine first, then everything on it', intro: "Le contrat d'abord, pour que l'app et le serveur parlent le même langage. Puis un seul moteur d'envoi, prouvé sur le message « Gagnant ». Les autres messages et l'espace viennent ensuite ; les textes à la fin, quand tout est en place.", secs: [
+        sec('Phases', P.map((p, k) => it(String(k + 1), p[0], p[1]))),
+        sec('Organisation · decided by the Lead', [it('D', nd === 1 ? '1 dev, one ticket at a time' : nd + ' devs in parallel, one branch each', devs.map((x, k) => 'Dev ' + (k + 1) + ' ' + M[x].sh).join(' · ') + (par ? ' · merged before QA' : '')), it('M', 'A model per ticket, by size', 'Heavy tickets and copy go to Claude when the team has one')].concat(par ? [it('!', 'May conflict in parallel', 'FG-733 and FG-734 are in the same step and both touch messaging/send.', ['733', '734'], ' am')] : []))] },
+      dec: { kind: 'Your decisions', title: nWait ? pl(nWait, 'thing') + ' waiting for you' : 'Nothing is waiting for you', intro: 'What waits for your answer, then what you already answered.', secs:
+        (nWait ? [sec('Waiting for you', waits.map((t) => it('?', QS[qOf(t)].title, 'from ' + asker(t), [shId(t[0])], ' am', 'Answer ›', openQ(qOf(t)))).concat(blks.map((t) => it('!', t[0] + ' is blocked', 'it needs something from you', [shId(t[0])], ' rd', "See what's blocking ›", openBlk)), drift && !appr ? [it('≠', pl(nChg, 'change') + ' to the plan', byYou ? 'the answer of the Lead to your request' : 'proposed by the Lead', [], ' am', 'Review changes ›', open('drift'))] : []))] : [])
+        .concat([sec('Answered · ' + nQ, Object.keys(S.ans).map((k) => it('✓', QS[k].title, 'You answered: ' + QS[k].ch[S.ans[k]][0] + ' · just now', [k.slice(1)], ' ok')).concat(Z.gone ? [it('✓', 'Fusion FG-737 → FG-736', 'Proposed by the Lead · you approved', ['736'], ' ok'), it('✗', 'Ticket FG-740 · Lien de désabonnement', 'Proposed by the Lead · you declined: pas dans cette version', [], ''), it('✗', 'Fusion FG-738 → FG-737', 'Proposed by the Lead · you declined: the two stay separate', ['737', '738'], '')] : [], [
+          it('✓', 'Q-34 · Le partenaire voit-il aussi les messages du golf ?', 'You answered: non, seulement les siens · Nov 18, 23:01', ['738'], ' ok'), it('✓', "Choisir la maquette de l'espace", 'You chose variant A · Nov 18', ['736'], ' ok')]))]) },
+      drift: drift && !appr ? { kind: 'Drift from approved plan', title: byYou ? 'The answer of the Lead to your request' : '2 changes since you approved', intro: 'The devs keep going on the plan you approved. These changes apply only once you approve them.', btn: 'Approve ' + (byYou ? 'this change' : 'these changes'), btnGo: () => set({ dlg: true }), secs: [
+          sec('Changes · before and after', byYou ? [it('≠', 'Model changed · FG-738 Espace du partenaire', 'You asked for it. Before: ' + b738 + '. After: ' + a738 + '.', ['738'], ' am')]
+            : [it('+', 'Ticket added · FG-740 Lien de désabonnement dans chaque message', 'Before: not in the plan. After: Standard, ~20 min, last step. Why: the review of FG-733 found that every automatic message needs a way out.', ['740'], ' am'),
+            it('≠', 'Model changed · FG-738 Espace du partenaire', 'Before: ' + b738 + '. After: ' + a738 + '. Why: the partner rights turned out riskier than planned.', ['738'], ' am')])]
+          .concat(byYou ? [sec('Set aside by the Lead', [it('✗', 'Start FG-739 now', 'Why: its texts depend on FG-737 and FG-738, which are not accepted yet.', ['739'])])] : [], [
+          sec('Effect on the estimate', [it('·', byYou ? 'Same time · +100k tokens' : '+10 min · +200k tokens', byYou ? (cl738 ? 'Claude' : 'Codex') + ' quota only' : '≈ ' + fm(EST + 10) + ' instead of ≈ ' + fm(EST))]),
+          sec('Frozen copy', [it('▢', 'Plan v1 · approved on Nov 19 at 11:02', 'what you approved, kept as it was', [], '', 'Open the frozen copy ›', open('frozen'))]),
+          sec('Issue coverage', [it('✓', '10 of 10 requests still covered', byYou ? '' : 'FG-740 adds to « Préférences du joueur »', [], ' ok')])]) }
+        : { kind: 'Drift from approved plan', title: drift ? 'Plan v2 approved' : 'No drift from the approved plan', intro: drift ? (byYou ? 'You approved the change. FG-738 will run on ' + a738 + '.' : 'You approved the 2 changes. The Lead applies them: FG-740 joins the last step, FG-738 will run on ' + a738 + '.') : 'The devs follow the plan you approved: same tickets, same team, same models.', secs: [
+          sec('Frozen copy', [it('▢', drift ? 'Plan v2 · approved just now' : 'Plan v1 · approved on Nov 19 at 11:02', 'what you approved, kept as it was', [], '', 'Open the frozen copy ›', open('frozen'))]),
+          sec('Issue coverage', [it('✓', '10 of 10 requests covered', okN + ' of ' + NT + ' tickets accepted so far', [], ' ok')])] },
+      frozen: { kind: 'Frozen copy', title: drift && appr ? 'Plan v2 · approved just now' : 'Plan v1 · approved on Nov 19 at 11:02', intro: 'What you approved, kept as it was. The team, the dev and the model of each ticket are frozen: a change needs a new approval.', secs: [
+        sec('What you approved', [it('T', (drift && appr ? 11 : 10) + ' tickets in 4 phases', ''), it('D', nd === 1 ? '1 dev · Codex' : nd + ' devs in parallel', devs.map((x, k) => 'Dev ' + (k + 1) + ' ' + M[x].sh).join(' · ')), it('M', 'A model per ticket', 'chosen by the Lead from the ticket size'), it('≈', fm(EST) + ' · ≈ ' + fT(estUse) + ' tokens', 'estimated from 42 past tickets')]),
+        sec('Earlier versions', drift && appr ? [it('1', 'Plan v1 · Nov 19 at 11:02', '10 tickets · FG-738 on ' + b738)] : [tx('None: this is the first approval.')])] },
+      plan: { kind: 'To plan for', title: 'To plan for', intro: 'What to have in mind while the devs run and before closing.', secs: [
+        sec('Environment · checked', [it('✓', 'Test environment ready', 'Server start, test accounts and local migrations checked at 11:01.', [], ' ok', 'Run the check again ›')]),
+        sec('Your manual steps · 5', [['Déployer le contrat avant les apps', 'après 730'], ["Créer l'index des envois en production", 'avant 732'], ["Déployer l'app du golf", 'après 736'], ["Déployer l'app du partenaire", 'après 738'], ['Tester sur un iPhone réel', 'avant la clôture']].map((x, i) => it(String(i + 1), x[0], x[1]))),
+        sec('Risks · 5', [["Envoi de masse le jour d'une compétition", 'Prévu : envois étalés, plafond par minute.', ['732', '734']], ['Un message envoyé deux fois', "Prévu : clé d'envoi unique, testée dès le socle.", ['732', '733']], ['Rappel envoyé après un départ annulé', "Prévu : vérification au moment de l'envoi.", ['735']], ['Droits du partenaire trop larges', 'Prévu : limités à ses propres messages.', ['738']], ['Anciennes apps cassées par le contrat', 'Prévu : contrat compatible, testé.', ['730', '731']]].map((x) => it('▲', x[0], x[1], x[2]))),
+        sec('Copy to write · 2', [it('T', "Textes de l'espace", '', ['736']), it('T', 'Textes des 11 messages, FR, EN, ES', '', ['739'])]),
+        sec('Mockups · 1', [it('◆', 'Espace « Messages automatiques »', 'variant A, chosen by you', ['736'])], { thumb: true }),
+        sec('Test accounts · 2', [it('1', "Gérant d'un golf de test", 'pour régler ses messages'), it('2', 'Partenaire de test', 'pour vérifier qu’il ne voit que les siens')])] },
+      blk: blks.length ? { kind: 'Blocked', title: blks[0][0] + ' is blocked', intro: 'Blocked for ' + fm(stOf[blks[0][0]].b) + ' · Dev ' + (who[blks[0][0]] + 1) + ' stopped after ' + fm(stOf[blks[0][0]].dev) + ' of dev. The other tickets keep going.', btn: 'Run the check again', btnCls: 'pbtn am', link: 'Talk to Pilot ›', secs: [
+        sec('Why', [tx("Le bac à sable des notifications refuse la clé de test : aucun envoi ne peut être vérifié.")]),
+        sec('What was tried', [it('1', 'Relancer la vérification trois fois', 'same refusal each time'), it('2', "Utiliser la clé de l'environnement local", 'refused: wrong project'), it('3', 'Tester sans notification', 'not enough: the ticket must prove the send')]),
+        sec('What we need from you', [it('!', 'Renouveler la clé de test des notifications', 'compte FlashGolf sandbox, puis « Run the check again »', [], ' am')]),
+        sec('Ticket', [it('▢', blks[0][3], '', [shId(blks[0][0])])])] } : null,
+      merge: { kind: 'Merge branches', title: mg === 'conf' ? 'A conflict, being resolved by the Lead' : mg === 'ok' ? 'Branches merged' : mg === 'run' ? 'Merging the branches' : 'Merged before QA', intro: 'Each dev works on its own branch. When every ticket is accepted, the Lead merges them, then QA starts on the result.', secs: [
+        sec('Branches', devs.map((x, k) => it('D' + (k + 1), 'mc/fg-729/dev-' + (k + 1), 'Dev ' + (k + 1) + ' · ' + M[x].sh + ' · ' + pl(devInfo[k].n, 'ticket')))),
+        sec('State', [mg === 'conf' ? it('!', 'Conflict in messaging/send.ts', 'Changed by FG-733 (' + dOf('FG-733') + ') and FG-734 (' + dOf('FG-734') + '). The Lead resolves it, then runs the tests of both tickets again. Nothing is needed from you.', ['733', '734'], ' am')
+          : mg === 'ok' ? it('✓', 'Merged in 6 min', 'One conflict in messaging/send.ts, resolved by the Lead. Tests of FG-733 and FG-734 run again: all passed.', ['733', '734'], ' ok')
+          : mg === 'run' ? it('●', nd === 2 ? 'Merging dev-2 into dev-1' : 'Merging dev-2 and dev-3 into dev-1', 'started 2 min ago · estimated ~' + fm(MERGE_M), [], ' bl') : it('○', 'To come', 'after the last ticket · estimated ~' + fm(MERGE_M))]),
+        sec('Flagged in the plan', [it('!', 'May conflict in parallel', 'FG-733 and FG-734 are in the same step and both touch messaging/send.', ['733', '734'], ' am')])] },
+      env: { kind: 'Environment check', title: 'The check failed: start held', intro: 'Run before the first ticket. Nothing starts until it passes, so that no dev works on an environment that cannot prove its work.', btn: 'Run the check again', btnCls: 'pbtn am', link: 'Talk to Pilot ›', secs: [
+        sec('What was checked', [it('✗', 'Server start', 'stopped: migration 0026 is missing locally', [], ' rd'), it('✓', 'Test accounts', '2 of 2 can sign in', [], ' ok'), it('✗', 'Local migrations', '0026 not applied', [], ' rd')]),
+        sec('What we need from you', [it('!', 'Appliquer la migration 0026 en local', 'puis « Run the check again »', [], ' am')])] },
+      val: { kind: 'Validate', title: 'QA, then your sign-off', intro: 'After the merge. Counted in the estimate: about ' + fm(QA_M + SO_M) + '.', secs: [sec('What happens', [it('▶', 'QA · about ' + fm(QA_M) + ', automatic', 'It plays every flow and records a video of each.'), it('✓', 'Your sign-off · about ' + fm(SO_M) + ' of your time', 'You check only what QA cannot judge: look, feel, and what it could not play.'), it('·', 'Problems found', 'Fixed right away as a small ticket, or sent to a new ticket. No going back to Develop.')])] }
+    };
+    P.forEach((p, k) => { const h = phOf(k);
+      G['ph' + k] = { kind: 'Phase ' + (k + 1) + ' of ' + NP, title: p[0], intro: p[1], secs: [
+        sec('Tickets · ' + h.ok + ' of ' + h.ts.length + ' accepted · ' + fm(h.real) + ' of ~' + fm(h.est), h.ts.map((t) => { const s = stOf[t[0]]; return it(s.st === 'ok' ? '✓' : String(ids.indexOf(t[0]) + 1), t[3], stTxt(t) + ' · estimated ~' + fm(HRS[t[2]]), [shId(t[0])], s.st === 'ok' ? ' ok' : s.st === 'wait' ? ' am' : s.st === 'blk' ? ' rd' : isAct(s) ? ' bl' : ''); })),
+        sec('Covers from your request', COV.filter((c) => c[1].some((x) => h.ts.some((t) => shId(t[0]) === x))).map((c) => it('✓', c[0], '', [], ' ok')))] }; });
+    const gk = dw && G[dw] ? dw : null;
+    const vQ = !cur && !!Q, vGen = !cur && !vQ && !!gk, vNow = !cur && !vQ && !vGen;
+    const g = gk ? Object.assign({ btn: '', btnGo: () => {}, btnCls: 'pbtn', link: '' }, G[gk]) : { secs: [] };
+    g.hasFt = !!(g.btn || g.link); g.btnCls = g.btn ? g.btnCls : 'hid'; g.linkCls = g.link ? 'lnk' : 'hid';
+    // ---------- Les quatre blocs du bas
+    const tile = (id, k, cn, cnCls, ln, al) => ({ cls: 'card tile' + (dw === id ? ' on' : ''), k: k, cn: cn, cnCls: cn ? 'cn' + cnCls : 'hid', al: al || '', alCls: al ? 'cn am' : 'hid', ln: ln, go: () => set({ dw: dw === id ? null : id, sel: null, phl: -1, more: false }) });
+    const segs = live.map((t) => { const s = stOf[t[0]].st; return { c: s === 'ok' ? 'ok' : s === 'wait' ? 'wait' : s === 'blk' ? 'blk' : s === 'todo' || s === 'pau' ? '' : 'run' }; });
+    return {
+      proto: ORDER.map((p) => ({ t: SIT[p].t, cls: S.p === p ? 'on' : '', go: goP(p) })), protoTeam: nd === 1 ? '1 dev' : nd + ' devs en parallèle', bodyCls: 'body' + (Z.lead ? ' frz' : ''),
+      lockTxt: 'frozen', band: band, toggleMore: () => set({ more: !S.more }), moreOn: S.more,
+      more: [{ dot: '', t: 'Open FG-729 in the tracker', s: 'the issue as it was written' }].concat(whoL.map((w) => ({ dot: w.dot, t: w.n + ' · open tab', s: w.s })), [{ dot: '', t: 'Previous screen', s: 'Development' }]),
+      devs: devs.map((m, k) => ({ i: 'D' + (k + 1), avCls: 'av' + (m === 'claude' ? ' cl' : ''), tool: M[m].sh, st: nd === 1 ? devInfo[k].st.s : nd === 2 ? (devInfo[k].st.id || '') : '', stCls: nd < 3 && (nd === 1 || devInfo[k].st.id) ? '' : 'hid', dot: 'd ' + devInfo[k].st.c, tip: 'Dev ' + (k + 1) + ' · ' + devInfo[k].st.s })),
+      vLine: S.view === 'kan' ? '' : 'on', vKan: S.view === 'kan' ? 'on' : '', setLine: () => set({ view: 'line' }), setKan: () => set({ view: 'kan' }), isLine: S.view !== 'kan', isKan: S.view === 'kan',
+      progTxt: acc, segs: segs, elTxt: fm(EL), estTxt: fm(EST), estCls: 'estc' + (vNow ? ' on' : ''), openNow: () => set({ dw: null, sel: null, phl: -1, more: false }),
+      mac: mac, mOff: mOff, mPaged: !mFits, mPad: mFits ? 0 : GUT, macvCls: 'macv' + (mCutL ? ' fl' : '') + (mCutR ? ' fr' : ''), mLCls: 'mnav l' + (mBefore ? '' : ' off'), mRCls: 'mnav r' + (mAfter ? '' : ' off'), mBefore: mBefore ? String(mBefore) : '', mAfter: mAfter ? String(mAfter) : '',
+      mPanL: () => set({ m0: Math.max(0, m0 - 2) }), mPanR: () => set({ m0: Math.min(maxM, m0 + 2) }),
+      multi: par, labs: labs, boardH: boardH, off: off, bands: bands, lanesBg: lanesBg, cards: cards, kcols: kcols, kcards: kcards,
+      paged: maxC > 0, pgL: c0 > 0 ? '' : 'hid', pgR: c0 < maxC ? '' : 'hid', nBefore: String(c0), nAfter: String(cols - c0 - nVis),
+      panL: () => set({ c0: Math.max(0, c0 - nVis) }), panR: () => set({ c0: Math.min(maxC, c0 + nVis) }),
+      tiles: [tile('issue', 'Your request', 'FG-729', '', 'The issue and its full page'), tile('dec', 'Your decisions', nWait ? '' : String(nQ), '', nWait ? 'Answer on the spot' : pl(nQ, 'answer') + ' given', nWait ? nWait + ' waiting' : ''),
+        tile('drift', 'Drift from plan', drift && !appr ? '' : drift ? 'v2' : 'none', ' ok', drift && !appr ? 'Review and approve' : 'Frozen copy · coverage 10 of 10', drift && !appr ? pl(nChg, 'change') : ''), tile('plan', 'To plan for', '', '', '5 steps · 5 risks · 2 copies')],
+      vNow: vNow, now: now, vTk: !!cur, d: d, prev: step(-1), next: step(1), close: () => set({ sel: null, dw: null, phl: -1 }),
+      vQ: vQ, qv: qv, vGen: vGen, g: g,
+      vDlg: !!S.dlg, dlg: { t: byYou ? 'Approve this change?' : 'Approve these 2 changes?', s: 'The plan becomes v2. The team, the dev and the model of each ticket are frozen again.' + (byYou ? '' : ' The estimate goes from ≈ ' + fm(EST) + ' to ≈ ' + fm(EST + 10) + '.'), items: (byYou ? [] : [{ t: 'Ticket added · FG-740 Lien de désabonnement dans chaque message' }]).concat([{ t: 'Model changed · FG-738 from ' + b738 + ' to ' + a738 }]), yes: 'Approve and continue' },
+      dlgNo: () => set({ dlg: false }), dlgYes: () => set({ dlg: false, appr: true, dw: 'drift' })
+    };
+  }
+}
+
+</script>
+</body>
+</html>

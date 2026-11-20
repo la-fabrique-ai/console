@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Prepare — simplified proposal</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#12151D}
+.q{width:1800px;height:1100px;display:flex;background:#12151D;color:#E6E9F0;font-family:Geist,system-ui,sans-serif;font-size:14px;overflow:hidden}
+.q *{box-sizing:border-box}
+.q button{font:inherit;cursor:pointer}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.sp{flex:1}
+/* menu de gauche (inchangé, simplifié ici) */
+.qsb{width:248px;flex:none;background:#151821;border-right:1px solid #232838;padding:18px 14px;display:flex;flex-direction:column;gap:4px;font-size:14px;color:#C9CFDB}
+.qsb b{font-size:15px;color:#fff;margin:0 6px 14px}
+.qsb .it{height:34px;display:flex;align-items:center;gap:10px;padding:0 10px;border-radius:8px}
+.qsb .it.on{background:#1F2440;color:#fff;border:1px solid #3A4180}
+.qsb .sec{margin:16px 10px 6px;font-size:11.5px;letter-spacing:.08em;color:#6F7689}
+.qsb .pj{display:flex;align-items:center;gap:10px;padding:6px 10px}
+.qsb .pj i{width:22px;height:22px;border-radius:6px;border:1.5px solid}
+.qsb .pj small{display:block;font-size:11.5px;color:#6F7689}
+.qsb .cur{display:flex;justify-content:space-between;padding:4px 10px 8px 42px;font-size:13px;color:#fff;font-weight:600}
+
+
+
+.qm{position:relative;flex:1;min-width:0;padding:16px 24px 20px;display:flex;flex-direction:column;gap:14px}
+.qhd{display:flex;align-items:center;gap:14px;height:52px;flex:none}
+.qhd .ic{width:44px;height:44px;border-radius:10px;border:1.5px solid #5563D8;background:#1C2040;display:flex;align-items:center;justify-content:center;color:#C9D0FF}
+.qhd h1{margin:0;font-size:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qhd .sub{display:flex;gap:10px;align-items:center;font-size:13px;color:#8C93A6;margin-top:3px}
+.qhd .sub b{color:#fff;font-weight:600}
+.qhd .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#5C6378;margin-right:5px}
+.qhd .dot.on{background:#7B8CFF}
+.hb{height:36px;padding:0 14px;border-radius:9px;border:1px solid #2A2F40;background:#1B1F2B;color:#E6E9F0;font-size:14px}
+.hb.pilot{border-color:#4A52A8;background:#262B5E;color:#D6DAFF}
+.qband{height:76px;flex:none;display:flex;align-items:center;gap:16px;padding:0 22px;border-radius:12px;border:1px solid #2E8F6C;background:#132823}
+.qband .bi{width:38px;height:38px;border-radius:50%;background:#1C3A31;color:#5DE3B8;display:flex;align-items:center;justify-content:center;font-weight:700}
+.qband .big{font-size:20px;font-weight:600}
+.qband .det{font-size:14px;color:#A9C9BE;margin-top:4px}
+.go{height:46px;padding:0 22px;border-radius:10px;border:1px solid #2E8F6C;background:#163028;color:#5DE3B8;font-size:15px;font-weight:600;white-space:nowrap}
+.card{border-radius:12px;border:1px solid #2A2F40;background:#1B1F2B}
+.kl{display:block;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:#8C93A6;font-weight:600}
+/* le plan : équipe, phases (macro), tickets (micro) */
+.qplan{flex:1;min-height:0;padding:20px 24px 18px;display:flex;flex-direction:column;gap:18px}
+.team{display:flex;align-items:center;gap:10px;height:44px;flex:none;white-space:nowrap}
+.team .tt{font-size:18px;font-weight:600;margin-right:8px}
+.devw{position:relative;display:flex;align-items:center;border-radius:9px;border:1px solid #3A4052;background:#161923}
+.devc{height:36px;display:flex;align-items:center;gap:8px;padding:0 8px 0 6px;border:0;background:transparent;color:#E6E9F0;font-size:13.5px}
+.devc .av{min-width:26px;height:22px;padding:0 5px;border-radius:11px;border:1.5px solid #7B8CFF;color:#C9D0FF;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-style:normal}
+.devc .av.cl{border-color:#C9A27B;color:#F0D6B8}
+.devc small{color:#8C93A6;font-size:12.5px}
+.devc .car{color:#8C93A6;font-size:11px}
+.dx{width:26px;height:36px;border:0;border-left:1px solid #2A2F40;background:transparent;color:#6F7689;font-size:11px}
+.dx:hover{color:#FF8A80}
+.add{height:38px;padding:0 12px;border-radius:9px;border:1px dashed #4A5066;background:transparent;color:#A9B4FF;font-size:13.5px}
+.seg{display:inline-flex;border:1px solid #2A2F40;border-radius:9px;overflow:hidden;margin-left:6px}
+.seg button{height:36px;padding:0 13px;border:0;background:transparent;color:#8C93A6;font-size:13px}
+.seg button.on{background:#262B3A;color:#fff}
+.menu{position:absolute;top:42px;left:0;z-index:8;width:270px;padding:6px;border-radius:10px;border:1px solid #3A4052;background:#1D2130;box-shadow:0 14px 34px rgba(0,0,0,.45)}
+.menu .mh{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:#8C93A6;padding:6px 8px}
+.mi{width:100%;display:flex;align-items:center;gap:9px;padding:8px;border:0;border-radius:7px;background:transparent;color:#E6E9F0;font-size:13.5px;text-align:left}
+.mi:hover{background:#2A2F40}
+.mi small{display:block;color:#8C93A6;font-size:12px}
+.mi .ck{margin-left:auto;color:#5DE3B8}
+.estc{height:44px;display:flex;align-items:center;gap:12px;padding:0 14px;border-radius:10px;border:1px solid #2A2F40;background:#161923;color:#C9CFDB;font-size:13px}
+.estc:hover,.estc.on{border-color:#7B8CFF}
+.estc b{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:19px;font-weight:500;color:#fff}
+.estc em{font-style:normal;color:#A9B4FF}
+.macw{position:relative;flex:none;height:66px;overflow:clip}
+.mac{display:flex;align-items:stretch;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.macv{position:absolute;top:0;bottom:0;overflow:clip}
+.macv.fl::before,.macv.fr::after{content:'';position:absolute;top:0;bottom:0;width:22px;z-index:2;pointer-events:none}
+.macv.fl::before{left:0;background:linear-gradient(90deg,#1B1F2B,rgba(27,31,43,0))}
+.macv.fr::after{right:0;background:linear-gradient(270deg,#1B1F2B,rgba(27,31,43,0))}
+.mnav{position:absolute;top:0;width:26px;height:66px;border-radius:8px;border:1px solid #2A2F40;background:transparent;color:#A3AABB;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:15px;line-height:1}
+.mnav small{font-size:10.5px;color:#6F7689}
+.mnav:hover{border-color:#5C6378;color:#E6E9F0}
+.mnav.off{opacity:.28;pointer-events:none}
+.mnav.l{left:0}.mnav.r{right:0}
+.vp .pg button{height:22px;padding:0 9px;border:1px solid #2A2F40;background:#1B1F2B;color:#A3AABB;font-weight:500}
+.vp .pg button:hover{border-color:#5C6378;color:#E6E9F0}
+.tnote{font-size:13px;color:#8C93A6}
+.tile .hd{min-height:22px}
+.cd .top{min-height:20px}
+.cd .top .ph{text-transform:none;letter-spacing:0;font-size:11px}
+.cd .top .dv{margin-left:8px;font-family:Geist,sans-serif}
+.cd .md{margin-left:auto;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:#A3AABB;white-space:nowrap}
+.devc{padding:0 8px 0 6px;gap:7px}
+.dsel button{font-size:12.5px}
+.kv.who{margin-top:14px;padding:12px 14px;border-radius:10px;border:1px solid #2A2F40;background:#161923;grid-template-columns:70px minmax(0,1fr);align-items:center}
+.kv.who .k{padding-top:0}
+.cd .md{font-family:Geist,sans-serif;font-size:11.5px}
+.ma{width:14px;flex:none;display:flex;align-items:center;justify-content:center;color:#4A5066;font-size:15px}
+.mc{flex:none;min-width:0;height:66px;display:flex;flex-direction:column;gap:4px;padding:11px 12px;border-radius:10px;border:1px solid #2A2F40;background:#161923;color:#C9CFDB;text-align:left;transition:border-color .2s,background .2s}
+.mc:hover{border-color:#5C6378}
+.mc.on{border-color:#7B8CFF;background:#1A1E33}
+.mc .h{display:flex;align-items:center;gap:9px;min-width:0}
+.mc .h i{flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid #4A5066;color:#E6E9F0;font-style:normal;font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.mc .h b{font-size:14px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc .e{margin-top:auto;padding-left:31px;font-size:12.5px;color:#A3AABB;white-space:nowrap}
+.mc.val{border-style:dashed;background:transparent}
+.board{position:relative;display:flex;gap:16px;flex:none}
+.lanes{flex:none;position:relative;width:118px}
+.lab{position:absolute;width:118px;display:flex;flex-direction:column;justify-content:center;gap:3px;font-size:13.5px;font-weight:600;color:#E6E9F0}
+.lab small{font-size:12px;font-weight:400;color:#8C93A6}
+.vp{position:relative;flex:1;min-width:0;overflow:clip}
+.trk{position:relative;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.band{position:absolute;top:0;height:22px;transition:left .5s cubic-bezier(.2,.8,.2,1),width .5s cubic-bezier(.2,.8,.2,1);border-bottom:2px solid #2F3547;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:#A3AABB;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.band.v{border-bottom-style:dashed}
+.lane{position:absolute;left:0;border-radius:10px;background:#171A24}
+.cd{position:absolute;display:flex;flex-direction:column;gap:6px;padding:12px 13px 11px;border-radius:10px;border:1px solid #2A2F40;background:#1B1F2B;color:#C9CFDB;text-align:left;transition:left .5s cubic-bezier(.2,.8,.2,1),top .5s cubic-bezier(.2,.8,.2,1),width .5s cubic-bezier(.2,.8,.2,1),height .5s,border-color .2s,box-shadow .2s,opacity .2s}
+.cd:hover{border-color:#5C6378}
+.cd .top{display:flex;align-items:center;gap:6px;font-size:11px;color:#8C93A6;font-family:"JetBrains Mono",ui-monospace,monospace}
+.cd .top .ph{margin-left:auto;font-family:Geist,sans-serif;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#6F7689}
+.cd .t{font-size:14.5px;font-weight:600;color:#fff;line-height:1.26;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.cd .r{font-size:13px;color:#A3AABB;line-height:1.4;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden}
+.cd.c2 .r{-webkit-line-clamp:3}
+.cd.c3 .t{-webkit-line-clamp:3}
+.cd.c3 .r{-webkit-line-clamp:2}
+.cd.c1{padding:14px 15px 13px}
+.cd.c1 .t{font-size:15.5px}
+.cd.c1 .r{font-size:13.5px;color:#C9CFDB;-webkit-line-clamp:6}
+.cd .ft{margin-top:auto;display:flex;align-items:center;gap:6px;min-height:20px}
+.cd .hr{font-size:12.5px;color:#C9CFDB}
+.cd .af{margin-left:auto;font-size:11.5px;color:#6F7689;white-space:nowrap}
+.cd .af:not(.hid)+.dv{margin-left:8px}
+.cd .sec{display:flex;flex-direction:column;gap:3px;margin-top:8px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07);font-size:12.5px;line-height:1.4;color:#A3AABB}
+.cd .sec>b{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:#6F7689;font-weight:600;margin-bottom:1px}
+.cd .sec>em{font-style:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden}
+.cd .sec>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cd .sec.ck>span::before{content:'✓';color:#3DD6B0;font-size:10px;margin-right:6px}
+.cd .sec.ck>span.more{color:#6F7689}
+.cd .sec.ck>span.more::before{content:none}
+.cd .sec.wt>span{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.cd.c2 .sec{margin-top:2px;padding-top:8px}
+.cd.c2 .sec>b{display:none}
+.tg{height:19px;padding:0 6px;border-radius:5px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;border:1px solid #363C50;color:#A3AABB}
+.tg.hv{background:#3A2F6B;border-color:#6E5BD6;color:#E3DAFF}
+.cd .dv{margin-left:auto;min-width:24px;height:20px;padding:0 5px;border-radius:10px;border:1.5px solid #7B8CFF;color:#C9D0FF;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.cd .dv.cl{border-color:#C9A27B;color:#F0D6B8}
+.cd.hv{border-color:#6E5BD6;background:#221D3A}
+.cd.vq{border-style:dashed;background:#1B1F2B repeating-linear-gradient(135deg,rgba(255,255,255,.025) 0 6px,transparent 6px 12px)}
+.cd.vq .top{color:#A9B4FF}
+.cd.sel{outline:2px solid #E6E9ED;outline-offset:2px}
+.cd.dep{box-shadow:0 0 0 2px #5EA8FF}
+.cd.unb{box-shadow:0 0 0 2px #3DD6B0}
+.cd.dim{opacity:.3}
+.gl{position:absolute;color:#5C6378;font-size:13px}
+.pg{position:absolute;right:0;top:0;z-index:4;height:23px;display:flex;align-items:flex-start;gap:6px;padding-left:14px;background:#1B1F2B}
+.pg button{height:22px;padding:0 10px;border-radius:11px;border:1px solid #4A52A8;background:#262B5E;color:#D6DAFF;font-size:12px;font-weight:600;white-space:nowrap}
+/* trois blocs réduits : une ligne chacun, le détail au clic */
+.tiles{display:flex;gap:12px;flex:none}
+.tile{flex:1;min-width:0;height:84px;display:flex;align-items:center;gap:10px;padding:0 16px 0 18px;color:#E6E9F0;text-align:left;transition:border-color .2s}
+.tile:hover{border-color:#5C6378}
+.tile.on{border-color:#C8CED6}
+.tile .tx{flex:1;min-width:0}
+.tile .hd{display:flex;align-items:center;gap:10px}
+.tile .hd b{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#A3AABB;font-weight:600}
+.cn{height:22px;padding:0 8px;border-radius:11px;background:#262B3A;color:#E6E9F0;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center}
+.cn.ok{background:#163028;color:#5DE3B8}
+.cn.am{background:#3A2E12;color:#F2C14E}
+.tile .ln{display:block;margin-top:7px;font-size:13.5px;color:#C9CFDB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .ch{color:#6F7689;font-size:18px}
+/* le tiroir */
+/* le panneau : ancré à droite, il pousse le plan au lieu de le recouvrir */
+.body{flex:1;min-height:0;display:flex;gap:14px}
+.left{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px}
+.dw{flex:none;width:440px;min-height:0;display:flex;flex-direction:column;border-radius:12px;border:1px solid #3A4052;background:#1D2130}
+.dw .ih{height:52px;flex:none;display:flex;align-items:center;gap:8px;padding:0 18px;border-bottom:1px solid #2A2F40}
+.dw .ih .k{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#A3AABB;font-weight:600}
+.ib{width:30px;height:30px;border-radius:8px;border:1px solid #2A2F40;background:#1B1F2B;color:#C9CFDB}
+.dw .bd{flex:1;min-height:0;overflow-y:auto;padding:16px 20px 18px;scrollbar-width:thin;scrollbar-color:#3A4052 transparent}
+.dw .bd .kl{margin:20px 0 8px}
+.dw .bd .kl.am{color:#F2C14E}
+.dw .ft{flex:none;padding:12px 20px;border-top:1px solid #2A2F40;font-size:12.5px;line-height:1.4;color:#8C93A6}
+.dw .id{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;color:#A9B4FF}
+.h2{font-size:20px;font-weight:600;color:#fff;line-height:1.3;margin-top:4px}
+.pp{margin:0;font-size:14.5px;line-height:1.5;color:#D6DAE6}
+.pp.mu{font-size:13.5px;color:#8C93A6;margin-top:6px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.chp{height:26px;padding:0 9px;border-radius:6px;border:1px solid #363C50;font-size:12.5px;display:inline-flex;align-items:center;color:#C9CFDB;white-space:nowrap}
+.chp.hv{background:#3A2F6B;border-color:#6E5BD6;color:#E3DAFF}
+.rl{display:flex;gap:11px;align-items:flex-start;padding:7px 0;font-size:14px;color:#E6E9F0}
+.rl .o{flex:none;min-width:22px;height:22px;padding:0 4px;border-radius:6px;background:#262B3A;color:#C9CFDB;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.rl .o.ok{background:#163028;color:#5DE3B8}
+.rl .o.am{background:#3A2E12;color:#F2C14E}
+.rl .x{flex:1;min-width:0}
+.rl small{display:block;color:#8C93A6;font-size:13px;line-height:1.4;margin-top:2px}
+.pls{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.pls:empty{display:none}
+.pl{height:24px;padding:0 8px;border-radius:6px;border:1px solid #3A4180;background:#1F2440;color:#C9D0FF;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px}
+.amb{height:32px;padding:0 12px;border-radius:8px;border:1px solid #8A6B1F;background:#2A2416;color:#F2C14E;font-size:13px;margin:4px 0 0 33px}
+.kv{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px 12px;margin-top:18px;font-size:14px;align-items:start}
+.kv .k{color:#8C93A6;padding-top:2px}
+.dsel{display:flex;gap:6px;flex-wrap:wrap}
+.dsel button{height:30px;padding:0 10px;border-radius:8px;border:1px solid #3A4052;background:#161923;color:#C9CFDB;font-size:13px}
+.dsel button.on{border-color:#7B8CFF;background:#1F2440;color:#fff}
+/* tiroir d'estimation */
+.tot{display:flex;align-items:baseline;gap:12px}
+.tot b{flex:none;white-space:nowrap}
+.tot b{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:34px;font-weight:500;color:#fff}
+.tot>span{font-size:13.5px;color:#8C93A6}
+.prt{display:grid;grid-template-columns:120px minmax(0,1fr) 58px;align-items:center;gap:12px;height:28px;font-size:13.5px;color:#C9CFDB}
+.prt .v{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px;text-align:right;color:#E6E9F0}
+.bw{display:block;height:8px;border-radius:4px;background:#232838}
+.bw i{display:block;height:8px;border-radius:4px;background:#7B8CFF}
+.bw i.q{background:#A9B4FF}.bw i.y{background:#F2C14E}.bw i.m{background:#5C6378}
+.opt{width:100%;display:grid;grid-template-columns:140px minmax(0,1fr) 58px 60px;align-items:center;gap:12px;min-height:52px;padding:6px 10px;margin-bottom:6px;border-radius:9px;border:1px solid #2A2F40;background:#161923;color:#E6E9F0;font-size:14px;text-align:left}
+.opt:hover{border-color:#7B8CFF}
+.opt.cur{border-color:#2E8F6C;background:#132823}
+.opt.cur .bw i{background:#3DD6B0}
+.opt small{display:block;font-size:12px;color:#8C93A6;margin-top:1px}
+.opt .v{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;text-align:right}
+.opt .tag{font-size:12.5px;color:#A9B4FF;text-align:right}
+.opt.cur .tag{color:#5DE3B8;font-weight:600}
+.note{margin-top:14px;padding:9px 12px;border-radius:9px;border:1px solid #4A52A8;background:#1A1E33;font-size:13.5px;line-height:1.45;color:#D6DAFF}
+.thumb{margin:6px 0 4px 33px;height:118px;border-radius:9px;background:#F4F5F2;position:relative;overflow:hidden}
+.thumb i{position:absolute;left:14px;height:9px;border-radius:5px;background:#C9CFC8}
+.thumb i:nth-child(1){top:16px;width:120px;background:#8FA596}.thumb i:nth-child(2){top:40px;width:230px}.thumb i:nth-child(3){top:60px;width:190px}.thumb i:nth-child(4){top:80px;width:210px}
+.thumb span{position:absolute;right:10px;bottom:8px;font-size:12px;color:#3A4180;font-weight:600}
+.dw .ft .lnk,.lnk{border:0;background:none;color:#A9B4FF;font-size:13.5px;padding:0}
+.hid{display:none !important}
+</style>
+</helmet>
+
+<div class="q">
+<div class="qsb"><b>Mission Control</b>
+<div class="it">▣ Inbox</div><div class="it">☰ Issues</div><div class="it on">‹/› Development</div>
+<div class="sec">PROJECTS</div>
+<div class="pj"><i style="border-color:#3FBF5A;background:#153A20"></i><span>FlashGolf<small>1 mission</small></span></div>
+<div class="cur"><span>{{hId}}</span><span>Prepare</span></div>
+<div class="pj"><i style="border-color:#D9578C;background:#3A1A2B"></i><span>Gonzesses<small>No active missions</small></span></div>
+<div class="pj"><i style="border-color:#8E7CFF;background:#261F4A"></i><span>Jiroo<small>No active missions</small></span></div>
+<div class="pj"><i style="border-color:#D5A24A;background:#3A2E12"></i><span>LBA<small>No active missions</small></span></div>
+<div class="pj"><i style="border-color:#00B6ED;background:#0E2E3A"></i><span>FooDeCuisine<small>No active missions</small></span></div>
+</div>
+
+<div class="qm">
+<div class="qhd"><div class="ic">⚑</div><div style="min-width:0;flex:1"><h1>{{hTitle}}</h1><div class="sub"><span>FlashGolf · {{hId}}</span><span><i class="dot on"></i><b>Prepare</b></span><span>›</span><span><i class="dot"></i>Develop</span><span>›</span><span><i class="dot"></i>Validate</span></div></div><button class="hb">‹</button><button class="hb pilot">Talk to Pilot</button><button class="hb">⋯</button></div>
+
+<div class="qband"><div class="bi">✓</div><div style="min-width:0"><div class="big">{{bandBig}}</div><div class="det">{{bandDet}}</div></div><span class="sp"></span><button class="go">{{goTxt}}</button></div>
+
+<div class="body"><div class="left">
+<div class="card qplan">
+<div class="team"><span class="tt">Plan</span>
+<sc-for list="{{devs}}" as="d" hint-placeholder-count="1"><div class="devw"><button class="devc" onClick="{{d.open}}" title="{{d.n}}"><i class="{{d.avCls}}">{{d.i}}</i><span>{{d.tool}}</span><span class="car">▾</span></button><button class="{{d.xCls}}" onClick="{{d.rm}}" title="Remove this dev">✕</button><sc-if value="{{ d.menuOn }}" hint-placeholder-val="{{ false }}"><div class="menu"><div class="mh">{{d.n}} runs on</div><sc-for list="{{d.models}}" as="m" hint-placeholder-count="2"><button class="mi" onClick="{{m.go}}"><span>{{m.t}}<small>{{m.s}}</small></span><span class="ck">{{m.ck}}</span></button></sc-for></div></sc-if></div></sc-for>
+<button class="{{addCls}}" onClick="{{addDev}}">+ Add a dev</button><span class="{{noteCls}}">{{teamNote}}</span>
+<span class="{{segCls}}"><button class="{{sSeq}}" onClick="{{setSeq}}">In sequence</button><button class="{{sPar}}" onClick="{{setPar}}">In parallel</button></span>
+<span class="sp"></span>
+<button class="{{estCls}}" onClick="{{openEst}}" title="Estimate"><b>{{estTotal}}</b><span class="{{estXCls}}">{{estParts}}</span><em class="{{estXCls}}">{{estHint}}</em><span class="{{estOCls}}">›</span></button>
+</div>
+
+<div class="macw"><div class="{{macvCls}}" style="left: {{mPad}}px; right: {{mPad}}px"><div class="mac" style="transform: translateX(-{{mOff}}px)"><sc-for list="{{mac}}" as="m" hint-placeholder-count="5"><span class="{{m.arr}}">→</span><button class="{{m.cls}}" style="width: {{m.w}}px" onClick="{{m.go}}" title="{{m.g}}"><span class="h"><i>{{m.n}}</i><b>{{m.t}}</b></span><span class="e">{{m.e}}</span></button></sc-for></div></div>
+<sc-if value="{{ mPaged }}" hint-placeholder-val="{{ false }}"><button class="{{mLCls}}" onClick="{{mPanL}}" title="Previous phases">‹<small>{{mBefore}}</small></button><button class="{{mRCls}}" onClick="{{mPanR}}" title="Next phases">›<small>{{mAfter}}</small></button></sc-if></div>
+
+<div class="board" style="height: {{boardH}}px">
+<sc-if value="{{ multi }}" hint-placeholder-val="{{ false }}"><div class="lanes" style="height: {{boardH}}px"><sc-for list="{{labs}}" as="l" hint-placeholder-count="2"><div class="lab" style="top: {{l.y}}px; height: {{l.h}}px">{{l.n}}<small>{{l.tool}}</small><small>{{l.c}}</small></div></sc-for></div></sc-if>
+<div class="vp"><div class="trk" style="transform: translateX(-{{off}}px); height: {{boardH}}px">
+<sc-for list="{{bands}}" as="b" hint-placeholder-count="5"><div class="{{b.cls}}" style="left: {{b.x}}px; width: {{b.w}}px">{{b.t}}</div></sc-for>
+<sc-for list="{{lanesBg}}" as="l" hint-placeholder-count="0"><div class="lane" style="top: {{l.y}}px; width: {{l.w}}px; height: {{l.h}}px"></div></sc-for>
+<sc-for list="{{glyphs}}" as="g" hint-placeholder-count="0"><div class="gl" style="left: {{g.x}}px; top: {{g.y}}px">›</div></sc-for>
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="12"><button class="{{c.cls}}" style="left: {{c.x}}px; top: {{c.y}}px; width: {{c.w}}px; height: {{c.h}}px" onClick="{{c.go}}" title="{{c.title}}"><span class="top"><span>{{c.n}}</span><span>{{c.id}}</span><span class="ph">{{c.ph}}</span><span class="{{c.dvCls}}">{{c.dv}}</span></span><span class="t">{{c.title}}</span><span class="r">{{c.res}}</span><span class="{{c.howCls}}"><b>How</b><em>{{c.how}}</em></span><span class="{{c.cvCls}}"><b>{{c.cvK}}</b><sc-for list="{{c.cv}}" as="v" hint-placeholder-count="0"><span class="{{v.c}}">{{v.t}}</span></sc-for></span><span class="{{c.wtCls}}"><b>To watch</b><sc-for list="{{c.wt}}" as="v" hint-placeholder-count="0"><span>{{v.t}}</span></sc-for></span><span class="ft"><span class="{{c.dfCls}}">{{c.df}}</span><span class="hr">{{c.hr}}</span><span class="{{c.mdCls}}">{{c.md}}</span></span></button></sc-for>
+</div>
+<sc-if value="{{ paged }}" hint-placeholder-val="{{ true }}"><div class="pg"><button class="{{pgL}}" onClick="{{panL}}" title="Previous tickets">‹ {{nBefore}}</button><button class="{{pgR}}" onClick="{{panR}}" title="Next tickets">{{nAfter}} ›</button></div></sc-if>
+</div>
+</div>
+</div>
+
+<div class="tiles"><sc-for list="{{tiles}}" as="t" hint-placeholder-count="4"><button class="{{t.cls}}" onClick="{{t.go}}"><span class="tx"><span class="hd"><b>{{t.k}}</b><span class="{{t.cnCls}}">{{t.cn}}</span><span class="{{t.alCls}}">{{t.al}}</span></span><span class="ln">{{t.ln}}</span></span><span class="ch">›</span></button></sc-for></div>
+</div>
+
+<sc-if value="{{ vTk }}" hint-placeholder-val="{{ false }}"><div class="dw">
+<div class="ih"><span class="k">{{d.pos}}</span><span class="sp"></span><button class="ib" onClick="{{prev}}">‹</button><button class="ib" onClick="{{next}}">›</button><button class="ib" onClick="{{close}}">✕</button></div>
+<div class="bd"><span class="id">{{d.id}}</span><div class="h2">{{d.title}}</div>
+<div class="chips"><span class="chp">{{d.phase}}</span><span class="{{d.szCls}}">{{d.size}}</span><span class="chp">{{d.hr}}</span></div>
+<div class="kv who"><span class="k">Done by</span><span><span class="dsel"><sc-for list="{{d.devs}}" as="o" hint-placeholder-count="1"><button class="{{o.cls}}" onClick="{{o.go}}">{{o.t}}</button></sc-for></span></span><span class="k">Model</span><span><span class="dsel"><sc-for list="{{d.models}}" as="o" hint-placeholder-count="3"><button class="{{o.cls}}" onClick="{{o.go}}" title="{{o.full}}">{{o.t}}</button></sc-for></span></span></div><p class="pp mu" style="font-size:12.5px">{{d.mdNote}} {{d.devNote}}</p>
+<sc-if value="{{ d.hasChg }}" hint-placeholder-val="{{ false }}"><div class="note">{{d.chg}}</div></sc-if>
+<span class="kl">What it changes</span><p class="pp">{{d.res}}</p>
+<span class="kl">How</span><p class="pp">{{d.how}}</p>
+<sc-if value="{{ d.hasWatch }}" hint-placeholder-val="{{ false }}"><span class="kl">To watch</span><sc-for list="{{d.watch}}" as="f" hint-placeholder-count="1"><div class="rl"><span class="o">{{f.n}}</span><span class="x">{{f.t}}<small>{{f.s}}</small></span></div></sc-for></sc-if>
+<sc-if value="{{ d.hasMock }}" hint-placeholder-val="{{ false }}"><span class="kl">Mockup</span><div class="thumb" style="margin-left:0"><i></i><i></i><i></i><i></i><span>Variant A · Open mockup ›</span></div></sc-if>
+<span class="kl">Covers from your request</span><sc-for list="{{d.covers}}" as="f" hint-placeholder-count="2"><div class="rl"><span class="o ok">✓</span><span class="x">{{f.t}}</span></div></sc-for>
+<div class="kv"><span class="k">Waits for</span><span><span class="pls" style="margin-top:0"><sc-for list="{{d.after}}" as="p" hint-placeholder-count="1"><button class="pl" onClick="{{p.go}}">{{p.id}}</button></sc-for></span>{{d.afterNone}}</span><span class="k">Unblocks</span><span><span class="pls" style="margin-top:0"><sc-for list="{{d.unb}}" as="p" hint-placeholder-count="1"><button class="pl" onClick="{{p.go}}">{{p.id}}</button></sc-for></span>{{d.unbNone}}</span><span class="k">Reviews</span><span>{{d.rev}}</span></div>
+</div>
+<div class="ft"><button class="lnk">Ask Pilot to adjust this ticket ›</button></div>
+</div></sc-if>
+
+<sc-if value="{{ vEst }}" hint-placeholder-val="{{ false }}"><div class="dw">
+<div class="ih"><span class="k">Estimate</span></div>
+<div class="bd"><div class="tot"><b>{{estTotal}}</b><span>{{est.sub}}</span></div>
+<div style="margin-top:10px"><sc-for list="{{est.parts}}" as="p" hint-placeholder-count="3"><div class="prt"><span>{{p.k}}</span><span class="bw"><i class="{{p.c}}" style="width: {{p.w}}%"></i></span><span class="v">{{p.v}}</span></div></sc-for></div>
+<span class="kl">Would more devs help?</span>
+<sc-for list="{{est.opts}}" as="o" hint-placeholder-count="4"><button class="{{o.cls}}" onClick="{{o.go}}"><span>{{o.t}}<small>{{o.s}}</small></span><span class="bw"><i style="width: {{o.w}}%"></i></span><span class="v">{{o.v}}</span><span class="tag">{{o.tag}}</span></button></sc-for>
+<p class="pp mu" style="color:#C9CFDB">{{est.advice}}</p><button class="{{est.resCls}}" style="margin-top:8px">Ask the Lead to re-split for more parallel work ›</button>
+<span class="kl">Per dev</span><sc-for list="{{est.per}}" as="f" hint-placeholder-count="1"><div class="rl"><span class="o">{{f.n}}</span><span class="x">{{f.t}}<small>{{f.s}}</small></span></div></sc-for>
+<span class="kl">Why not faster</span><p class="pp" style="font-size:13.5px;color:#C9CFDB">{{est.why}}</p></div>
+<div class="ft">Estimated by the Lead from ticket size: Light 1 h, Standard 2 h, Heavy 4 h. QA and your sign-off are counted.</div>
+</div></sc-if>
+
+<sc-if value="{{ vGen }}" hint-placeholder-val="{{ false }}"><div class="dw">
+<div class="ih"><span class="k">{{g.kind}}</span><span class="sp"></span><button class="ib" onClick="{{close}}">✕</button></div>
+<div class="bd"><div class="h2" style="margin-top:0">{{g.title}}</div><p class="pp mu">{{g.intro}}</p>
+<sc-for list="{{g.secs}}" as="sec" hint-placeholder-count="2"><span class="{{sec.kCls}}">{{sec.k}}</span><sc-for list="{{sec.items}}" as="f" hint-placeholder-count="3"><div class="rl"><span class="{{f.ocls}}">{{f.n}}</span><span class="x">{{f.t}}<small>{{f.s}}</small><span class="pls"><sc-for list="{{f.tk}}" as="p" hint-placeholder-count="0"><button class="pl" onClick="{{p.go}}">{{p.id}}</button></sc-for></span></span></div></sc-for><sc-if value="{{ sec.btn }}" hint-placeholder-val="{{ false }}"><button class="amb">Check now</button></sc-if><sc-if value="{{ sec.thumb }}" hint-placeholder-val="{{ false }}"><div class="thumb"><i></i><i></i><i></i><i></i><span>Variant A · Open mockup ›</span></div></sc-if></sc-for></div>
+<sc-if value="{{ g.hasLink }}" hint-placeholder-val="{{ false }}"><div class="ft"><button class="lnk">{{g.link}}</button></div></sc-if>
+</div></sc-if>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1800,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(...a) { super(...a); this.state = { devs: ['codex'], par: false, sel: null, dw: null, c0: 0, m0: 0, menu: -1, pin: {}, mdl: {}, phl: -1, fr: 0 };
+    // les blocs de phase sont mesurés : on recalcule quand la police est chargée
+    try { const re = () => setTimeout(() => { try { this.setState({ fr: Date.now() }); } catch (e) {} }, 60); if (document.fonts) { document.fonts.ready.then(re); document.fonts.addEventListener('loadingdone', re); } } catch (e) {} }
+  renderVals() {
+    const S = Object.assign({ devs: ['codex'], par: false, sel: null, dw: null, c0: 0, m0: 0, menu: -1, pin: {}, mdl: {}, phl: -1 }, this.state || {});
+    const set = (o) => this.setState(o);
+    // Un dev se déclare seulement Codex ou Claude ; le modèle se choisit ticket par ticket, selon sa taille.
+    const M = { codex: { tool: 'Codex', sh: 'Codex', s: 'fast, precise on code', models: [['sol-low', 'sol · low', 'gpt-6.1-sol · low effort'], ['sol-med', 'sol · medium', 'gpt-6.1-sol · medium effort'], ['sol-high', 'sol · high', 'gpt-6.1-sol · high effort']] },
+      claude: { tool: 'Claude Code', sh: 'Claude', s: 'strong on product logic and copy', models: [['haiku', 'haiku 5.5', 'Claude Haiku 5.5'], ['sonnet', 'sonnet 5.5', 'Claude Sonnet 5.5'], ['opus', 'opus 5.5', 'Claude Opus 5.5']] } };
+    // Trois demandes pour éprouver la page : une grosse (10 tickets), une petite (2 tickets), une seule (1 ticket).
+    // Ticket : id, phase, taille (1 Light, 2 Standard, 3 Heavy), titre, ce que ça change, attend, points à surveiller
+    const DATA = {
+      big: { id: 'FG-729', title: 'Messages automatiques : espace dédié du golf et du partenaire, 11 messages préfaits (V1)', QA: 2, SO: 1, MERGE: 1,
+        P: [['Contrat partagé', "Fixer le catalogue des messages et la marque « automatique »."], ['Envois automatiques', 'Un seul moteur envoie tous les messages, jamais deux fois.'], ['Espace du golf et du partenaire', 'Chacun voit, active et personnalise ses messages.'], ['Textes', 'Les textes des 11 messages et de l’espace.']],
+        T: [
+          ['FG-730', 0, 2, "Contrat des messages automatiques", "Le catalogue des 11 messages et la marque « automatique » sont fixés, sans casser les anciennes apps.", [], ['risk']],
+          ['FG-731', 0, 1, "L'app lit les messages automatiques", "L'app affiche un message automatique comme un message ordinaire, avec sa marque.", ['FG-730'], []],
+          ['FG-732', 1, 3, "Socle d'envoi, prouvé avec « Gagnant »", "Un moteur unique envoie « Gagnant », boîte et notification, jamais deux fois.", ['FG-730'], ['risk']],
+          ['FG-733', 1, 3, "Messages existants migrés, rappels retirés arrêtés", "Les anciens messages passent sur le moteur ; les rappels retirés ne partent plus.", ['FG-732'], ['risk']],
+          ['FG-734', 1, 3, "Nouveaux messages des compétitions", "Inscription, départ et résultats d'une compétition partent tout seuls.", ['FG-732'], ['risk']],
+          ['FG-735', 1, 3, "Rappels planifiés avant le départ", "Un rappel part la veille et une heure avant le départ.", ['FG-732'], ['risk']],
+          ['FG-736', 2, 3, "Espace « Messages automatiques » dans le menu", "Le golf retrouve ses 11 messages dans un espace dédié du menu.", ['FG-731'], ['copy', 'mockup']],
+          ['FG-737', 2, 2, "Activer, couper, personnaliser un message", "Chaque message s'active, se coupe et se personnalise, golf par golf.", ['FG-736'], []],
+          ['FG-738', 2, 2, "Espace du partenaire", "Le partenaire voit et règle ses propres messages, rien d'autre.", ['FG-736'], ['risk']],
+          ['FG-739', 3, 1, "Textes des 11 messages et de l'espace", "Les 11 textes et ceux de l'espace sont relus et en place, en FR, EN et ES.", ['FG-737', 'FG-738'], ['copy']]],
+        HOW: { 'FG-730': "Spec publiée et épinglée ; messaging, game-module et events mis à jour sans casser les anciennes apps.", 'FG-731': "Lecture du nouveau type de message dans l'app, sans toucher aux autres écrans.", 'FG-732': "Moteur d'envoi commun, clé d'envoi unique, plafond par minute ; prouvé sur le message « Gagnant ».", 'FG-733': "Migration des envois existants vers le moteur commun ; arrêt des rappels retirés.", 'FG-734': "Branchement des événements de compétition sur le moteur.", 'FG-735': "Planification des envois, reprise après redémarrage, vérification au moment d'envoyer.", 'FG-736': "Nouvel écran d'après la maquette choisie (variante A).", 'FG-737': "Réglages par golf, stockés avec le message.", 'FG-738': "Droits du partenaire limités à ses propres messages.", 'FG-739': "Textes proposés par le dev pendant le ticket, choisis par toi." },
+        RK: { 'FG-730': 'Anciennes apps cassées par le contrat', 'FG-732': "Envoi de masse le jour d'une compétition", 'FG-733': 'Un message envoyé deux fois pendant la migration', 'FG-734': "Envoi de masse le jour d'une compétition", 'FG-735': 'Rappel envoyé après un départ annulé', 'FG-738': 'Droits du partenaire trop larges' },
+        COV: [['Espace dédié dans le menu', ['736', '738']], ['Activer, couper, personnaliser', ['736', '737']], ['Les 11 messages préfaits', ['731', '732', '733', '734', '735']], ['Absents de « Messages »', ['732']], ['Jamais deux envois', ['732', '733']], ['Préférences du joueur', ['732']], ['État à la livraison', ['732', '733']], ['Aucun accès croisé', ['736', '737', '738']], ['Textes FR, EN, ES', ['739']], ['Contrat publié', ['730', '731']]],
+        CHG: { 'FG-738': 'Adjusted after your answer to Q-34: the partner only sees and sets its own messages.', 'FG-736': 'Built from the mockup you chose (variant A).' },
+        goal: "Le golf et son partenaire disposent chacun d'un espace où retrouver, activer et personnaliser 11 messages envoyés automatiquement aux joueurs.",
+        out: ['SMS et e-mail', 'Messages créés librement par le golf', "Statistiques d'ouverture"],
+        questions: [["Choisir la maquette de l'espace", 'You chose variant A · Nov 18. FG-736 builds the space from it.', ['736']], ['Q-34 · Le partenaire voit-il aussi les messages du golf ?', 'You answered: non, seulement les siens · Nov 18, 23:01. FG-738 was adjusted: the partner is limited to its own messages.', ['738']]],
+        blockers: [['The Lead stopped: token budget exceeded', 'Nov 18, 22:51 · Prepare had used 4.4M tokens. It resumed after your answer to Q-34. Resolved.']],
+        env: ['No test environment declared for FlashGolf', 'Server start, test accounts and local migrations could not be checked.'],
+        steps: [['Déployer le contrat avant les apps', 'après 730'], ["Créer l'index des envois en production", 'avant 732'], ["Déployer l'app du golf", 'après 736'], ["Déployer l'app du partenaire", 'après 738'], ['Tester sur un iPhone réel', 'avant la clôture']],
+        risks: [["Envoi de masse le jour d'une compétition", 'Prévu : envois étalés, plafond par minute.', ['732', '734']], ['Un message envoyé deux fois', "Prévu : clé d'envoi unique, testée dès le socle.", ['732', '733']], ['Rappel envoyé après un départ annulé', "Prévu : vérification au moment de l'envoi.", ['735']], ['Droits du partenaire trop larges', 'Prévu : limités à ses propres messages.', ['738']], ['Anciennes apps cassées par le contrat', 'Prévu : contrat compatible, testé.', ['730', '731']]],
+        copy: [["Textes de l'espace", ['736']], ['Textes des 11 messages, FR, EN, ES', ['739']]],
+        mocks: [['Espace « Messages automatiques »', 'variant A, chosen by you', ['736']]],
+        accounts: [["Gérant d'un golf de test", 'pour régler ses messages'], ['Partenaire de test', 'pour vérifier qu’il ne voit que les siens']] },
+      two: { id: 'FG-752', title: 'Rappel avant le départ : délai réglable par le golf et par le partenaire', QA: 0.5, SO: 0.25, MERGE: 0.5,
+        P: [['Réglage du délai', 'Chacun choisit quand part son rappel.']],
+        T: [
+          ['FG-753', 0, 2, "Délai du rappel réglable dans l'espace du golf", "Le golf choisit quand part le rappel : la veille, 2 h ou 1 h avant le départ.", [], ['copy']],
+          ['FG-754', 0, 2, "Délai du rappel réglable dans l'espace du partenaire", "Le partenaire choisit son propre délai, sans toucher à celui du golf.", [], ['risk']]],
+        HOW: { 'FG-753': "Nouveau réglage dans l'écran du message « Rappel », stocké avec le message du golf.", 'FG-754': "Même réglage côté partenaire, limité à ses propres messages." },
+        RK: { 'FG-754': 'Le partenaire modifie le délai du golf' },
+        COV: [['Délai réglable par le golf', ['753']], ['Délai réglable par le partenaire', ['754']], ['Trois délais proposés', ['753', '754']], ['Aucun accès croisé', ['754']]],
+        CHG: { 'FG-753': 'Adjusted after your answer to Q-41: three delays, no free entry.' },
+        goal: 'Le golf et le partenaire choisissent chacun quand part le rappel avant le départ.',
+        out: ['Délai libre saisi à la main', 'Rappels par SMS'],
+        questions: [['Q-41 · Quels délais proposer ?', 'You answered: la veille, 2 h et 1 h avant · Nov 19, 09:12. Both tickets offer these three delays.', ['753', '754']]],
+        blockers: [], env: null,
+        steps: [["Déployer l'app du golf et celle du partenaire", 'après 754']],
+        risks: [['Le partenaire modifie le délai du golf', 'Prévu : réglage limité à ses propres messages.', ['754']]],
+        copy: [['Libellés des trois délais', ['753']]], mocks: [],
+        accounts: [["Gérant d'un golf de test", 'pour régler son délai'], ['Partenaire de test', 'pour vérifier qu’il ne règle que le sien']] },
+      one: { id: 'FG-760', title: "Rappel de départ : afficher l'heure dans le fuseau du golf", QA: 0.5, SO: 0.25, MERGE: 0.5,
+        P: [['Correctif', "L'heure du rappel suit le fuseau du golf."]],
+        T: [['FG-760', 0, 2, "Heure du rappel dans le fuseau du golf", "Le joueur lit l'heure de départ dans le fuseau du golf, pas dans celui de son téléphone.", [], ['risk']]],
+        HOW: { 'FG-760': "Conversion de l'heure au moment de composer le message ; test sur un golf hors du fuseau de Paris." },
+        RK: { 'FG-760': "Rappels déjà planifiés avec l'ancienne heure" },
+        COV: [['Heure dans le fuseau du golf', ['760']], ['Rappels déjà planifiés corrigés', ['760']]],
+        CHG: {},
+        goal: "Le rappel de départ affiche l'heure dans le fuseau du golf.",
+        out: ["Choix du fuseau par le joueur"],
+        questions: [], blockers: [], env: null,
+        steps: [['Déployer le serveur', 'après 760']],
+        risks: [["Rappels déjà planifiés avec l'ancienne heure", 'Prévu : recalcul des rappels en attente au déploiement.', ['760']]],
+        copy: [], mocks: [],
+        accounts: [['Joueur de test hors fuseau', "pour vérifier l'heure affichée"]] }
+    };
+    const D = DATA['big'];
+    const P = D.P, T = D.T, HOW = D.HOW, RK = D.RK, COV = D.COV, CHG = D.CHG, QA_H = D.QA, SO_H = D.SO, MERGE = D.MERGE;
+    const NT = T.length, NP = P.length, maxDevs = Math.min(3, NT);
+    const HRS = { 1: 1, 2: 2, 3: 4 };
+    const fh = (x) => { const m = Math.round(x * 60), h = Math.floor(m / 60), r = m % 60; return h && r ? h + ' h ' + (r < 10 ? '0' : '') + r : h ? h + ' h' : r + ' min'; };
+    const pl = (n, w) => n + ' ' + w + (n > 1 ? 's' : '');
+    const szOf = (t) => t[2] === 3 ? 'Heavy' : t[2] === 1 ? 'Light' : 'Standard';
+    const ids = T.map((t) => t[0]);
+    const devs = S.devs.slice(0, maxDevs), nd = devs.length, par = S.par && nd > 1;
+    // répartition : le Lead propose (Heavy et textes vers Claude Code), tu peux changer ticket par ticket
+    const sched = (dv, pll) => {
+      const n = dv.length, slot = {}, who = {}, busy = [], load = dv.map(() => 0);
+      const pickDev = (t, free) => { const want = t[2] === 3 || t[6].indexOf('copy') >= 0 ? 'claude' : 'codex'; return free.slice().sort((a, b) => ((dv[a] === want ? 0 : 1) - (dv[b] === want ? 0 : 1)) || (load[a] - load[b]) || (a - b))[0]; };
+      const all = [...Array(n).keys()];
+      T.forEach((t, i) => { const pin = S.pin[t[0]] != null && S.pin[t[0]] < n ? S.pin[t[0]] : -1;
+        if (!pll) { const k = pin >= 0 ? pin : pickDev(t, all); slot[t[0]] = i; who[t[0]] = k; load[k]++; return; }
+        for (let q = t[5].length ? Math.max.apply(null, t[5].map((a) => slot[a] + 1)) : 0; ; q++) { busy[q] = busy[q] || {}; const free = all.filter((x) => !busy[q][x] && (pin < 0 || x === pin)); if (!free.length) continue; const k = pickDev(t, free); busy[q][k] = 1; slot[t[0]] = q; who[t[0]] = k; load[k]++; break; } });
+      const nSlots = Math.max.apply(null, ids.map((id) => slot[id])) + 1; let hours = 0;
+      for (let q = 0; q < nSlots; q++) hours += Math.max.apply(null, T.filter((t) => slot[t[0]] === q).map((t) => HRS[t[2]]));
+      return { slot: slot, who: who, nSlots: nSlots, hours: hours };
+    };
+    const est = (dv, pll) => { const p = pll && dv.length > 1, r = sched(dv, p), merge = p ? MERGE : 0; return { dev: r.hours, merge: merge, total: r.hours + merge + QA_H + SO_H }; };
+    const SC = sched(devs, par), slot = SC.slot, who = SC.who, nSlots = SC.nSlots;
+    const E = est(devs, par);
+    const mdlOf = (t) => { const l = M[devs[who[t[0]]]].models; return l.find((m) => m[0] === S.mdl[t[0]]) || l[t[2] - 1]; };
+    const lanesN = par ? nd : 1, full = lanesN === 1;
+    const cur = S.sel && ids.indexOf(S.sel) >= 0 ? T[ids.indexOf(S.sel)] : null;
+    const dw = cur ? null : S.dw;
+    // Zone micro : la rangée occupe toute la hauteur. Cartes complètes avec 1 dev, réduites avec 2, compactes avec 3.
+    // La largeur des cartes est calculée pour qu'aucune ne soit coupée.
+    const GAP = 12, TOP = 32, LG = 10, BH = 622, lanesH = BH - TOP, boardH = BH;
+    const CH = Math.floor((lanesH - (lanesN - 1) * LG) / lanesN);
+    const cols = nSlots + (par ? 1 : 2);
+    const vw = 1000 - (par ? 134 : 0), nVis = Math.max(1, Math.min(cols, Math.floor((vw + GAP) / ((full ? 220 : 176) + GAP)))), CW = Math.floor((vw + GAP) / nVis) - GAP, PITCH = CW + GAP;
+    const maxC = cols - nVis, c0 = Math.min(maxC, Math.max(0, S.c0 || 0)), off = c0 * PITCH;
+    const unbOf = (id) => T.filter((t) => t[5].indexOf(id) >= 0).map((t) => t[0]);
+    const pick = (id) => () => { const c = slot[id]; let k = c0; if (c < k) k = c; if (c > k + nVis - 1) k = c - nVis + 1; set({ sel: id, dw: null, menu: -1, phl: -1, c0: k }); };
+    const pills = (a) => a.map((id) => ({ id: id, go: pick(id.indexOf('FG-') === 0 ? id : 'FG-' + id) }));
+    const shId = (id) => id.replace('FG-', '');
+    const cards = T.map((t, i) => {
+      const k = who[t[0]], x = slot[t[0]] * PITCH, y = TOP + (par ? k * (CH + LG) : 0);
+      const c = ['cd', 'c' + lanesN]; if (t[2] === 3) c.push('hv');
+      if (cur && cur[0] === t[0]) c.push('sel'); if (cur && cur[5].indexOf(t[0]) >= 0) c.push('dep'); if (cur && unbOf(cur[0]).indexOf(t[0]) >= 0) c.push('unb');
+      if (S.phl >= 0 && S.phl !== t[1]) c.push('dim');
+      const cov = COV.filter((v) => v[1].indexOf(shId(t[0])) >= 0).map((v) => ({ t: v[0], c: '' }));
+      const cv = full || cov.length <= 3 ? cov : [cov[0], cov[1], { t: '+' + (cov.length - 2) + ' more', c: 'more' }];
+      const wt = []; if (t[6].indexOf('risk') >= 0) wt.push({ t: '▲ ' + RK[t[0]] }); if (t[6].indexOf('copy') >= 0) wt.push({ t: 'T · Copy to write, you choose' }); if (t[6].indexOf('mockup') >= 0) wt.push({ t: '◆ Mockup · variant A' });
+      return { cls: c.join(' '), x: x, y: y, w: CW, h: CH, n: String(i + 1), id: t[0] + (par && NP > 1 ? ' · P' + (t[1] + 1) : ''), ph: full && t[5].length ? 'after ' + t[5].map(shId).join(' · ') : '', title: t[3], res: t[4], md: mdlOf(t)[1], mdCls: 'md',
+        how: HOW[t[0]], howCls: full ? 'sec' : 'hid', cvK: 'Covers', cv: cv, cvCls: lanesN < 3 && cv.length ? 'sec ck' : 'hid', wt: wt, wtCls: full && wt.length ? 'sec wt' : 'hid',
+        af: t[5].length ? 'after ' + t[5].map(shId).join(' · ') : '', afCls: full && t[5].length ? 'af' : 'hid',
+        df: t[2] === 3 ? 'Heavy' : t[2] === 1 ? 'Light' : '', dfCls: t[2] === 3 ? 'tg hv' : t[2] === 1 ? 'tg' : 'hid', hr: '~' + fh(HRS[t[2]]),
+        dv: 'D' + (k + 1), dvCls: nd > 1 ? 'dv' + (devs[k] === 'claude' ? ' cl' : '') : 'hid', go: pick(t[0]) };
+    });
+    // QA et Sign-off ferment le plan : deux cartes à la suite avec 1 dev, empilées dans une colonne en parallèle
+    const vH = par ? Math.floor((lanesH - LG) / 2) : CH;
+    [['▶', 'QA', 'Plays every flow of the plan, on its own.', '~' + fh(QA_H), ['A video of each flow', 'Problems listed for you', 'Starts after the last ticket']], ['✓', 'Sign-off', 'You check only what QA cannot judge.', '~' + fh(SO_H) + ' of your time', ['Look and feel', 'What QA could not play', 'Close in one approval']]].forEach((v, j) => cards.push({
+      cls: 'cd vq ' + (full ? 'c1' : 'c2') + (S.phl >= 0 && S.phl !== NP ? ' dim' : ''), x: (nSlots + (par ? 0 : j)) * PITCH, y: TOP + (par ? j * (vH + LG) : 0), w: CW, h: vH, n: v[0], id: 'Validate', ph: '', title: v[1], res: v[2],
+      how: '', howCls: 'hid', cvK: 'What happens', cv: v[4].map((x) => ({ t: x, c: '' })), cvCls: 'sec ck', wt: [], wtCls: 'hid', af: '', afCls: 'hid', md: '', mdCls: 'hid', df: '', dfCls: 'hid', hr: v[3], dv: '', dvCls: 'hid', go: () => set({ dw: 'val', sel: null, phl: -1 }) }));
+    const bands = [];
+    const bd = (x, w, t, v) => { const xx = Math.max(x, Math.min(off, x + w - 60)); bands.push({ cls: 'band' + (v ? ' v' : ''), x: xx, w: x + w - xx, t: t }); };
+    if (!par) P.forEach((p, k) => { const cs = T.filter((t) => t[1] === k).map((t) => slot[t[0]]), a = Math.min.apply(null, cs), b = Math.max.apply(null, cs); bd(a * PITCH, (b - a) * PITCH + CW, (k + 1) + ' · ' + p[0]); });
+    else for (let q = 0; q < nSlots; q++) bd(q * PITCH, CW, 'Step ' + (q + 1));
+    bd(nSlots * PITCH, (par ? 1 : 2) * PITCH - GAP, 'Validate', true);
+    const glyphs = []; if (!par) for (let q = 0; q < cols - 1; q++) glyphs.push({ x: q * PITCH + CW + 3, y: TOP + CH / 2 - 8 });
+    const lanesBg = par ? devs.map((d, k) => ({ y: TOP + k * (CH + LG) - 4, w: nSlots * PITCH - GAP + 8, h: CH + 8 })) : [];
+    const devH = devs.map((d, k) => T.filter((t) => who[t[0]] === k).reduce((a, t) => a + HRS[t[2]], 0));
+    const devN = devs.map((d, k) => ids.filter((id) => who[id] === k).length);
+    const labs = par ? devs.map((d, k) => ({ y: TOP + k * (CH + LG), h: CH, n: 'Dev ' + (k + 1), tool: M[d].tool, c: pl(devN[k], 'ticket') + ' · ' + fh(devH[k]) })) : [];
+    const nBefore = c0, nAfter = cols - c0 - nVis;
+    // Zone macro : les phases en ligne, puis Validate. Chaque bloc prend la largeur de son titre ;
+    // quand tout ne tient pas, la ligne défile comme celle des tickets.
+    const phH = P.map((p, k) => T.filter((t) => t[1] === k).reduce((a, t) => a + HRS[t[2]], 0));
+    const goPh = (k) => () => { if (S.phl === k) return set({ phl: -1, dw: null }); const cs = k < NP ? T.filter((t) => t[1] === k).map((t) => slot[t[0]]) : [nSlots]; set({ phl: k, sel: null, menu: -1, dw: k < NP ? 'ph' + k : 'val', c0: Math.min(maxC, Math.max(0, Math.min.apply(null, cs))) }); };
+    const mt = (s, f) => { try { const c = this._cv || (this._cv = document.createElement('canvas').getContext('2d')); c.font = f; return c.measureText(s).width; } catch (e) { return s.length * 7.6; } };
+    const macR = P.map((p, k) => ({ n: String(k + 1), t: p[0], g: p[1], e: pl(T.filter((t) => t[1] === k).length, 'ticket') + ' · ~' + fh(phH[k]), cls: 'mc' + (S.phl === k ? ' on' : ''), arr: k ? 'ma' : 'hid', go: goPh(k) }))
+      .concat([{ n: '✓', t: 'Validate', g: 'QA plays every flow, then your sign-off.', e: 'QA + sign-off · ~' + fh(QA_H + SO_H), cls: 'mc val' + (S.phl === NP ? ' on' : ''), arr: 'ma', go: goPh(NP) }]);
+    const AR = 14, GUT = 34;
+    const mw0 = macR.map((m) => Math.ceil(57 + Math.max(mt(m.t, '600 14px Geist, system-ui, sans-serif'), mt(m.e, '400 12.5px Geist, system-ui, sans-serif')) + 2));
+    const mTot = mw0.reduce((a, b) => a + b, 0) + AR * (mw0.length - 1), mFits = mTot <= 1000, mExtra = mFits ? Math.floor((1000 - mTot) / mw0.length) : 0;
+    // quand ça défile, deux flèches discrètes dans une gouttière de chaque côté : elles ne recouvrent aucun bloc
+    const AV = mFits ? 1000 : 1000 - 2 * GUT;
+    const mw = mw0.map((w) => w + mExtra), mx = []; mw.forEach((w, k) => { mx.push(k ? mx[k - 1] + mw[k - 1] + AR : 0); });
+    const maxM = mFits ? 0 : mx.findIndex((x) => mTot - x <= AV), m0 = Math.min(maxM, Math.max(0, S.m0 || 0)), mOff = mFits ? 0 : Math.min(mx[m0], mTot - AV);
+    const mBefore = mx.filter((x) => x < mOff - 1).length, mAfter = mx.filter((x, k) => x + mw[k] > mOff + AV + 1).length;
+    const mCutL = mBefore > 0 && !mx.some((x) => Math.abs(x - mOff) < 2), mCutR = mx.some((x, k) => x < mOff + AV - 1 && x + mw[k] > mOff + AV + 1);
+    const mac = macR.map((m, k) => Object.assign(m, { w: mw[k] }));
+    // Zone équipe : l'estimation, avec plus ou moins de devs
+    const m0d = devs[0], other = m0d === 'codex' ? 'claude' : 'codex', canon = [m0d, other, 'codex'];
+    const nm = (dv) => dv.map((m) => M[m].sh).join(' + ');
+    const OPT = []; for (let n = 1; n <= maxDevs; n++) OPT.push([nd >= n ? devs.slice(0, n) : devs.concat(canon.slice(nd, n)), n > 1, pl(n, 'dev')]);
+    const same = (dv, pll) => dv.length === nd && dv.every((m, i) => m === devs[i]) && (nd === 1 || !!pll === !!par);
+    const oe = OPT.map((o) => est(o[0], o[1]));
+    const bestT = Math.min.apply(null, oe.map((e) => e.total)), bestI = oe.findIndex((e) => e.total === bestT), worstT = Math.max.apply(null, oe.map((e) => e.total));
+    const opts = OPT.map((o, i) => { const cu = same(o[0], o[1]); const note = i && oe[i].total >= oe[i - 1].total ? 'no gain over ' + pl(i, 'dev') : nm(o[0]) + (i ? ' · in parallel' : '');
+      return { cls: 'opt' + (cu ? ' cur' : ''), t: o[2], s: note, w: Math.round(100 * oe[i].total / worstT), v: fh(oe[i].total), tag: cu ? 'Current' : 'Use ›', go: () => set({ devs: o[0].slice(), par: o[1], c0: 0, pin: {}, menu: -1 }) }; });
+    const faster = bestT < E.total, extra = !faster && par && nd > 1 && oe[nd - 2].total <= E.total;
+    const lp = {}, prev = {}; T.forEach((t) => { let b = 0, p = null; t[5].forEach((a) => { if (lp[a] > b) { b = lp[a]; p = a; } }); lp[t[0]] = b + HRS[t[2]]; prev[t[0]] = p; });
+    const last = ids.slice().sort((a, b) => lp[b] - lp[a])[0]; const chain = []; for (let c = last; c; c = prev[c]) chain.unshift(c);
+    const teamTxt = nd === 1 ? '1 dev' : nd + ' devs ' + (par ? 'in parallel' : 'in sequence');
+    const ord = ['', '1st', '2nd', '3rd'];
+    const estV = {
+      sub: 'with ' + teamTxt + ' · QA and sign‑off included',
+      parts: [{ k: 'Development', v: fh(E.dev), w: Math.round(100 * E.dev / E.total), c: '' }].concat(E.merge ? [{ k: 'Merge branches', v: fh(E.merge), w: Math.round(100 * E.merge / E.total), c: 'm' }] : [], [{ k: 'QA', v: fh(QA_H), w: Math.round(100 * QA_H / E.total), c: 'q' }, { k: 'Your sign-off', v: fh(SO_H), w: Math.round(100 * SO_H / E.total), c: 'y' }]),
+      opts: opts, resCls: maxDevs > 1 ? 'lnk' : 'hid',
+      advice: faster ? (nd > 1 && !par ? 'In sequence, only one ticket runs at a time: ' + nd + ' devs take as long as one. ' : '') + 'Tip: with ' + OPT[bestI][2] + ' in parallel, about ' + fh(bestT) + ' instead of ' + fh(E.total) + '. Click a line to apply it to the plan.'
+        : extra ? 'Tip: the ' + ord[nd] + ' dev saves no time on this plan' + (chain.length > 1 ? ', because the tickets wait for each other' : '') + '. Go back to ' + pl(nd - 1, 'dev') + ', or ask the Lead to re-split.'
+        : maxDevs === 1 ? 'One ticket: a second dev would have nothing to do.'
+        : 'This is the fastest setup for this plan.' + (nd < maxDevs ? ' One more dev would not help: the tickets wait for each other.' : ''),
+      per: devs.map((m, k) => ({ n: 'D' + (k + 1), t: 'Dev ' + (k + 1) + ' · ' + M[m].tool, s: pl(devN[k], 'ticket') + ' · ' + fh(devH[k]) + ' of work' })),
+      why: (NT === 1 ? 'One ticket of about ' + fh(lp[last]) + '.' : chain.length > 1 ? 'The longest chain of tickets that wait for each other is ' + chain.join(' → ') + ': ' + fh(lp[last]) + '.' : 'No ticket waits for another. The longest one, ' + last + ', takes ' + fh(lp[last]) + '.')
+        + ' With QA (' + fh(QA_H) + ') and your sign-off (' + fh(SO_H) + '), no team goes below ' + fh(lp[last] + QA_H + SO_H) + '.' + (par ? ' In parallel, each dev works on its own branch; merging them takes about ' + fh(MERGE) + '.' : '')
+    };
+    // Colonne de droite : détail d'un ticket
+    let d = { watch: [], covers: [], after: [], unb: [], devs: [], models: [] };
+    if (cur) { const i = ids.indexOf(cur[0]), u = unbOf(cur[0]), sh = shId(cur[0]);
+      const watch = []; if (cur[6].indexOf('risk') >= 0) watch.push({ n: '▲', t: 'Risk', s: RK[cur[0]] || '' }); if (cur[6].indexOf('copy') >= 0) watch.push({ n: 'T', t: 'Copy to write', s: 'the dev proposes variants during the ticket, you choose' }); if (cur[6].indexOf('mockup') >= 0) watch.push({ n: '◆', t: 'Mockup', s: 'variant A, chosen by you' });
+      d = { pos: NT === 1 ? 'The ticket' : 'Ticket ' + (i + 1) + ' of ' + NT, id: cur[0], title: cur[3], phase: NP > 1 ? 'Phase ' + (cur[1] + 1) + ' · ' + P[cur[1]][0] : P[cur[1]][0], size: szOf(cur), szCls: cur[2] === 3 ? 'chp hv' : 'chp', hr: '~' + fh(HRS[cur[2]]),
+        res: cur[4], how: HOW[cur[0]], hasWatch: watch.length > 0, watch: watch, hasMock: cur[6].indexOf('mockup') >= 0, hasChg: !!CHG[cur[0]], chg: CHG[cur[0]] || '', covers: COV.filter((c) => c[1].indexOf(sh) >= 0).map((c) => ({ t: c[0] })),
+        after: pills(cur[5]), afterNone: cur[5].length ? '' : NT === 1 ? 'nothing' : i === 0 ? 'nothing, first ticket' : 'nothing, can start right away', unb: pills(u), unbNone: u.length ? '' : 'nothing',
+        rev: cur[2] === 3 ? 'tests first, two reviews' : 'one review', devs: devs.map((m, k) => ({ t: 'Dev ' + (k + 1) + ' · ' + M[m].sh, cls: who[cur[0]] === k ? 'on' : '', go: () => { const p = Object.assign({}, S.pin); p[cur[0]] = k; set({ pin: p }); } })),
+        models: M[devs[who[cur[0]]]].models.map((m) => ({ t: m[1], full: m[2], cls: mdlOf(cur)[0] === m[0] ? 'on' : '', go: () => { const o = Object.assign({}, S.mdl); o[cur[0]] = m[0]; set({ mdl: o }); } })),
+        mdNote: M[devs[who[cur[0]]]].models.some((m) => m[0] === S.mdl[cur[0]]) ? 'You chose the model for this ticket.' : 'Model proposed by the Lead from the ticket size: ' + szOf(cur) + ' → ' + mdlOf(cur)[2] + '.',
+        devNote: nd === 1 ? '' : S.pin[cur[0]] != null ? 'You chose the dev for this ticket.' : 'Dev proposed by the Lead: Heavy tickets and copy go to Claude when the team has one.' }; }
+    const step = (k) => () => pick(ids[(ids.indexOf(S.sel) + k + NT) % NT])();
+    // Colonne de droite : la demande, les décisions, la couverture, ce qu'il faut prévoir, Validate, une phase
+    const it = (n, t, s, tk, ocls) => ({ n: n, t: t, s: s || '', tk: pills(tk || []), ocls: 'o' + (ocls || '') });
+    const sec = (k, items, o) => Object.assign({ k: k, kCls: 'kl', items: items, btn: false, thumb: false }, o || {});
+    const nQ = D.questions.length, nB = D.blockers.length;
+    const decSecs = [];
+    if (nQ) decSecs.push(sec('Questions you answered · ' + nQ, D.questions.map((x) => it('✓', x[0], x[1], x[2], ' ok'))));
+    if (nB) decSecs.push(sec('Blockers during the split · ' + nB, D.blockers.map((x) => it('!', x[0], x[1], [], ' am'))));
+    if (!nQ && !nB) decSecs.push(sec('During Prepare', [it('·', 'No question, no blocker', 'The Lead had what it needed to prepare the plan.')]));
+    const planSecs = [D.env ? sec('Environment · not checked', [it('!', D.env[0], D.env[1], [], ' am')], { kCls: 'kl am', btn: true }) : sec('Environment · checked', [it('✓', 'Test environment ready', 'Server start, test accounts and local migrations checked.', [], ' ok')])];
+    if (D.steps.length) planSecs.push(sec('Your manual steps · ' + D.steps.length, D.steps.map((x, i) => it(String(i + 1), x[0], x[1]))));
+    if (D.risks.length) planSecs.push(sec('Risks · ' + D.risks.length, D.risks.map((x) => it('▲', x[0], x[1], x[2]))));
+    if (D.copy.length) planSecs.push(sec('Copy to write · ' + D.copy.length, D.copy.map((x) => it('T', x[0], '', x[1]))));
+    if (D.mocks.length) planSecs.push(sec('Mockups · ' + D.mocks.length, D.mocks.map((x) => it('◆', x[0], x[1], x[2])), { thumb: true }));
+    if (D.accounts.length) planSecs.push(sec('Test accounts · ' + D.accounts.length, D.accounts.map((x, i) => it(String(i + 1), x[0], x[1]))));
+    const G = {
+      issue: { kind: 'Your request', title: D.title, intro: D.id + ' · FlashGolf · the issue as you wrote it with Pilot. Everything on this page comes from it.', hasLink: true, link: 'Open the full ticket page ›', secs: [
+        sec('Goal', [it('◎', D.goal, '')]), sec('What you asked · ' + COV.length, COV.map((c) => it('✓', c[0], '', c[1], ' ok'))), sec('Out of scope', D.out.map((x) => it('–', x, '')))] },
+      dec: { kind: 'Your decisions', title: nQ || nB ? [nQ ? pl(nQ, 'question') + ' answered' : '', nB ? pl(nB, 'blocker') + ' resolved' : ''].filter(Boolean).join(', ') : 'Nothing was asked', intro: 'What happened while the Lead prepared the plan, and what it changed.', secs: decSecs },
+      cov: { kind: 'Issue coverage', title: COV.length + ' of ' + COV.length + ' requests covered', intro: 'Every request of the issue, and the tickets that cover it.', secs: [sec('Requests of the issue', COV.map((c) => it('✓', c[0], '', c[1], ' ok')))] },
+      plan: { kind: 'To plan for', title: 'To plan for', intro: 'What to have in mind before, during and after the devs run.', secs: planSecs },
+      val: { kind: 'Validate', title: 'QA, then your sign-off', intro: 'After the last ticket. Counted in the estimate: about ' + fh(QA_H + SO_H) + '.', secs: [sec('What happens', [it('▶', 'QA · about ' + fh(QA_H) + ', automatic', 'It plays every flow and records a video of each.'), it('✓', 'Your sign-off · about ' + fh(SO_H) + ' of your time', 'You check only what QA cannot judge: look, feel, and what it could not play.'), it('·', 'Problems found', 'Fixed right away as a small ticket, or sent to a new ticket. No going back to Develop.')])] }
+    };
+    P.forEach((p, k) => { const ts = T.filter((t) => t[1] === k), shs = ts.map((t) => shId(t[0]));
+      G['ph' + k] = { kind: NP > 1 ? 'Phase ' + (k + 1) + ' of ' + NP : 'Phase', title: p[0], intro: p[1], secs: [
+        sec('Tickets · ' + ts.length + ' · ~' + fh(phH[k]), ts.map((t) => it(String(ids.indexOf(t[0]) + 1), t[3], szOf(t) + ' · ~' + fh(HRS[t[2]]) + ' · ' + t[4], [shId(t[0])]))),
+        sec('Covers from your request', COV.filter((c) => c[1].some((x) => shs.indexOf(x) >= 0)).map((c) => it('✓', c[0], '', [], ' ok')))] }; });
+    const showEst = !cur && (!dw || dw === 'est' || !G[dw]);
+    // Zone du bas : quatre blocs d'une ligne, le détail s'ouvre à droite
+    const tile = (id, k, cn, cnCls, ln, al) => ({ cls: 'card tile' + (dw === id ? ' on' : ''), k: k, cn: cn, cnCls: cn ? 'cn' + cnCls : 'hid', al: al || '', alCls: al ? 'cn am' : 'hid', ln: ln, go: () => set({ dw: dw === id ? null : id, sel: null, menu: -1, phl: -1 }) });
+    const decLn = nQ || nB ? [nQ ? pl(nQ, 'answer') : '', nB ? pl(nB, 'blocker') + ' solved' : ''].filter(Boolean).join(' · ') : 'No question asked';
+    const planLn = [D.steps.length ? pl(D.steps.length, 'step') : '', D.risks.length ? pl(D.risks.length, 'risk') : '', D.copy.length ? D.copy.length + (D.copy.length > 1 ? ' copies' : ' copy') : ''].filter(Boolean).join(' · ') || 'Nothing special';
+    return {
+      hId: D.id, hTitle: D.title, bandBig: 'The plan is ready: ' + (NT === 1 ? '1 ticket, no split needed' : NT + ' tickets in ' + pl(NP, 'phase')),
+      bandDet: 'About ' + fh(E.total) + ' with ' + teamTxt + ', QA and your sign-off included' + (faster ? ' · ' + fh(bestT) + ' with ' + OPT[bestI][2] + ' in parallel' : extra ? ' · same as with ' + pl(nd - 1, 'dev') : ''),
+      goTxt: nd > 1 ? 'Approve and start the devs' : 'Approve and start the dev',
+      devs: devs.map((m, k) => ({ i: 'D' + (k + 1), avCls: 'av' + (m === 'claude' ? ' cl' : ''), n: 'Dev ' + (k + 1), tool: M[m].sh, xCls: nd > 1 ? 'dx' : 'hid', menuOn: S.menu === k,
+        open: () => set({ menu: S.menu === k ? -1 : k }), rm: () => { const nds = devs.filter((x, j) => j !== k); set({ devs: nds, menu: -1, pin: {}, c0: 0, par: nds.length > 1 && S.par }); },
+        models: ['codex', 'claude'].map((x) => ({ t: M[x].tool, s: M[x].s, ck: m === x ? '✓' : '', go: () => { const nds = devs.slice(); nds[k] = x; set({ devs: nds, menu: -1 }); } })) })),
+      addCls: nd >= maxDevs ? 'hid' : 'add', addDev: () => { if (nd < maxDevs) set({ devs: devs.concat([devs.indexOf('claude') < 0 ? 'claude' : 'codex']), par: true, c0: 0, menu: -1 }); },
+      noteCls: maxDevs === 1 ? 'tnote' : 'hid', teamNote: 'One ticket: one dev is enough',
+      segCls: nd > 1 ? 'seg' : 'hid', sSeq: par ? '' : 'on', sPar: par ? 'on' : '', setSeq: () => set({ par: false, c0: 0 }), setPar: () => set({ par: true, c0: 0 }),
+      estTotal: '≈ ' + fh(E.total), estParts: '', estHint: '', openEst: () => set({ dw: null, sel: null, menu: -1, phl: -1 }), estCls: 'estc' + (showEst ? ' on' : ''), estXCls: 'hid', estOCls: '',
+      mac: mac, mOff: mOff, mPaged: !mFits, mPad: mFits ? 0 : GUT, macvCls: 'macv' + (mCutL ? ' fl' : '') + (mCutR ? ' fr' : ''), mLCls: 'mnav l' + (mBefore ? '' : ' off'), mRCls: 'mnav r' + (mAfter ? '' : ' off'), mBefore: mBefore ? String(mBefore) : '', mAfter: mAfter ? String(mAfter) : '',
+      mPanL: () => set({ m0: Math.max(0, m0 - 2) }), mPanR: () => set({ m0: Math.min(maxM, m0 + 2) }),
+      multi: par, labs: labs, boardH: boardH, off: off, bands: bands, glyphs: glyphs, lanesBg: lanesBg, cards: cards,
+      paged: maxC > 0, pgL: c0 > 0 ? '' : 'hid', pgR: c0 < maxC ? '' : 'hid', nBefore: String(nBefore), nAfter: String(nAfter),
+      panL: () => set({ c0: Math.max(0, c0 - nVis) }), panR: () => set({ c0: Math.min(maxC, c0 + nVis) }),
+      tiles: [tile('issue', 'Your request', D.id, '', 'The issue and its full page'), tile('dec', 'Your decisions', String(nQ), '', decLn), tile('cov', 'Issue coverage', COV.length + ' of ' + COV.length, ' ok', 'All requests have tickets'), tile('plan', 'To plan for', '', '', planLn, D.env ? '1 to check' : '')],
+      vTk: !!cur, d: d, prev: step(-1), next: step(1), close: () => set({ sel: null, dw: null, phl: -1 }),
+      vEst: showEst, est: estV, vGen: !cur && !showEst, g: dw && G[dw] ? Object.assign({ hasLink: false, link: '' }, G[dw]) : { secs: [] }
+    };
+  }
+}
+</script>
+</body>
+</html>

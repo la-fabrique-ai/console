@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>16-two-tickets-1dev</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#12151D}
+
+body{margin:0;background:#12151D}
+.q{width:1800px;height:1100px;display:flex;background:#12151D;color:#E6E9F0;font-family:Geist,system-ui,sans-serif;font-size:14px;overflow:hidden}
+.q *{box-sizing:border-box}
+.q button{font:inherit;cursor:pointer}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.sp{flex:1}
+/* menu de gauche (inchangé, simplifié ici) */
+.qsb{width:248px;flex:none;background:#151821;border-right:1px solid #232838;padding:18px 14px;display:flex;flex-direction:column;gap:4px;font-size:14px;color:#C9CFDB}
+.qsb b{font-size:15px;color:#fff;margin:0 6px 14px}
+.qsb .it{height:34px;display:flex;align-items:center;gap:10px;padding:0 10px;border-radius:8px}
+.qsb .it.on{background:#1F2440;color:#fff;border:1px solid #3A4180}
+.qsb .sec{margin:16px 10px 6px;font-size:11.5px;letter-spacing:.08em;color:#6F7689}
+.qsb .pj{display:flex;align-items:center;gap:10px;padding:6px 10px}
+.qsb .pj i{width:22px;height:22px;border-radius:6px;border:1.5px solid}
+.qsb .pj small{display:block;font-size:11.5px;color:#6F7689}
+.qsb .cur{display:flex;justify-content:space-between;padding:4px 10px 8px 42px;font-size:13px;color:#fff;font-weight:600}
+
+
+
+.qm{position:relative;flex:1;min-width:0;padding:16px 24px 20px;display:flex;flex-direction:column;gap:14px}
+.qhd{display:flex;align-items:center;gap:14px;height:52px;flex:none}
+.qhd .ic{width:44px;height:44px;border-radius:10px;border:1.5px solid #5563D8;background:#1C2040;display:flex;align-items:center;justify-content:center;color:#C9D0FF}
+.qhd h1{margin:0;font-size:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qhd .sub{display:flex;gap:10px;align-items:center;font-size:13px;color:#8C93A6;margin-top:3px}
+.qhd .sub b{color:#fff;font-weight:600}
+.qhd .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#5C6378;margin-right:5px}
+.qhd .dot.on{background:#7B8CFF}
+.hb{height:36px;padding:0 14px;border-radius:9px;border:1px solid #2A2F40;background:#1B1F2B;color:#E6E9F0;font-size:14px}
+.hb.pilot{border-color:#4A52A8;background:#262B5E;color:#D6DAFF}
+.qband{height:76px;flex:none;display:flex;align-items:center;gap:16px;padding:0 22px;border-radius:12px;border:1px solid #2E8F6C;background:#132823}
+.qband .bi{width:38px;height:38px;border-radius:50%;background:#1C3A31;color:#5DE3B8;display:flex;align-items:center;justify-content:center;font-weight:700}
+.qband .big{font-size:20px;font-weight:600}
+.qband .det{font-size:14px;color:#A9C9BE;margin-top:4px}
+.go{height:46px;padding:0 22px;border-radius:10px;border:1px solid #2E8F6C;background:#163028;color:#5DE3B8;font-size:15px;font-weight:600;white-space:nowrap}
+.card{border-radius:12px;border:1px solid #2A2F40;background:#1B1F2B}
+.kl{display:block;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:#8C93A6;font-weight:600}
+/* le plan : équipe, phases (macro), tickets (micro) */
+.qplan{flex:1;min-height:0;padding:20px 24px 18px;display:flex;flex-direction:column;gap:18px}
+.team{display:flex;align-items:center;gap:10px;height:44px;flex:none;white-space:nowrap}
+.team .tt{font-size:18px;font-weight:600;margin-right:8px}
+.devw{position:relative;display:flex;align-items:center;border-radius:9px;border:1px solid #3A4052;background:#161923}
+.devc{height:36px;display:flex;align-items:center;gap:8px;padding:0 8px 0 6px;border:0;background:transparent;color:#E6E9F0;font-size:13.5px}
+.devc .av{min-width:26px;height:22px;padding:0 5px;border-radius:11px;border:1.5px solid #7B8CFF;color:#C9D0FF;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-style:normal}
+.devc .av.cl{border-color:#C9A27B;color:#F0D6B8}
+.devc small{color:#8C93A6;font-size:12.5px}
+.devc .car{color:#8C93A6;font-size:11px}
+.dx{width:26px;height:36px;border:0;border-left:1px solid #2A2F40;background:transparent;color:#6F7689;font-size:11px}
+.dx:hover{color:#FF8A80}
+.add{height:38px;padding:0 12px;border-radius:9px;border:1px dashed #4A5066;background:transparent;color:#A9B4FF;font-size:13.5px}
+.seg{display:inline-flex;border:1px solid #2A2F40;border-radius:9px;overflow:hidden;margin-left:6px}
+.seg button{height:36px;padding:0 13px;border:0;background:transparent;color:#8C93A6;font-size:13px}
+.seg button.on{background:#262B3A;color:#fff}
+.menu{position:absolute;top:42px;left:0;z-index:8;width:270px;padding:6px;border-radius:10px;border:1px solid #3A4052;background:#1D2130;box-shadow:0 14px 34px rgba(0,0,0,.45)}
+.menu .mh{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:#8C93A6;padding:6px 8px}
+.mi{width:100%;display:flex;align-items:center;gap:9px;padding:8px;border:0;border-radius:7px;background:transparent;color:#E6E9F0;font-size:13.5px;text-align:left}
+.mi:hover{background:#2A2F40}
+.mi small{display:block;color:#8C93A6;font-size:12px}
+.mi .ck{margin-left:auto;color:#5DE3B8}
+.estc{height:44px;display:flex;align-items:center;gap:12px;padding:0 14px;border-radius:10px;border:1px solid #2A2F40;background:#161923;color:#C9CFDB;font-size:13px}
+.estc:hover,.estc.on{border-color:#7B8CFF}
+.estc b{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:19px;font-weight:500;color:#fff}
+.estc em{font-style:normal;color:#A9B4FF}
+.macw{position:relative;flex:none;height:66px;overflow:clip}
+.mac{display:flex;align-items:stretch;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.macv{position:absolute;top:0;bottom:0;overflow:clip}
+.macv.fl::before,.macv.fr::after{content:'';position:absolute;top:0;bottom:0;width:22px;z-index:2;pointer-events:none}
+.macv.fl::before{left:0;background:linear-gradient(90deg,#1B1F2B,rgba(27,31,43,0))}
+.macv.fr::after{right:0;background:linear-gradient(270deg,#1B1F2B,rgba(27,31,43,0))}
+.mnav{position:absolute;top:0;width:26px;height:66px;border-radius:8px;border:1px solid #2A2F40;background:transparent;color:#A3AABB;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:15px;line-height:1}
+.mnav small{font-size:10.5px;color:#6F7689}
+.mnav:hover{border-color:#5C6378;color:#E6E9F0}
+.mnav.off{opacity:.28;pointer-events:none}
+.mnav.l{left:0}.mnav.r{right:0}
+.vp .pg button{height:22px;padding:0 9px;border:1px solid #2A2F40;background:#1B1F2B;color:#A3AABB;font-weight:500}
+.vp .pg button:hover{border-color:#5C6378;color:#E6E9F0}
+.tnote{font-size:13px;color:#8C93A6}
+.tile .hd{min-height:22px}
+.cd .top{min-height:20px}
+.cd .top .ph{text-transform:none;letter-spacing:0;font-size:11px}
+.cd .top .dv{margin-left:8px;font-family:Geist,sans-serif}
+.cd .md{margin-left:auto;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:#A3AABB;white-space:nowrap}
+.devc{padding:0 8px 0 6px;gap:7px}
+.dsel button{font-size:12.5px}
+.kv.who{margin-top:14px;padding:12px 14px;border-radius:10px;border:1px solid #2A2F40;background:#161923;grid-template-columns:70px minmax(0,1fr);align-items:center}
+.kv.who .k{padding-top:0}
+.cd .md{font-family:Geist,sans-serif;font-size:11.5px}
+.ma{width:14px;flex:none;display:flex;align-items:center;justify-content:center;color:#4A5066;font-size:15px}
+.mc{flex:none;min-width:0;height:66px;display:flex;flex-direction:column;gap:4px;padding:11px 12px;border-radius:10px;border:1px solid #2A2F40;background:#161923;color:#C9CFDB;text-align:left;transition:border-color .2s,background .2s}
+.mc:hover{border-color:#5C6378}
+.mc.on{border-color:#7B8CFF;background:#1A1E33}
+.mc .h{display:flex;align-items:center;gap:9px;min-width:0}
+.mc .h i{flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid #4A5066;color:#E6E9F0;font-style:normal;font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.mc .h b{font-size:14px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc .e{margin-top:auto;padding-left:31px;font-size:12.5px;color:#A3AABB;white-space:nowrap}
+.mc.val{border-style:dashed;background:transparent}
+.board{position:relative;display:flex;gap:16px;flex:none}
+.lanes{flex:none;position:relative;width:118px}
+.lab{position:absolute;width:118px;display:flex;flex-direction:column;justify-content:center;gap:3px;font-size:13.5px;font-weight:600;color:#E6E9F0}
+.lab small{font-size:12px;font-weight:400;color:#8C93A6}
+.vp{position:relative;flex:1;min-width:0;overflow:clip}
+.trk{position:relative;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.band{position:absolute;top:0;height:22px;transition:left .5s cubic-bezier(.2,.8,.2,1),width .5s cubic-bezier(.2,.8,.2,1);border-bottom:2px solid #2F3547;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:#A3AABB;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.band.v{border-bottom-style:dashed}
+.lane{position:absolute;left:0;border-radius:10px;background:#171A24}
+.cd{position:absolute;display:flex;flex-direction:column;gap:6px;padding:12px 13px 11px;border-radius:10px;border:1px solid #2A2F40;background:#1B1F2B;color:#C9CFDB;text-align:left;transition:left .5s cubic-bezier(.2,.8,.2,1),top .5s cubic-bezier(.2,.8,.2,1),width .5s cubic-bezier(.2,.8,.2,1),height .5s,border-color .2s,box-shadow .2s,opacity .2s}
+.cd:hover{border-color:#5C6378}
+.cd .top{display:flex;align-items:center;gap:6px;font-size:11px;color:#8C93A6;font-family:"JetBrains Mono",ui-monospace,monospace}
+.cd .top .ph{margin-left:auto;font-family:Geist,sans-serif;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#6F7689}
+.cd .t{font-size:14.5px;font-weight:600;color:#fff;line-height:1.26;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.cd .r{font-size:13px;color:#A3AABB;line-height:1.4;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden}
+.cd.c2 .r{-webkit-line-clamp:3}
+.cd.c3 .t{-webkit-line-clamp:3}
+.cd.c3 .r{-webkit-line-clamp:2}
+.cd.c1{padding:14px 15px 13px}
+.cd.c1 .t{font-size:15.5px}
+.cd.c1 .r{font-size:13.5px;color:#C9CFDB;-webkit-line-clamp:6}
+.cd .ft{margin-top:auto;display:flex;align-items:center;gap:6px;min-height:20px}
+.cd .hr{font-size:12.5px;color:#C9CFDB}
+.cd .af{margin-left:auto;font-size:11.5px;color:#6F7689;white-space:nowrap}
+.cd .af:not(.hid)+.dv{margin-left:8px}
+.cd .sec{display:flex;flex-direction:column;gap:3px;margin-top:8px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07);font-size:12.5px;line-height:1.4;color:#A3AABB}
+.cd .sec>b{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:#6F7689;font-weight:600;margin-bottom:1px}
+.cd .sec>em{font-style:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden}
+.cd .sec>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cd .sec.ck>span::before{content:'✓';color:#3DD6B0;font-size:10px;margin-right:6px}
+.cd .sec.ck>span.more{color:#6F7689}
+.cd .sec.ck>span.more::before{content:none}
+.cd .sec.wt>span{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.cd.c2 .sec{margin-top:2px;padding-top:8px}
+.cd.c2 .sec>b{display:none}
+.tg{height:19px;padding:0 6px;border-radius:5px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;border:1px solid #363C50;color:#A3AABB}
+.tg.hv{background:#3A2F6B;border-color:#6E5BD6;color:#E3DAFF}
+.cd .dv{margin-left:auto;min-width:24px;height:20px;padding:0 5px;border-radius:10px;border:1.5px solid #7B8CFF;color:#C9D0FF;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.cd .dv.cl{border-color:#C9A27B;color:#F0D6B8}
+.cd.hv{border-color:#6E5BD6;background:#221D3A}
+.cd.vq{border-style:dashed;background:#1B1F2B repeating-linear-gradient(135deg,rgba(255,255,255,.025) 0 6px,transparent 6px 12px)}
+.cd.vq .top{color:#A9B4FF}
+.cd.sel{outline:2px solid #E6E9ED;outline-offset:2px}
+.cd.dep{box-shadow:0 0 0 2px #5EA8FF}
+.cd.unb{box-shadow:0 0 0 2px #3DD6B0}
+.cd.dim{opacity:.3}
+.gl{position:absolute;color:#5C6378;font-size:13px}
+.pg{position:absolute;right:0;top:0;z-index:4;height:23px;display:flex;align-items:flex-start;gap:6px;padding-left:14px;background:#1B1F2B}
+.pg button{height:22px;padding:0 10px;border-radius:11px;border:1px solid #4A52A8;background:#262B5E;color:#D6DAFF;font-size:12px;font-weight:600;white-space:nowrap}
+/* trois blocs réduits : une ligne chacun, le détail au clic */
+.tiles{display:flex;gap:12px;flex:none}
+.tile{flex:1;min-width:0;height:84px;display:flex;align-items:center;gap:10px;padding:0 16px 0 18px;color:#E6E9F0;text-align:left;transition:border-color .2s}
+.tile:hover{border-color:#5C6378}
+.tile.on{border-color:#C8CED6}
+.tile .tx{flex:1;min-width:0}
+.tile .hd{display:flex;align-items:center;gap:10px}
+.tile .hd b{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#A3AABB;font-weight:600}
+.cn{height:22px;padding:0 8px;border-radius:11px;background:#262B3A;color:#E6E9F0;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center}
+.cn.ok{background:#163028;color:#5DE3B8}
+.cn.am{background:#3A2E12;color:#F2C14E}
+.tile .ln{display:block;margin-top:7px;font-size:13.5px;color:#C9CFDB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .ch{color:#6F7689;font-size:18px}
+/* le tiroir */
+/* le panneau : ancré à droite, il pousse le plan au lieu de le recouvrir */
+.body{flex:1;min-height:0;display:flex;gap:14px}
+.left{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px}
+.dw{flex:none;width:440px;min-height:0;display:flex;flex-direction:column;border-radius:12px;border:1px solid #3A4052;background:#1D2130}
+.dw .ih{height:52px;flex:none;display:flex;align-items:center;gap:8px;padding:0 18px;border-bottom:1px solid #2A2F40}
+.dw .ih .k{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#A3AABB;font-weight:600}
+.ib{width:30px;height:30px;border-radius:8px;border:1px solid #2A2F40;background:#1B1F2B;color:#C9CFDB}
+.dw .bd{flex:1;min-height:0;overflow-y:auto;padding:16px 20px 18px;scrollbar-width:thin;scrollbar-color:#3A4052 transparent}
+.dw .bd .kl{margin:20px 0 8px}
+.dw .bd .kl.am{color:#F2C14E}
+.dw .ft{flex:none;padding:12px 20px;border-top:1px solid #2A2F40;font-size:12.5px;line-height:1.4;color:#8C93A6}
+.dw .id{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;color:#A9B4FF}
+.h2{font-size:20px;font-weight:600;color:#fff;line-height:1.3;margin-top:4px}
+.pp{margin:0;font-size:14.5px;line-height:1.5;color:#D6DAE6}
+.pp.mu{font-size:13.5px;color:#8C93A6;margin-top:6px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.chp{height:26px;padding:0 9px;border-radius:6px;border:1px solid #363C50;font-size:12.5px;display:inline-flex;align-items:center;color:#C9CFDB;white-space:nowrap}
+.chp.hv{background:#3A2F6B;border-color:#6E5BD6;color:#E3DAFF}
+.rl{display:flex;gap:11px;align-items:flex-start;padding:7px 0;font-size:14px;color:#E6E9F0}
+.rl .o{flex:none;min-width:22px;height:22px;padding:0 4px;border-radius:6px;background:#262B3A;color:#C9CFDB;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.rl .o.ok{background:#163028;color:#5DE3B8}
+.rl .o.am{background:#3A2E12;color:#F2C14E}
+.rl .x{flex:1;min-width:0}
+.rl small{display:block;color:#8C93A6;font-size:13px;line-height:1.4;margin-top:2px}
+.pls{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.pls:empty{display:none}
+.pl{height:24px;padding:0 8px;border-radius:6px;border:1px solid #3A4180;background:#1F2440;color:#C9D0FF;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px}
+.amb{height:32px;padding:0 12px;border-radius:8px;border:1px solid #8A6B1F;background:#2A2416;color:#F2C14E;font-size:13px;margin:4px 0 0 33px}
+.kv{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px 12px;margin-top:18px;font-size:14px;align-items:start}
+.kv .k{color:#8C93A6;padding-top:2px}
+.dsel{display:flex;gap:6px;flex-wrap:wrap}
+.dsel button{height:30px;padding:0 10px;border-radius:8px;border:1px solid #3A4052;background:#161923;color:#C9CFDB;font-size:13px}
+.dsel button.on{border-color:#7B8CFF;background:#1F2440;color:#fff}
+/* tiroir d'estimation */
+.tot{display:flex;align-items:baseline;gap:12px}
+.tot b{flex:none;white-space:nowrap}
+.tot b{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:34px;font-weight:500;color:#fff}
+.tot>span{font-size:13.5px;color:#8C93A6}
+.prt{display:grid;grid-template-columns:120px minmax(0,1fr) 58px;align-items:center;gap:12px;height:28px;font-size:13.5px;color:#C9CFDB}
+.prt .v{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12.5px;text-align:right;color:#E6E9F0}
+.bw{display:block;height:8px;border-radius:4px;background:#232838}
+.bw i{display:block;height:8px;border-radius:4px;background:#7B8CFF}
+.bw i.q{background:#A9B4FF}.bw i.y{background:#F2C14E}.bw i.m{background:#5C6378}
+.opt{width:100%;display:grid;grid-template-columns:140px minmax(0,1fr) 58px 60px;align-items:center;gap:12px;min-height:52px;padding:6px 10px;margin-bottom:6px;border-radius:9px;border:1px solid #2A2F40;background:#161923;color:#E6E9F0;font-size:14px;text-align:left}
+.opt:hover{border-color:#7B8CFF}
+.opt.cur{border-color:#2E8F6C;background:#132823}
+.opt.cur .bw i{background:#3DD6B0}
+.opt small{display:block;font-size:12px;color:#8C93A6;margin-top:1px}
+.opt .v{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px;text-align:right}
+.opt .tag{font-size:12.5px;color:#A9B4FF;text-align:right}
+.opt.cur .tag{color:#5DE3B8;font-weight:600}
+.note{margin-top:14px;padding:9px 12px;border-radius:9px;border:1px solid #4A52A8;background:#1A1E33;font-size:13.5px;line-height:1.45;color:#D6DAFF}
+.thumb{margin:6px 0 4px 33px;height:118px;border-radius:9px;background:#F4F5F2;position:relative;overflow:hidden}
+.thumb i{position:absolute;left:14px;height:9px;border-radius:5px;background:#C9CFC8}
+.thumb i:nth-child(1){top:16px;width:120px;background:#8FA596}.thumb i:nth-child(2){top:40px;width:230px}.thumb i:nth-child(3){top:60px;width:190px}.thumb i:nth-child(4){top:80px;width:210px}
+.thumb span{position:absolute;right:10px;bottom:8px;font-size:12px;color:#3A4180;font-weight:600}
+.dw .ft .lnk,.lnk{border:0;background:none;color:#A9B4FF;font-size:13.5px;padding:0}
+.hid{display:none !important}
+
+</style>
+</head>
+<body>
+<div data-dc-tpl="3" class="q"><div class="qsb"><b>Mission Control</b><div class="it">▣ Inbox</div><div class="it">☰ Issues</div><div class="it on">‹/› Development</div><div class="sec">PROJECTS</div><div class="pj"><i style="border-color: rgb(63, 191, 90); background: rgb(21, 58, 32);"></i><span>FlashGolf<small>1 mission</small></span></div><div class="cur"><span>FG-752</span><span>Prepare</span></div><div class="pj"><i style="border-color: rgb(217, 87, 140); background: rgb(58, 26, 43);"></i><span>Gonzesses<small>No active missions</small></span></div><div class="pj"><i style="border-color: rgb(142, 124, 255); background: rgb(38, 31, 74);"></i><span>Jiroo<small>No active missions</small></span></div><div class="pj"><i style="border-color: rgb(213, 162, 74); background: rgb(58, 46, 18);"></i><span>LBA<small>No active missions</small></span></div><div class="pj"><i style="border-color: rgb(0, 182, 237); background: rgb(14, 46, 58);"></i><span>FooDeCuisine<small>No active missions</small></span></div></div><div class="qm"><div class="qhd"><div class="ic">⚑</div><div style="min-width: 0px; flex: 1 1 0%;"><h1>Rappel avant le départ : délai réglable par le golf et par le partenaire</h1><div class="sub"><span>FlashGolf · FG-752</span><span><i class="dot on"></i><b>Prepare</b></span><span>›</span><span><i class="dot"></i>Develop</span><span>›</span><span><i class="dot"></i>Validate</span></div></div><button class="hb">‹</button><button class="hb pilot">Talk to Pilot</button><button class="hb">⋯</button></div><div class="qband"><div class="bi">✓</div><div style="min-width: 0px;"><div class="big">The plan is ready: 2 tickets in 1 phase</div><div class="det">About 4 h 45 with 1 dev, QA and your sign-off included · 3 h 15 with 2 devs in parallel</div></div><span class="sp"></span><button class="go">Approve and start the dev</button></div><div class="body"><div class="left"><div class="card qplan"><div class="team"><span class="tt">Plan</span><div class="devw"><button class="devc" title="Dev 1"><i class="av">D1</i><span>Codex</span><span class="car">▾</span></button><button class="hid" title="Remove this dev">✕</button></div><button class="add">+ Add a dev</button><span class="hid">One ticket: one dev is enough</span><span class="hid"><button class="on">In sequence</button><button class="">In parallel</button></span><span class="sp"></span><button class="estc on" title="Estimate"><b>≈ 4 h 45</b><span class="hid"></span><em class="hid"></em><span class="">›</span></button></div><div class="macw"><div class="macv" style="left: 0px; right: 0px;"><div class="mac" style="transform: translateX(0px);"><span class="hid">→</span><button class="mc" title="Chacun choisit quand part son rappel." style="width: 484px;"><span class="h"><i>1</i><b>Réglage du délai</b></span><span class="e">2 tickets · ~4 h</span></button><span class="ma">→</span><button class="mc val" title="QA plays every flow, then your sign-off." style="width: 502px;"><span class="h"><i>✓</i><b>Validate</b></span><span class="e">QA + sign-off · ~45 min</span></button></div></div></div><div class="board" style="height: 622px;"><div class="vp"><div class="trk" style="transform: translateX(0px); height: 622px;"><div class="band" style="left: 0px; width: 494px;">1 · Réglage du délai</div><div class="band v" style="left: 506px; width: 494px;">Validate</div><div class="gl" style="left: 244px; top: 319px;">›</div><div class="gl" style="left: 497px; top: 319px;">›</div><div class="gl" style="left: 750px; top: 319px;">›</div><button class="cd c1" title="Délai du rappel réglable dans l'espace du golf" style="left: 0px; top: 32px; width: 241px; height: 590px;"><span class="top"><span>1</span><span>FG-753</span><span class="ph"></span><span class="hid">D1</span></span><span class="t">Délai du rappel réglable dans l'espace du golf</span><span class="r">Le golf choisit quand part le rappel : la veille, 2 h ou 1 h avant le départ.</span><span class="sec"><b>How</b><em>Nouveau réglage dans l'écran du message « Rappel », stocké avec le message du golf.</em></span><span class="sec ck"><b>Covers</b><span class="">Délai réglable par le golf</span><span class="">Trois délais proposés</span></span><span class="sec wt"><b>To watch</b><span>T · Copy to write, you choose</span></span><span class="ft"><span class="hid"></span><span class="hr">~2 h</span><span class="md">sol · medium</span></span></button><button class="cd c1" title="Délai du rappel réglable dans l'espace du partenaire" style="left: 253px; top: 32px; width: 241px; height: 590px;"><span class="top"><span>2</span><span>FG-754</span><span class="ph"></span><span class="hid">D1</span></span><span class="t">Délai du rappel réglable dans l'espace du partenaire</span><span class="r">Le partenaire choisit son propre délai, sans toucher à celui du golf.</span><span class="sec"><b>How</b><em>Même réglage côté partenaire, limité à ses propres messages.</em></span><span class="sec ck"><b>Covers</b><span class="">Délai réglable par le partenaire</span><span class="">Trois délais proposés</span><span class="">Aucun accès croisé</span></span><span class="sec wt"><b>To watch</b><span>▲ Le partenaire modifie le délai du golf</span></span><span class="ft"><span class="hid"></span><span class="hr">~2 h</span><span class="md">sol · medium</span></span></button><button class="cd vq c1" title="QA" style="left: 506px; top: 32px; width: 241px; height: 590px;"><span class="top"><span>▶</span><span>Validate</span><span class="ph"></span><span class="hid"></span></span><span class="t">QA</span><span class="r">Plays every flow of the plan, on its own.</span><span class="hid"><b>How</b><em></em></span><span class="sec ck"><b>What happens</b><span class="">A video of each flow</span><span class="">Problems listed for you</span><span class="">Starts after the last ticket</span></span><span class="hid"><b>To watch</b></span><span class="ft"><span class="hid"></span><span class="hr">~30 min</span><span class="hid"></span></span></button><button class="cd vq c1" title="Sign-off" style="left: 759px; top: 32px; width: 241px; height: 590px;"><span class="top"><span>✓</span><span>Validate</span><span class="ph"></span><span class="hid"></span></span><span class="t">Sign-off</span><span class="r">You check only what QA cannot judge.</span><span class="hid"><b>How</b><em></em></span><span class="sec ck"><b>What happens</b><span class="">Look and feel</span><span class="">What QA could not play</span><span class="">Close in one approval</span></span><span class="hid"><b>To watch</b></span><span class="ft"><span class="hid"></span><span class="hr">~15 min of your time</span><span class="hid"></span></span></button></div></div></div></div><div class="tiles"><button class="card tile"><span class="tx"><span class="hd"><b>Your request</b><span class="cn">FG-752</span><span class="hid"></span></span><span class="ln">The issue and its full page</span></span><span class="ch">›</span></button><button class="card tile"><span class="tx"><span class="hd"><b>Your decisions</b><span class="cn">1</span><span class="hid"></span></span><span class="ln">1 answer</span></span><span class="ch">›</span></button><button class="card tile"><span class="tx"><span class="hd"><b>Issue coverage</b><span class="cn ok">4 of 4</span><span class="hid"></span></span><span class="ln">All requests have tickets</span></span><span class="ch">›</span></button><button class="card tile"><span class="tx"><span class="hd"><b>To plan for</b><span class="hid"></span><span class="hid"></span></span><span class="ln">1 step · 1 risk · 1 copy</span></span><span class="ch">›</span></button></div></div><div class="dw"><div class="ih"><span class="k">Estimate</span></div><div class="bd"><div class="tot"><b>≈ 4 h 45</b><span>with 1 dev · QA and sign‑off included</span></div><div style="margin-top: 10px;"><div class="prt"><span>Development</span><span class="bw"><i class="" style="width: 84%;"></i></span><span class="v">4 h</span></div><div class="prt"><span>QA</span><span class="bw"><i class="q" style="width: 11%;"></i></span><span class="v">30 min</span></div><div class="prt"><span>Your sign-off</span><span class="bw"><i class="y" style="width: 5%;"></i></span><span class="v">15 min</span></div></div><span class="kl">Would more devs help?</span><button class="opt cur"><span>1 dev<small>Codex</small></span><span class="bw"><i style="width: 100%;"></i></span><span class="v">4 h 45</span><span class="tag">Current</span></button><button class="opt"><span>2 devs<small>Codex + Claude · in parallel</small></span><span class="bw"><i style="width: 68%;"></i></span><span class="v">3 h 15</span><span class="tag">Use ›</span></button><p class="pp mu" style="color: rgb(201, 207, 219);">Tip: with 2 devs in parallel, about 3 h 15 instead of 4 h 45. Click a line to apply it to the plan.</p><button class="lnk" style="margin-top: 8px;">Ask the Lead to re-split for more parallel work ›</button><span class="kl">Per dev</span><div class="rl"><span class="o">D1</span><span class="x">Dev 1 · Codex<small>2 tickets · 4 h of work</small></span></div><span class="kl">Why not faster</span><p class="pp" style="font-size: 13.5px; color: rgb(201, 207, 219);">No ticket waits for another. The longest one, FG-753, takes 2 h. With QA (30 min) and your sign-off (15 min), no team goes below 2 h 45.</p></div><div class="ft">Estimated by the Lead from ticket size: Light 1 h, Standard 2 h, Heavy 4 h. QA and your sign-off are counted.</div></div></div></div></div>
+</body>
+</html>

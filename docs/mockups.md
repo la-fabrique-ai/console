@@ -21,7 +21,8 @@ The screenshots (37 MB of PNG) stay outside the repository, in `~/Developer/mock
 
 These are art directions, not specifications: they show features that the first version does not have (Kanban, deviations from the plan, pause, up to three devs). See `docs/context.md` for what is kept. The texts are in English in the Prepare and Develop mockups and in French in the preparation flow; the screens will be in French, with four stages ([[0002-flow-and-screens]]). The preparation flow is the reference for the frame, the composer and the French tone.
 
+Settled by Nicolas on 2026-11-20: state 17 shows the Lead splitting the spec, but decision [[0016-pilot-prepares-lead-executes]] stands. Pilot does the split; the screen keeps the drawing of state 17 and its texts name Pilot instead of the Lead (also in the composer of that step and in the right column). The mockup files are left as delivered.
+
 Open points of the preparation flow, to be settled by Nicolas before the slice that needs them:
-- State 17 shows the Lead splitting the spec, while decision [[0016-pilot-prepares-lead-executes]] gives the split to Pilot.
 - The Plan page keeps "Approve and launch" in its banner, without the composer of the other steps.
 - An answer written by the operator is rephrased by Pilot and validated once more, as drawn.

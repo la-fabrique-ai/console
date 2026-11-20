@@ -134,7 +134,8 @@ test("a mission is listed and opens on its page while Linear does not answer", a
   click("mission-DEMO-1");
   releases.forEach((release) => release());
   const texts = await shown();
-  assert.ok(texts.includes("First issue") && texts.includes("Jiroo · DEMO-1"), "the page header is the mission's");
-  assert.ok(STAGES.every((stage) => texts.includes(stage)), "with its line of stages");
+  assert.ok(texts.includes("First issue"), "the page header carries the mission's title");
+  const header = texts.slice(texts.indexOf("Jiroo · DEMO-1") + 1).filter((text) => text !== "›");
+  assert.deepEqual(header.slice(0, 4), STAGES, "and its line of stages");
   assert.ok(texts.includes("Impossible de joindre Linear."));
 });

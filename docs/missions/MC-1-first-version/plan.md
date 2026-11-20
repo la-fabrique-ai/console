@@ -9,45 +9,50 @@ ticket: MC-1
 # Plan of the first version
 
 ## Goal
-Nicolas runs a complete mission with the new system: a request in Linear, a spec, a validated split, tickets developed and reviewed, a QA, his validation, stacked PRs. First on a trial Linear team, then on a real FlashGolf ticket.
+An operator runs a whole mission from the screens, without typing in a terminal: a request in Linear, a spec written with Pilot, a validated split, tickets built and reviewed, a QA, a validation, stacked PRs. First on a Linear test team, then on a real FlashGolf ticket.
 
 ## Decisions
-All in `docs/decisions/` (0001 to 0013). This plan does not repeat them.
+All in `docs/adr/` (0001 to 0015). This plan does not repeat them. The method is decision 0014; the screens-first rule is decision 0015.
 
 ## Limits
-- Nothing is taken from the old code without an explicit decision, block by block.
+- Nothing is taken from the old code without an explicit decision, piece by piece.
 - No write to a real Linear project before milestone 2.
-- Each batch is delivered with its tests, reviewed by the other model family, and shown on screen or on the command line before the next one.
-- A batch fits in one agent session and is reviewed in one pass. If bigger, it is split again by the Lead.
+- Each slice ships with its tests, is reviewed by the other model family, and is shown to Nicolas on screen before the next one.
+- In a slice, Codex builds the engine part and Claude the screen part, as two sub-tickets.
+- The flow goes into role skills. A slice adds code only for what must never fail and for what the screen displays.
 
-## Batches of milestone 1 — the minimal full flow
-| Batch | Expected result | Finished when | Dev |
-|---|---|---|---|
-| 0 Foundation | Repository in strict TypeScript, tests, project verification; a separate Herdr installation that shows an empty Mission Control screen | The verification passes; the screen opens in the separate Herdr; we know what Herdr accepts as a screen file | Codex (engine), Claude (screen) |
-| 1 Tickets | The ticket model, the base, the Linear connector in read mode | A ticket of the trial team appears in the base with all its fields | Codex |
-| 2 Mission | The state of a mission and its four steps, readable in a file | A mission is created from a ticket and moves from step to step by command | Codex |
-| 3 Agents and requests | Start an agent in a terminal, send it a text only once, receive a request and answer it | A request raised by an agent receives its answer in its terminal, once, even if the command is replayed | Codex |
-| 4 Basic screens | Inbox, Development and the frame of the page of a mission | Nicolas opens a mission from the list and answers a request in place | Claude |
-| 5 Prepare | Pilot writes the spec in `docs/`, the Lead proposes a split as a draft, Nicolas validates, the sub-tickets are created in Linear | On the trial team: spec written, split validated, sub-tickets created, summary and link in the main ticket | Codex (engine), Claude (page) |
-| 6 Develop | A dev codes a ticket, a reviewer reviews it, the PR of the ticket is merged into the mission branch; high-risk tickets included | Two tickets in sequence are accepted, each with its stacked PR | Codex (engine), Claude (page) |
-| 7 Test and validate | QA, Nicolas's validation, fixes in the same mission, closing | A trial mission goes all the way to closing, with a refusal fixed along the way | Codex (engine), Claude (page) |
+## Slices of milestone 1
+Each slice is a thin, complete path that can be shown alone.
 
-**Milestone 1**: a complete mission on the trial Linear team, run by Nicolas.
+| Slice | What the operator can do when it is done | Blocked by |
+|---|---|---|
+| 1 A mission appears | Pick a ticket of the Linear test team, create a mission from it, see it in the Development list and open its page (title, stage) in the separate Herdr | the Linear test team and its key |
+| 2 Talk to Pilot | Discuss the request with Pilot in a panel of the page. Pilot asks its questions in rounds, each with a recommended answer and buttons. An answer reaches Pilot once | 1 |
+| 3 The spec | Read the spec Pilot wrote, in the page. It is in `docs/missions/<ticket>/spec.md` on the mission branch; the main ticket carries its summary and link | 2 |
+| 4 The split | Read the Lead's draft split into slices with what blocks each one, ask for changes, validate. The sub-tickets are then created in Linear | 3 |
+| 5 One ticket, built and reviewed | Follow one ticket from start to accepted: a dev builds it test-first, a reviewer of the other family reviews it, its stacked PR is merged into the mission branch. Answer a dev's request in place | 4 |
+| 6 All the tickets | See the next ready ticket start by itself until all are accepted. A high-risk ticket has its approach reviewed before code and two reviews | 5 |
+| 7 Test and validate | Read the QA report, validate or say what is wrong (the Lead turns it into fix tickets in the same mission), close. The merge of the main PR is a separate step for the technical owner | 6 |
 
-## Next batches
-| Batch | Expected result |
+**Milestone 1**: Nicolas runs a whole mission on the Linear test team, from the screens only.
+
+Slice 1 also settles the base: TypeScript strict, tests, project check, the separate Herdr installation, and what Herdr accepts as a screen file (decision 0012). It stays a slice: it ends with something on screen.
+
+## After milestone 1
+| Slice | Result |
 |---|---|
-| 8 Two devs | The switch to two devs on the preparation screen, the split recomputed, the file area rule |
-| 9 Tokens | The consumption per mission, per agent and per ticket |
-| 10 MD connector | Tickets as Markdown files, to prove that the model does not depend on Linear |
-| 11 Linear import | The Linear documents of a project copied into its `docs/` |
-| 12 Remote machine | Devs started on ai-dev |
-| 13 Screen polish | Conformity to the mockups, French texts chosen by Nicolas |
+| Two devs | Switching to two devs in Prepare; the Lead recomputes the split; two ready tickets run at once |
+| Tokens | Consumption per mission, per agent and per ticket |
+| Markdown connector | Tickets as Markdown files; Mission Control tracks its own tickets with it |
+| Linear import | A project's Linear documents copied into its `docs/` |
+| Remote machine | Devs started on ai-dev |
+| Screen finish | Conformity with the mockups, French texts chosen by Nicolas |
+| Our own skills | The role skills refined from what the missions taught (`retro`) |
 
-**Milestone 2**: a real mission on FlashGolf, on a small ticket chosen by Nicolas. Jiroo and Jira come after.
+**Milestone 2**: a real mission on FlashGolf, on a small ticket chosen by Nicolas. Jiroo, Jira and several people on one mission come after.
 
 ## What depends on Nicolas
-- Create the trial Linear team and an access key for the connector.
-- Say whether the repository is published on GitHub (private), needed for the PRs of the project itself.
-- Validate the mockups of QA and Validate, and choose the texts.
+- Create the Linear test team and an access key for the connector.
+- Say whether the repository is published on GitHub (private), needed for the project's own PRs.
+- Mockups still missing: the Pilot discussion panel, Test, Validate, Inbox, Development.
 - Confirm decision 0012 (TypeScript).

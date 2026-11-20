@@ -38,7 +38,7 @@ Source lue : `~/.claude/plugins/cache/claude-plugins-official/mattpocock-skills/
 | pr | Texte de PR : résumé visuel, preuve avant/après, danger de fusion | Oui | Dev, et PR de la mission | Tel quel |
 | diagnosing-bugs | Six phases ; d'abord une commande qui échoue sur ce bug | Bugs durs | Dev (correction), QA | Tel quel |
 | research | Agent de fond, sources premières, note citée | Oui | Pilot, Lead ; sortie dans `docs/recherches/` | Tel quel |
-| domain-modeling | Tient `GLOSSARY.md` et les ADR à jour pendant la discussion | Oui | Pilot | Adapter : `docs/decisions/` au lieu de `docs/adr/` |
+| domain-modeling | Tient `GLOSSARY.md` et les ADR à jour pendant la discussion | Oui | Pilot | Adapter : `docs/adr/` au lieu de `docs/adr/` |
 | codebase-design | Vocabulaire des modules profonds, test de suppression | Oui | Dev, relecteur (connecteurs) | Tel quel |
 | prototype | Prototype jetable : un fichier HTML (logique) ou variantes d'écran | Oui | Pilot : état d'une mission (lot 2) | Adapter : variantes d'écran selon la règle des maquettes Herdr |
 | triage | Fait passer les tickets reçus par cinq états | Non : pas de demandes externes | Non : statuts de 0004 | Ignorer ; garder `AGENT-BRIEF.md` |
@@ -86,7 +86,7 @@ Contradictions :
 - **0008** : `implement` commite sur la branche courante, sans PR. `implement-spec` fusionne les tickets sans PR et ne relit qu'à la fin. Sa « integration branch » est pourtant notre branche de mission.
 - **0003** : `implement-spec` vise « maximum concurrency » et règle les conflits à la fusion. Chez nous : deux devs au plus, zones vérifiées au découpage.
 - **0003, 0004** : `to-tickets` dit « avoid specific file paths ». Nos tickets déclarent une zone de fichiers. À garder comme champ du ticket, hors du texte.
-- **0009** : les skills visent `docs/adr/`, `GLOSSARY.md` à la racine, la spec dans l'outil de tickets, `.scratch/`, `$TMPDIR`. Nous : `docs/decisions/`, `docs/missions/<ticket>/spec.md`. `prototype` et `wayfinder` poussent des branches jamais fusionnées : contraire à « aucun push sans accord » (AGENTS.md).
+- **0009** : les skills visent `docs/adr/`, `GLOSSARY.md` à la racine, la spec dans l'outil de tickets, `.scratch/`, `$TMPDIR`. Nous : `docs/adr/`, `docs/missions/<ticket>/spec.md`. `prototype` et `wayfinder` poussent des branches jamais fusionnées : contraire à « aucun push sans accord » (AGENTS.md).
 - **0001 et calibrage** : `to-spec` demande « a LONG, numbered list of user stories […] extremely extensive ». Contraire à « faire petit ».
 - **Plan MC-1** : les lots 1 à 4 sont des couches (base, état, agents, écrans), et les lots 5 à 7 séparent moteur et page. `to-tickets` et `tdd` appellent cela « horizontal slicing ». À trancher par Nicolas : la règle « maquette = Claude » impose ce partage.
 
@@ -108,7 +108,7 @@ Améliorations possibles :
 - Labels : `to-spec` et `to-tickets` posent `ready-for-agent`. Dans Linear, le créer par équipe, ou écrire dans `issue-tracker.md` de ne pas le poser. `wayfinder` demande en plus ses labels `wayfinder:*`.
 - Le plugin se met à jour seul et ne se modifie pas. Toute adaptation va dans `docs/agents/*.md`, dans `AGENTS.md`, ou dans les consignes de rôle de Mission Control (licence MIT : le texte peut être repris).
 - Les skills misc et in-progress ne sont pas dans le plugin : `npx skills@latest add mattpocock/skills --skill=<nom>`.
-- Pour le cadre B : mettre `docs/decisions/` et `docs/missions/` dans `docs/agents/domain.md` et `issue-tracker.md` de chaque projet piloté.
+- Pour le cadre B : mettre `docs/adr/` et `docs/missions/` dans `docs/agents/domain.md` et `issue-tracker.md` de chaque projet piloté.
 
 ## 6. Non vérifié
 

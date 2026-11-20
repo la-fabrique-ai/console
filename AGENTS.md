@@ -1,14 +1,20 @@
 # Mission Control — rules for agents
 
 ## Before you work
-Read `docs/context.md`, then the spec or the plan of your mission in `docs/missions/<ticket>/`, then the decisions it cites in `docs/decisions/`. A dev reads only its ticket, its mission and the cited decisions.
+Read `GLOSSARY.md` and `docs/context.md`, then the spec or the plan of your mission in `docs/missions/<ticket>/`, then the decisions it cites in `docs/adr/`. A dev reads only its ticket, its mission and the cited decisions.
 
 ## Where documents go
 - `docs/context.md`: the project in one page. Updated by Pilot when a mission is closed, if a decision changed the architecture or a rule.
-- `docs/decisions/`: one decision per file, numbered. A decision is never edited: a new one supersedes it and says so. It is valid only with Nicolas's agreement.
+- `docs/adr/`: one decision per file, numbered. A decision is never edited: a new one supersedes it and says so. It is valid only with Nicolas's agreement.
 - `docs/missions/<ticket>/`: `spec.md`, `split.md`, `report.md`. One file per author: two agents never write the same file.
 - `docs/index.md`: generated, never written by hand.
 - Each document carries a header: title, status, date, author.
+
+## Agent skills
+- Issue tracker: `docs/agents/issue-tracker.md`. Domain documents: `docs/agents/domain.md`. Vocabulary: `GLOSSARY.md`.
+- Skills used as they are (Matt Pocock's AI Hero skills): `grilling` before each slice, `domain-modeling`, `tdd`, `code-review`, `diagnosing-bugs`, `pr`, `writing-for-agents`, `prototype`, `retro`.
+- Not used: `to-spec`, `implement`, `implement-spec`, `triage`, `wayfinder`. They publish to the ticket tool, self-review or merge without a PR per ticket (decisions 0005, 0007, 0008).
+- A slice cuts through engine, screen and tests and can be shown alone (decision 0014).
 
 ## Working rules
 - A ticket or a brief says what to obtain and how we will know it is finished. The dev chooses its approach.

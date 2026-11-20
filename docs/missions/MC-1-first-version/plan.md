@@ -26,8 +26,8 @@ Each slice is a thin, complete path that can be shown alone.
 
 | Slice | What the operator can do when it is done | Blocked by |
 |---|---|---|
-| 1 A mission appears | Pick a ticket of the Linear team Jiroo, create a mission from it, see it in the Development list and open its page (title, stage) in the separate Herdr | the Linear access key |
-| 2 The request and the questions | Describe the request on a screen, then answer Pilot's questions one at a time, each with a proposed answer to validate or change, with the list of questions beside it. An answer reaches Pilot once | 1 |
+| 1 A mission appears | Open a project's issues, pick an issue of the Linear team Jiroo and ask to have it developed: the mission is created, shows in the Development list and opens on its page (title, stage) in the separate Herdr | the Linear access key |
+| 2 A new ticket and the questions | Create a new ticket from the project's issues (title, what you want), then answer Pilot's questions one at a time, each with a proposed answer to validate or change, with the list of questions beside it. An answer reaches Pilot once | 1 |
 | 3 The spec | Read the spec Pilot wrote, in the page. It is in `docs/missions/<ticket>/spec.md` on the mission branch; the main ticket carries its summary and link | 2 |
 | 4 The plan and the launch | Read Pilot's draft split into slices with what blocks each one, ask for changes, validate, then launch: the sub-tickets are created in Linear and the Lead takes the mission with a fresh context | 3 |
 | 5 One ticket, built and reviewed | Follow one ticket from start to accepted: a dev builds it test-first, a reviewer of the other family reviews it, its stacked PR is merged into the mission branch. Answer a dev's request in place | 4 |

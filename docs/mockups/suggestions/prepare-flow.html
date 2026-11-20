@@ -289,15 +289,16 @@ html,body{margin:0;background:#12151D}
 .s4l{display:flex;justify-content:space-between;font-size:11px;color:#6F7689;margin-top:5px}
 .s4l b{color:#C9D0FF;font-weight:600}
 
-.f-wrap{flex:1;min-height:0;overflow:auto;padding-bottom:24px}
-.f-steps{display:flex;gap:8px;margin:2px 0 18px;flex-wrap:wrap}
+.f-wrap{flex:1;min-height:0;display:flex;flex-direction:column}
+.f-steps{display:flex;gap:8px;margin:2px 0 14px;flex-wrap:wrap;flex:none}
 .f-step{display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;border:1px solid #2A2F40;color:#8C93A6;font-size:13.5px;background:none;font-family:inherit;cursor:pointer}
 .f-step i{font-style:normal;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;background:#262B3A;color:#C9CFDB}
 .f-step.on{border-color:#6B6CF5;color:#fff;background:#1C2040}.f-step.on i{background:#6B6CF5;color:#fff}
 .f-step.ok{color:#C9CFDB}.f-step.ok i{background:#163028;color:#3DD6B0}
-.f-view{display:none}.f-view.on{display:block}
-.f-grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
-.f-one{max-width:820px}
+.f-view{display:none}.f-view.on{display:flex;flex:1;min-height:0}
+.f-grid{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:16px;align-items:stretch;flex:1;min-height:0}
+.f-grid>.f-card{overflow:auto;min-height:0}
+.f-one{flex:1;min-height:0;overflow:auto}
 .f-card{background:#1B1F2B;border:1px solid #2A2F40;border-radius:14px;padding:22px 24px}
 .f-card h2{font-size:21px;font-weight:600;margin:0 0 6px;color:#fff}
 .f-card h3{font-size:15px;font-weight:600;margin:18px 0 6px;color:#fff}
@@ -341,29 +342,23 @@ html,body{margin:0;background:#12151D}
 .f-row b{color:#fff;font-weight:600}
 .f-done{display:none;padding:14px 16px;border-radius:10px;background:#132823;border:1px solid #2E8F6C;color:#5DE3B8;margin-top:16px;font-size:15px}
 .f-done.on{display:block}
+html,body{height:100%}body>.q{min-height:100vh;height:100vh}.qm{min-height:0}
 </style></head>
 <body>
 <div class="q"><div class="qsb"><b>Mission Control</b><div class="it">▣ Inbox<span class="cn am">1</span></div><div class="it">☰ Issues</div><div class="it on">‹/› Development</div><div class="sec">PROJETS</div><div class="pj"><i style="border-color:rgb(63, 191, 90);background:rgb(21, 58, 32)"></i><span>FlashGolf<small>3 missions</small></span></div><div class="cur"><span>FG-729</span><span>Préparer</span></div><div class="cur mu"><span>FG-752</span><span>Préparer</span></div><div class="cur mu"><span>FG-760</span><span>Développer</span></div><div class="pj"><i style="border-color:rgb(217, 87, 140);background:rgb(58, 26, 43)"></i><span>Gonzesses<small>1 mission</small></span></div><div class="pj"><i style="border-color:rgb(142, 124, 255);background:rgb(38, 31, 74)"></i><span>Jiroo<small>1 mission</small></span></div><div class="pj"><i style="border-color:rgb(213, 162, 74);background:rgb(58, 46, 18)"></i><span>LBA<small>Aucune mission en cours</small></span></div><div class="pj"><i style="border-color:rgb(0, 182, 237);background:rgb(14, 46, 58)"></i><span>FooDeCuisine<small>Aucune mission en cours</small></span></div></div><div class="qm"><div class="qhd"><div class="ic">⚑</div><div style="min-width:0;flex:1"><h1>Messages automatiques : espace dédié du golf et du partenaire</h1><div class="sub"><span>FlashGolf · FG-729</span><span><i class="dot on"></i><b>Préparer</b></span><span>›</span><span><i class="dot"></i>Développer</span><span>›</span><span><i class="dot"></i>Tester</span><span>›</span><span><i class="dot"></i>Valider</span></div></div><button class="hb" title="Retour">‹</button><button class="hb" title="Menu">⋯</button></div><div class="f-wrap">
-<div class="f-steps" id="steps">
-<button class="f-step on" data-go="0"><i>1</i>Votre demande</button>
-<button class="f-step" data-go="1"><i>2</i>Questions</button>
-<button class="f-step" data-go="2"><i>3</i>Spec</button>
-<button class="f-step" data-go="3"><i>4</i>Plan</button>
-<button class="f-step" data-go="4"><i>5</i>Lancement</button>
+<div class="f-steps" id="steps" style="display:none">
+<button class="f-step" data-go="1"><i>1</i>Questions</button>
+<button class="f-step" data-go="2"><i>2</i>Spec</button>
+<button class="f-step" data-go="3"><i>3</i>Plan</button>
+<button class="f-step" data-go="4"><i>4</i>Lancement</button>
 </div>
 
-<div class="f-view on" data-view="0"><div class="f-card f-one">
-<h2>Que voulez-vous faire ?</h2>
-<p class="f-lead">Décrivez votre besoin avec vos mots. Pilot vous posera ensuite quelques questions pour le préciser.</p>
-<span class="f-label">Projet</span>
-<div class="f-pick" data-pick><button class="f-chip on">FlashGolf</button><button class="f-chip">Gonzesses</button><button class="f-chip">Jiroo</button><button class="f-chip">LBA</button><button class="f-chip">FooDeCuisine</button></div>
-<span class="f-label">Point de départ</span>
-<div class="f-pick" data-pick><button class="f-chip on">Un ticket existant : FG-729</button><button class="f-chip">Une nouvelle demande</button></div>
-<span class="f-label">Titre</span>
-<input class="f-in" value="Messages automatiques pour le golf et le partenaire">
-<span class="f-label">Ce que vous voulez obtenir</span>
-<textarea class="f-ta">Je voudrais que les golfs et les partenaires aient un espace pour leurs messages automatiques, avec 11 messages déjà écrits qu'ils peuvent activer ou couper.</textarea>
-<div class="f-acts"><button class="f-go" data-next>Continuer avec Pilot</button><span class="f-hint">Pilot lit votre demande et le projet, puis pose ses questions.</span></div>
+<div class="f-view on" data-view="0"><div class="f-grid">
+<div class="f-card">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:10px"><h2 style="margin:0">Issues</h2><button class="f-go" id="newbtn">Nouveau ticket</button></div>
+<div class="f-list" id="issues"></div>
+</div>
+<div class="f-card" id="side"></div>
 </div></div>
 
 <div class="f-view" data-view="1"><div class="f-grid">
@@ -416,10 +411,11 @@ html,body{margin:0;background:#12151D}
 <script>
 (() => {
   const QS=[["Qui reçoit les messages ?", "Les messages peuvent partir à tous les joueurs du golf, ou seulement à ceux qui ont accepté d'en recevoir.", "Seulement les joueurs qui ont accepté les notifications."], ["Le golf peut-il couper un message ?", "Certains golfs ne voudront pas tous les messages, par exemple le rappel de la veille.", "Oui : chaque message s'active ou se coupe dans les réglages du golf."], ["Le golf peut-il réécrire un message ?", "Les 11 messages sont déjà écrits. Le golf peut vouloir y mettre ses mots.", "Oui, et il peut revenir au texte d'origine en un clic."], ["Dans quelles langues ?", "L'application existe en français et en anglais.", "Français et anglais, selon la langue du joueur."], ["Et le partenaire ?", "Un partenaire a son propre espace. Il peut avoir les mêmes réglages que le golf, ou moins.", "Les mêmes réglages que le golf, pour ses propres messages."], ["Que faire des messages envoyés aujourd'hui à la main ?", "Certains golfs envoient déjà des messages eux-mêmes.", "Ils continuent : les messages automatiques s'ajoutent, sans rien remplacer."]];
-  const state=QS.map(()=>null);let cur=0,view=0;
+  const state=QS.map(()=>null);let cur=0,view=0,T,SUB,subHtml,titleTxt;
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
   const go=n=>{view=n;$$('.f-view').forEach(v=>v.classList.toggle('on',+v.dataset.view===n));
-    $$('.f-step').forEach(b=>{const k=+b.dataset.go;b.classList.toggle('on',k===n);b.classList.toggle('ok',k<n);b.querySelector('i').textContent=k<n?'✓':k+1;});
+    $$('.f-step').forEach(b=>{const k=+b.dataset.go;b.classList.toggle('on',k===n);b.classList.toggle('ok',k<n);b.querySelector('i').textContent=k<n?'✓':k;});
+    $('#steps').style.display=n?'':'none';head(n);
     if(n===2)answers();};
   $$('[data-go]').forEach(b=>b.onclick=()=>go(+b.dataset.go));
   $$('[data-next]').forEach(b=>b.onclick=()=>go(view+1));
@@ -444,7 +440,22 @@ html,body{margin:0;background:#12151D}
     list();}
   function answers(){$('#answers').innerHTML=QS.map((q,i)=>`<div class="f-li ${state[i]===true||!state[i]?'ok':'ch'}"><span class="m">${typeof state[i]==='string'?'✎':'✓'}</span><span><b>${esc(q[0])}</b><small>${esc(said(i)||q[2])}</small></span></div>`).join('');}
   $('#launch').onclick=()=>{$('#launched').classList.add('on');$('#launch').disabled=true;$('#launch').textContent='Lancée ✓';};
-  card();go(0);
+  const ISS=[['FG-729','Messages automatiques pour le golf et le partenaire','À faire','Les golfs et les partenaires ont un espace pour leurs messages automatiques, avec 11 messages déjà écrits qu\'ils peuvent activer ou couper.'],
+    ['FG-741','Export des inscriptions en CSV','À faire','Le golf télécharge la liste des inscrits d\'une compétition.'],
+    ['FG-738','Le classement ne se met pas à jour après une correction de score','À faire','Après la correction d\'un score, le classement garde l\'ancien total.'],
+    ['FG-752','Nouvelle page d\'accueil du partenaire','En préparation',''],
+    ['FG-760','Paiement en plusieurs fois','En cours','']];
+  T=document.querySelector('.qhd h1');SUB=document.querySelector('.qhd .sub');subHtml=SUB.innerHTML;titleTxt=T.textContent;
+  function head(n){if(n){T.textContent=titleTxt;SUB.innerHTML=subHtml;}else{T.textContent='FlashGolf';SUB.innerHTML='<span>140 issues · 3 missions en cours</span>';}
+    document.querySelectorAll('.qsb .it').forEach(e=>e.classList.toggle('on',n?/Development/.test(e.textContent):/Issues/.test(e.textContent)));}
+  var pick=0;
+  function issues(){$('#issues').innerHTML=ISS.map((x,i)=>`<button class="f-li ${i===pick?'on':''}" data-i="${i}"><span class="m" style="width:auto;padding:0 8px;border-radius:6px;font-size:12px">${x[0]}</span><span style="flex:1"><b>${esc(x[1])}</b></span><small style="white-space:nowrap">${x[2]}</small></button>`).join('');
+    $$('#issues .f-li').forEach(b=>b.onclick=()=>{pick=+b.dataset.i;issues();side();});}
+  function side(){const x=ISS[pick];if(pick<0){$('#side').innerHTML=`<div class="f-kl">Nouveau ticket</div><span class="f-label" style="margin-top:0">Titre</span><input class="f-in" placeholder="En quelques mots"><span class="f-label">Ce que vous voulez obtenir</span><textarea class="f-ta" placeholder="Décrivez votre besoin avec vos mots…"></textarea><div class="f-acts"><button class="f-go" id="dev">Créer et préparer</button></div><p class="f-hint" style="margin-top:12px">Le ticket est créé dans FlashGolf, puis Pilot vous pose ses questions.</p>`;}
+    else{const busy=x[2]!=='À faire';$('#side').innerHTML=`<div class="f-kl">${x[0]} · ${x[2]}</div><h2 style="font-size:18px">${esc(x[1])}</h2><p style="margin-top:8px">${esc(x[3]||'Cette issue est déjà en mission.')}</p><div class="f-acts"><button class="f-go" id="dev">${busy?'Ouvrir la mission':'Faire développer'}</button></div>${busy?'':'<p class="f-hint" style="margin-top:12px">Pilot lit l\'issue et le projet, puis vous pose ses questions.</p>'}`;}
+    $('#dev').onclick=()=>go(1);}
+  $('#newbtn').onclick=()=>{pick=-1;issues();side();};
+  issues();side();card();go(0);
 })();
 </script>
 </body></html>

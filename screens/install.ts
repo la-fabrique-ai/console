@@ -1,13 +1,15 @@
-// Copies the screens into a Herdr App home: types stripped, one layout that
-// shows the Mission Control window and tells it where the engine is.
+// Copies the screens into the Herdr App home of the separate installation:
+// types stripped, one layout that shows the Mission Control window and tells
+// it how to run the engine.
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
 const home = process.env.HERDR_APP_HOME;
-if (!home) {
-  // Without it Herdr's commands reach the default installation, which is not ours.
-  console.error("HERDR_APP_HOME is not set. Source the environment of the separate Herdr first.");
+if (!home || resolve(home) === join(homedir(), ".config", "herdr-app")) {
+  // Unset or default, the home is the operator's own Herdr App: never ours to write in.
+  console.error("HERDR_APP_HOME must name the separate installation. Source its env.sh first.");
   process.exit(1);
 }
 
@@ -24,7 +26,7 @@ const layout = {
   children: [{
     id: "mission-control",
     type: "block",
-    content: { mod: "mission-control", props: { cli: resolve(import.meta.dirname, "../engine/cli.ts") } },
+    content: { mod: "mission-control", props: { engine: join(import.meta.dirname, "engine.sh") } },
   }],
 };
 writeFileSync(join(home, "layouts", "mission-control.json"), JSON.stringify(layout, null, 2) + "\n");

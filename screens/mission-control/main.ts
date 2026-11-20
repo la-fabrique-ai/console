@@ -19,8 +19,8 @@ function stageName(stage: Stage): string {
 
 async function call<A extends Action>(action: A, payload: Payloads[A]): Promise<Reply<A>> {
   try {
-    const { cli } = props() as { cli: string };
-    const { stdout } = await exec("node", [cli, action, JSON.stringify(payload)]);
+    const { engine } = props() as { engine: string };
+    const { stdout } = await exec("sh", [engine, action, JSON.stringify(payload)]);
     return JSON.parse(stdout) as Reply<A>;
   } catch {
     return { error: { code: "failed", message: "Mission Control n’a pas pu lire la réponse de son moteur." } };
@@ -30,9 +30,12 @@ async function call<A extends Action>(action: A, payload: Payloads[A]): Promise<
 export default class MissionControl extends View {
   page: Page = "issues";
   issues: IssueSummary[] | null = null;
-  missions: Mission[] = [];
+  issuesError = "";
+  missions: Mission[] | null = null;
+  missionsError = "";
+  refreshes = 0;
+  requested = "";
   issue: IssueDetail | null = null;
-  listError = "";
   requestError = "";
   creating = false;
 
@@ -41,10 +44,13 @@ export default class MissionControl extends View {
   }
 
   refresh(cx: Spawner) {
+    const turn = ++this.refreshes;
     cx.spawn(async (cx) => {
       const [issues, missions] = await Promise.all([call("issues.list", {}), call("missions.list", {})]);
-      this.listError = "error" in issues ? issues.error.message : "error" in missions ? missions.error.message : "";
+      if (turn !== this.refreshes) return; // a later refresh has the last word
+      this.issuesError = "error" in issues ? issues.error.message : "";
       if ("data" in issues) this.issues = issues.data;
+      this.missionsError = "error" in missions ? missions.error.message : "";
       if ("data" in missions) this.missions = missions.data;
       cx.notify();
     });
@@ -58,11 +64,13 @@ export default class MissionControl extends View {
 
   open(key: string, cx: Context) {
     this.page = "request";
+    this.requested = key;
     this.issue = null;
     this.requestError = "";
     cx.notify();
     cx.spawn(async (cx) => {
       const reply = await call("issues.show", { key });
+      if (this.requested !== key) return; // the operator opened another issue meanwhile
       if ("data" in reply) this.issue = reply.data;
       else this.requestError = reply.error.message;
       cx.notify();
@@ -78,8 +86,8 @@ export default class MissionControl extends View {
     cx.spawn(async (cx) => {
       const reply = await call("missions.create", { issueKey: issue.key });
       this.creating = false;
-      if ("data" in reply) issue.missionStage = reply.data.stage;
-      else this.requestError = reply.error.message;
+      if ("data" in reply) this.missions = [...(this.missions ?? []).filter((mission) => mission.issueKey !== issue.key), reply.data];
+      else if (this.requested === issue.key) this.requestError = reply.error.message;
       this.refresh(cx);
       cx.notify();
     });
@@ -93,7 +101,8 @@ export default class MissionControl extends View {
         .border_color(on ? "#3A4180" : CLEAR).bg(on ? "#1F2440" : CLEAR).text_color(on ? "#ffffff" : "#C9CFDB")
         .cursor_pointer().on_click((_event, cx) => this.show(page, cx)).child(label);
     };
-    const count = this.missions.length;
+    const missions = this.missions ?? [];
+    const count = missions.length;
     return v_flex().w(248).flex_none().h_full().bg("#151821").border_r_1().border_color("#232838").px(14).py(18).gap(4)
       .text_size(14).text_color("#C9CFDB")
       .child(div().mx(6).mb(14).text_size(15).font_bold().text_color("#ffffff").child("Mission Control"))
@@ -104,7 +113,7 @@ export default class MissionControl extends View {
         .child(div().w(22).h(22).rounded(6).border_1().border_color("#8E7CFF").bg("#261F4A"))
         .child(v_flex().child(PROJECT).child(div().text_size(11.5).text_color("#6F7689")
           .child(count === 0 ? "Aucune mission en cours" : count === 1 ? "1 mission" : `${count} missions`))))
-      .children(this.missions.map((mission) => h_flex().justify_between().pl(42).pr(10).py(4).text_size(13).text_color("#A3AABB")
+      .children(missions.map((mission) => h_flex().justify_between().pl(42).pr(10).py(4).text_size(13).text_color("#A3AABB")
         .child(mission.issueKey).child(stageName(mission.stage))));
   }
 
@@ -142,9 +151,9 @@ export default class MissionControl extends View {
     return div().px(12).py(13).text_size(15).text_color(color).child(text);
   }
 
-  list(id: string, title: string, rows: NativeElement[], empty: string, action?: NativeElement): NativeElement {
-    const body = this.listError ? [this.note(this.listError, "#F2C14E")]
-      : this.issues === null ? [this.note("Chargement…")]
+  list(id: string, title: string, rows: NativeElement[] | undefined, error: string, empty: string, action?: NativeElement): NativeElement {
+    const body = error ? [this.note(error, "#F2C14E")]
+      : !rows ? [this.note("Chargement…")]
       : rows.length === 0 ? [this.note(empty)] : rows;
     return this.card().px(24).py(22)
       .child(h_flex().h(40).flex_none().items_center().justify_between().mb(24)
@@ -155,26 +164,25 @@ export default class MissionControl extends View {
 
   // ---- issues (mockup 01) and missions ------------------------------------
   issuesPage(): NativeElement[] {
-    const issues = this.issues ?? [];
     // Drawn and inert in slice 1: creating a ticket arrives with slice 2.
     const newTicket = h_flex().h(40).px(20).items_center().rounded(10).bg("#6B6CF5").text_size(14.5).font_semibold().text_color("#ffffff").opacity(0.4).child("Nouveau ticket");
     return [
-      this.header(PROJECT, h_flex().child(`${issues.length} issues · ${this.missions.length} missions en cours`)),
-      this.list("issues", "Issues", issues.map((issue) => this.row(`issue-${issue.key}`, issue.key, issue.title, issue.status)), "Aucune issue ouverte", newTicket),
+      this.header(PROJECT, h_flex().child(`${this.issues?.length ?? 0} issues · ${this.missions?.length ?? 0} missions en cours`)),
+      this.list("issues", "Issues", this.issues?.map((issue) => this.row(`issue-${issue.key}`, issue.key, issue.title, issue.status)),
+        this.issuesError, "Aucune issue ouverte", newTicket),
     ];
   }
 
   developmentPage(): NativeElement[] {
     return [
-      this.header(PROJECT, h_flex().child(`${this.missions.length} missions en cours`)),
-      this.list("missions", "Development", this.missions.map((mission) =>
-        this.row(`mission-${mission.issueKey}`, mission.issueKey, mission.title, stageName(mission.stage))), "Aucune mission"),
+      this.header(PROJECT, h_flex().child(`${this.missions?.length ?? 0} missions en cours`)),
+      this.list("missions", "Development", this.missions?.map((mission) =>
+        this.row(`mission-${mission.issueKey}`, mission.issueKey, mission.title, stageName(mission.stage))), this.missionsError, "Aucune mission"),
     ];
   }
 
   // ---- request (mockup 02) -------------------------------------------------
-  stages(issue: IssueDetail): NativeElement {
-    const current = issue.missionStage ?? "prepare";
+  stages(issue: IssueDetail, current: Stage): NativeElement {
     const parts: NativeElement[] = [div().child(`${PROJECT} · ${issue.key}`)];
     STAGES.forEach(([stage, label], index) => {
       if (index > 0) parts.push(div().text_color("#5C6378").child("›"));
@@ -246,10 +254,12 @@ export default class MissionControl extends View {
         this.card().px(24).py(22).child(this.note(this.requestError || "Chargement…", this.requestError ? "#F2C14E" : "#8C93A6")),
       ];
     }
-    const created = issue.missionStage !== undefined;
+    // The local list of missions knows first: it is updated the moment one is created.
+    const stage = this.missions?.find((mission) => mission.issueKey === issue.key)?.stage ?? issue.missionStage;
+    const created = stage !== undefined;
     const chip = (text: string) => h_flex().h(26).px(9).items_center().rounded(6).border_1().border_color("#363C50").text_size(12.5).text_color("#C9CFDB").child(text);
     return [
-      this.header(issue.title, this.stages(issue)),
+      this.header(issue.title, this.stages(issue, stage ?? "prepare")),
       this.steps(created),
       h_flex().flex_1().min_h_0().gap(14).items_stretch()
         .child(this.card().h_full()

@@ -18,9 +18,9 @@ herdr-app do layout.switch --name mission-control    # show the Mission Control 
 sh screens/launch.sh                                 # start the separate Herdr
 ```
 
-`launch.sh` reads the Linear key from the macOS Keychain (service `dev.mission-control.linear`, account `api-key`) and hands it to the engine as `LINEAR_API_KEY`. The key is written nowhere.
+The window runs each engine command through `engine.sh`, which reads the Linear key from the macOS Keychain (service `dev.mission-control.linear`, account `api-key`) and hands it to that one process as `LINEAR_API_KEY`. The key is written nowhere and Herdr itself never holds it.
 
 ## Files
-- `mission-control/main.ts`: the window. It calls the engine (`engine/cli.ts`) and draws what it returns, after `docs/mockups/prepare-flow`.
+- `mission-control/main.ts`: the window. It calls the engine and draws what it returns, after `docs/mockups/prepare-flow`.
 - `herdr-types/`: Herdr App's own type files, copied from its home. Replace them when Herdr App is updated.
 - `tests/`: the slice's path on screen, run outside Herdr against a stand-in for its modules.

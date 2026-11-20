@@ -1,18 +1,18 @@
 ---
-titre: Le parcours complet d’abord, sur une équipe Linear d’essai
-statut: acceptée
+title: The full flow first, on a trial Linear team
+status: accepted
 date: 2026-11-20
-auteur: Pilot
-remplace: aucune
+author: Pilot
+supersedes: none
 ---
 
-# 0011 — Le parcours complet d’abord, sur une équipe Linear d’essai
+# 0011 — The full flow first, on a trial Linear team
 
-## Contexte
-Tous les projets de Nicolas sont dans Linear.
+## Context
+All of Nicolas's projects are in Linear.
 
-## Décision
-Premier jalon : un parcours complet mais minimal, avec le connecteur Linear, un seul dev, sur une équipe Linear créée pour l'essai. Ensuite : deuxième dev, connecteur MD, import des documents Linear, machine distante ai-dev, puis une première vraie mission sur FlashGolf, sur un petit ticket choisi par Nicolas. Le Mac d'abord ; la machine distante est prévue dès la conception (aucun chemin local en dur).
+## Decision
+First milestone: a full but minimal flow, with the Linear connector, a single dev, on a Linear team created for the trial. Then: second dev, MD connector, import of the Linear documents, remote machine ai-dev, then a first real mission on FlashGolf, on a small ticket chosen by Nicolas. The Mac first; the remote machine is planned for from the design (no hard-coded local path).
 
-## Pourquoi
-Un parcours entier, même mince, montre les vrais problèmes avant toute finition.
+## Why
+A whole flow, even a thin one, shows the real problems before any polish.

@@ -1,10 +1,10 @@
 # Mission Control
 
-Piloter des agents de code sur une mission, de la demande à la validation : préparer, développer, tester, valider.
+Steer coding agents through a mission, from the request to the validation: prepare, develop, test, validate.
 
-Ce dépôt repart à neuf. L'ancien système (`~/Developer/dvlpr-herdr-mission-control`) reste en service le temps de finir les missions en cours, puis s'arrête.
+This repository starts from scratch. The old system (`~/Developer/dvlpr-herdr-mission-control`) stays in service while the missions in progress are finished, then it stops.
 
-- Le projet en une page : [docs/context.md](docs/context.md)
-- Les décisions : [docs/decisions/](docs/decisions/)
-- Le plan : [docs/missions/MC-1-first-version/plan.md](docs/missions/MC-1-first-version/plan.md)
-- La liste des décisions et des missions : [docs/index.md](docs/index.md)
+- The project in one page: [docs/context.md](docs/context.md)
+- The decisions: [docs/decisions/](docs/decisions/)
+- The plan: [docs/missions/MC-1-first-version/plan.md](docs/missions/MC-1-first-version/plan.md)
+- The list of decisions and missions: [docs/index.md](docs/index.md)

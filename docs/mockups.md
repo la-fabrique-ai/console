@@ -1,21 +1,21 @@
 ---
-titre: Maquettes de référence
-statut: en vigueur
+title: Reference mockups
+status: in force
 date: 2026-11-20
-auteur: Pilot
+author: Pilot
 ---
 
-# Maquettes de référence
+# Reference mockups
 
-Les maquettes sont dans le dépôt, sous `docs/mockups/` : les pages HTML, leurs sources et un `README.md` par écran. Une machine qui a le code les a aussi.
+The mockups are in the repository, under `docs/mockups/`: the HTML pages, their sources and one `README.md` per screen. A machine that has the code has them too.
 
-Les captures d'écran (37 Mo de PNG) restent hors du dépôt, dans `~/Developer/mockups/mission-control/<écran>/screens/` : elles se régénèrent à partir des pages HTML.
+The screenshots (37 MB of PNG) stay outside the repository, in `~/Developer/mockups/mission-control/<screen>/screens/`: they are regenerated from the HTML pages.
 
-| Écran | Dossier | État |
+| Screen | Folder | State |
 |---|---|---|
-| Préparer | `docs/mockups/prepare/` | Claude Design, validée par Nicolas le 2026-11-19. Lire `README.md`. |
-| Développer | `docs/mockups/develop/` | Claude Design, validée par Nicolas le 2026-11-19, 83 états. Lire `README.md`. |
-| Tester, Valider | à faire | Deux ou trois variantes dans le même cadre, à valider par Nicolas avant le code. |
-| Inbox, Development | à faire | Variantes à proposer avec les premiers écrans. |
+| Prepare | `docs/mockups/prepare/` | Claude Design, validated by Nicolas on 2026-11-19. Read `README.md`. |
+| Develop | `docs/mockups/develop/` | Claude Design, validated by Nicolas on 2026-11-19, 83 states. Read `README.md`. |
+| Test, Validate | to do | Two or three variants in the same frame, to be validated by Nicolas before the code. |
+| Inbox, Development | to do | Variants to propose with the first screens. |
 
-Ce sont des directions artistiques, pas des spécifications : elles montrent des fonctions que la première version ne fait pas (Kanban, écarts au plan, pause, jusqu'à trois devs). Voir `docs/context.md` pour ce qui est retenu. Les textes sont en anglais dans les maquettes ; les écrans seront en français ([[0002-flow-and-screens]]).
+These are art directions, not specifications: they show features that the first version does not have (Kanban, deviations from the plan, pause, up to three devs). See `docs/context.md` for what is kept. The texts are in English in the mockups; the screens will be in French ([[0002-flow-and-screens]]).

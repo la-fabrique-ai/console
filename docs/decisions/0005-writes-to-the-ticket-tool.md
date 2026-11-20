@@ -1,18 +1,18 @@
 ---
-titre: Quatre gestes d’écriture dans l’outil de tickets
-statut: acceptée
+title: Four write actions in the ticket tool
+status: accepted
 date: 2026-11-20
-auteur: Pilot
-remplace: aucune
+author: Pilot
+supersedes: none
 ---
 
-# 0005 — Quatre gestes d’écriture dans l’outil de tickets
+# 0005 — Four write actions in the ticket tool
 
-## Contexte
-Le moteur ne doit pas abîmer l'outil de tickets d'un vrai projet.
+## Context
+The engine must not damage the ticket tool of a real project.
 
-## Décision
-Le moteur n'écrit dans l'outil externe que par quatre gestes du connecteur : créer les sous-tickets du découpage, après validation de Nicolas ; changer leur statut ; ajouter un commentaire (compte rendu, lien de la PR) ; mettre dans le ticket principal un court résumé de la spec et le lien vers son fichier. Jamais de suppression. Le découpage du Lead reste un brouillon dans notre base tant que Nicolas ne l'a pas validé.
+## Decision
+The engine writes to the external tool only through four actions of the connector: create the sub-tickets of the split, after Nicolas's validation; change their status; add a comment (report, link to the PR); put in the main ticket a short summary of the spec and the link to its file. Never a deletion. The Lead's split stays a draft in our base until Nicolas has validated it.
 
-## Pourquoi
-Des gestes peu nombreux et nommés se testent et se relisent. Une synchronisation large dans les deux sens ne se maîtrise pas.
+## Why
+Actions that are few and named can be tested and reviewed. A broad two-way synchronization cannot be kept under control.

@@ -1,18 +1,18 @@
 ---
-titre: Cinq rôles, un ou deux devs
-statut: acceptée
+title: Five roles, one or two devs
+status: accepted
 date: 2026-11-20
-auteur: Pilot
-remplace: aucune
+author: Pilot
+supersedes: none
 ---
 
-# 0003 — Cinq rôles, un ou deux devs
+# 0003 — Five roles, one or two devs
 
-## Contexte
-Le parallèle était la plus grosse source de complexité : zones, voies, verrous, reprises.
+## Context
+Parallel work was the biggest source of complexity: areas, lanes, locks, resumes.
 
-## Décision
-Cinq rôles : Pilot, Lead, dev, relecteur, QA, plus un veilleur simple. À l'écran de préparation, le Lead propose d'abord un découpage en tickets à la suite, pour un dev. Nicolas peut passer à deux devs : le Lead recalcule le brouillon. Chaque ticket déclare les fichiers ou dossiers qu'il touche ; deux tickets ne tournent en même temps que si leurs zones ne se recoupent pas, sinon ils passent l'un après l'autre et l'écran le dit. La règle est vérifiée au découpage, sans verrou en cours de route. L'outil de chaque dev (Claude ou Codex) se choisit au même moment.
+## Decision
+Five roles: Pilot, Lead, dev, reviewer, QA, plus a simple watcher. On the preparation screen, the Lead first proposes a split into tickets in sequence, for one dev. Nicolas can switch to two devs: the Lead recomputes the draft. Each ticket declares the files or folders it touches; two tickets run at the same time only if their file areas do not overlap, otherwise they run one after the other and the screen says so. The rule is checked at the split, with no lock along the way. The tool of each dev (Claude or Codex) is chosen at the same moment.
 
-## Pourquoi
-Une seule règle, vérifiée une fois, remplace tout le mécanisme des zones.
+## Why
+A single rule, checked once, replaces the whole mechanism of areas.

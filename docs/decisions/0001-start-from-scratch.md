@@ -1,18 +1,18 @@
 ---
-titre: Repartir à neuf, moteur compris
-statut: acceptée
+title: Start from scratch, engine included
+status: accepted
 date: 2026-11-20
-auteur: Pilot
-remplace: aucune
+author: Pilot
+supersedes: none
 ---
 
-# 0001 — Repartir à neuf, moteur compris
+# 0001 — Start from scratch, engine included
 
-## Contexte
-L'ancien système empile quatre générations d'écrans (14 écrans) et un moteur de 13 000 lignes, 96 commandes et plus de 110 décisions numérotées dans le code. Chaque correction en casse une autre. Nicolas, le 2026-11-19 : « c'est une usine à gaz ».
+## Context
+The old system stacks four generations of screens (14 screens) and an engine of 13,000 lines, 96 commands and more than 110 numbered decisions in the code. Each fix breaks another one. Nicolas, on 2026-11-19: « c'est une usine à gaz » ("it is an over-engineered machine").
 
-## Décision
-On reconstruit écrans et moteur dans un nouveau dépôt, `~/Developer/mission-control`, avec une installation de Herdr à part. On ne reprend de l'ancien que des briques éprouvées, une par une, quand elles servent le nouveau besoin : accès à Linear, envoi dans un terminal, lancement d'un agent. L'ancien système est gelé (correctifs bloquants seulement), finit les missions en cours, puis s'arrête. Aucun historique n'est transféré.
+## Decision
+We rebuild screens and engine in a new repository, `~/Developer/mission-control`, with a separate Herdr installation. From the old system we take only proven building blocks, one by one, when they serve the new need: access to Linear, sending to a terminal, starting an agent. The old system is frozen (blocking fixes only), finishes the missions in progress, then stops. No history is transferred.
 
-## Pourquoi
-Un périmètre volontairement petit donne un résultat lisible. Un ménage de l'ancien moteur garderait son architecture, qui est la source de la complexité.
+## Why
+A deliberately small scope gives a readable result. A cleanup of the old engine would keep its architecture, which is the source of the complexity.

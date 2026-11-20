@@ -1,18 +1,18 @@
 ---
-titre: Un seul parcours, quatre écrans, en français
-statut: acceptée
+title: A single flow, four screens, in French
+status: accepted
 date: 2026-11-20
-auteur: Pilot
-remplace: aucune
+author: Pilot
+supersedes: none
 ---
 
-# 0002 — Un seul parcours, quatre écrans, en français
+# 0002 — A single flow, four screens, in French
 
-## Contexte
-L'ancien système mélangeait plusieurs pages par étape et plusieurs vues du même contenu.
+## Context
+The old system mixed several pages per step and several views of the same content.
 
-## Décision
-Une mission suit quatre étapes : préparer, développer, tester, valider. La première version les couvre toutes, chacune réduite à l'essentiel. Quatre écrans : Inbox, Development (la liste des missions), la page d'une mission (même cadre du début à la fin, les blocs changent de contenu selon l'étape), le terminal d'un agent. Tous les textes sont en français, rédigés par Codex et choisis par Nicolas, en un lot par écran. Les maquettes Claude Design de Prepare et Develop servent de direction artistique ; QA et Validate reçoivent deux ou trois variantes à valider avant le code.
+## Decision
+A mission follows four steps: prepare, develop, test, validate. The first version covers them all, each reduced to the essentials. Four screens: Inbox, Development (the list of missions), the page of a mission (same frame from start to end, the blocks change content depending on the step), the terminal of an agent. All texts are in French, written by Codex and chosen by Nicolas, in one batch per screen. The Claude Design mockups of Prepare and Develop serve as art direction; QA and Validate get two or three variants to validate before the code.
 
-## Pourquoi
-Nicolas veut les mêmes blocs de la préparation à la validation, et des écrans simples.
+## Why
+Nicolas wants the same blocks from preparation to validation, and simple screens.

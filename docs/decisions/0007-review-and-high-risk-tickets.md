@@ -1,18 +1,18 @@
 ---
-titre: Relecture indépendante, approche validée pour les tickets Fort
-statut: acceptée
+title: Independent review, validated approach for high-risk tickets
+status: accepted
 date: 2026-11-20
-auteur: Pilot
-remplace: aucune
+author: Pilot
+supersedes: none
 ---
 
-# 0007 — Relecture indépendante, approche validée pour les tickets Fort
+# 0007 — Independent review, validated approach for high-risk tickets
 
-## Contexte
-Un dev de l'ancien système s'est arrêté parce que les règles du projet demandaient de faire valider son approche avant de coder, et que le moteur n'avait pas cette étape.
+## Context
+A dev of the old system stopped because the project rules asked to have its approach validated before coding, and the engine did not have that step.
 
-## Décision
-Ticket normal : une relecture, par un relecteur de l'autre famille de modèle que le dev, sur un commit précis. Ticket Fort (sécurité, authentification, paiements, migrations de données) : le dev écrit son approche, le relecteur la valide, le dev code, puis deux relectures. Le relecteur ne corrige pas ; tout correctif demande une nouvelle relecture.
+## Decision
+Normal ticket: one review, by a reviewer from the other model family than the dev, on a specific commit. High-risk ticket (security, authentication, payments, data migrations): the dev writes its approach, the reviewer validates it, the dev codes, then two reviews. The reviewer does not fix; any fix requires a new review.
 
-## Pourquoi
-L'étape existe dans les règles des projets : le moteur doit la porter au lieu de la découvrir par un blocage.
+## Why
+The step exists in the rules of the projects: the engine must carry it instead of discovering it through a blocker.

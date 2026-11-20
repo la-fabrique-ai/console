@@ -1,18 +1,18 @@
 ---
-titre: Un seul type de demande, avec réponse sur place
-statut: acceptée
+title: A single type of request, answered in place
+status: accepted
 date: 2026-11-20
-auteur: Pilot
-remplace: aucune
+author: Pilot
+supersedes: none
 ---
 
-# 0006 — Un seul type de demande, avec réponse sur place
+# 0006 — A single type of request, answered in place
 
-## Contexte
-L'ancien système distinguait question, blocage, alerte, autorisation et choix de maquette, chacun avec ses états. Un blocage ne pouvait pas recevoir de réponse depuis la page.
+## Context
+The old system distinguished question, blocker, alert, authorization and mockup choice, each with its own states. A blocker could not be answered from the page.
 
-## Décision
-Un agent qui a besoin de Nicolas crée une demande. Nicolas la voit dans l'Inbox et dans la page de la mission, et y répond au même endroit, par un texte ou par un clic sur une réponse proposée. La réponse arrive dans le terminal de l'agent, une seule fois. Nicolas peut aussi confier la demande au Lead. Seul un écran peut répondre : un agent ne répond jamais à la place de Nicolas.
+## Decision
+An agent that needs Nicolas creates a request. Nicolas sees it in the Inbox and in the page of the mission, and answers it in the same place, with a text or with a click on a proposed answer. The answer arrives in the agent's terminal, only once. Nicolas can also hand the request over to the Lead. Only a screen can answer: an agent never answers in Nicolas's place.
 
-## Pourquoi
-Un seul mécanisme couvre tous les cas et évite les effets de bord entre types.
+## Why
+A single mechanism covers all cases and avoids side effects between types.

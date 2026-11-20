@@ -1,1 +1,1 @@
-Lis `AGENTS.md` : les règles du projet y sont.
+Read `AGENTS.md`: the project rules are there.

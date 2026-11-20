@@ -1,18 +1,18 @@
 ---
-titre: Une base de tickets propre, un connecteur par projet
-statut: acceptée
+title: A ticket base of our own, one connector per project
+status: accepted
 date: 2026-11-20
-auteur: Pilot
-remplace: aucune
+author: Pilot
+supersedes: none
 ---
 
-# 0004 — Une base de tickets propre, un connecteur par projet
+# 0004 — A ticket base of our own, one connector per project
 
-## Contexte
-Nicolas veut un système indépendant de l'outil de tickets : Linear aujourd'hui, Jiroo, Jira ou de simples fichiers MD demain.
+## Context
+Nicolas wants a system independent of the ticket tool: Linear today, Jiroo, Jira or plain MD files tomorrow.
 
-## Décision
-Le système a sa propre base de tickets, qui fait référence pour le moteur. Un connecteur par projet l'alimente depuis l'outil externe et y reporte les changements. Un projet n'a qu'un connecteur. Ordre : Linear, puis fichiers MD, puis Jiroo et Jira. Champs d'un ticket : identifiant et clé affichée ; origine (connecteur, identifiant externe, lien) ; titre ; description en Markdown ; type (principal ou sous-ticket) et parent ; statut ; priorité (0 à 4) ; taille (Light, Standard, Heavy) ; niveau (normal ou Fort) ; ordre, dépendances, zone de fichiers ; dev prévu ; commentaires. Huit statuts communs, traduits par chaque connecteur : À faire, En préparation, En cours, En revue, En test, À valider, Terminé, Annulé. Pas de pièces jointes, de sprints ni de points dans la première version.
+## Decision
+The system has its own ticket base, which is the reference for the engine. One connector per project feeds it from the external tool and reports the changes back to it. A project has only one connector. Order: Linear, then MD files, then Jiroo and Jira. Fields of a ticket: identifier and displayed key; origin (connector, external identifier, link); title; description in Markdown; type (main or sub-ticket) and parent; status; priority (0 to 4); size (Light, Standard, Heavy); level (normal or high-risk); order, dependencies, file area; planned dev; comments. Eight common statuses, translated by each connector: To do, In preparation, In progress, In review, In test, To validate, Done, Cancelled. The screens show them in French. No attachments, sprints or points in the first version.
 
-## Pourquoi
-Linear et Jiroo rangent tous deux leurs statuts en catégories propres à chaque équipe : une liste commune traduite par le connecteur convient aux deux. Beads a été écarté le 2026-11-20 pour ne pas dépendre d'un outil tiers.
+## Why
+Linear and Jiroo both sort their statuses into categories specific to each team: a common list translated by the connector suits both. Beads was ruled out on 2026-11-20 so as not to depend on a third-party tool.

@@ -1,18 +1,18 @@
 ---
-titre: La consommation de jetons est affichée, sans limite
-statut: acceptée
+title: Token consumption is displayed, with no limit
+status: accepted
 date: 2026-11-20
-auteur: Pilot
-remplace: aucune
+author: Pilot
+supersedes: none
 ---
 
-# 0010 — La consommation de jetons est affichée, sans limite
+# 0010 — Token consumption is displayed, with no limit
 
-## Contexte
-Les alertes de budget de l'ancien système s'affichaient comme des blocages.
+## Context
+The budget alerts of the old system were displayed as blockers.
 
-## Décision
-Pour chaque mission : le total consommé, puis le détail par agent et par ticket, gardés après la clôture pour comparer les missions. Aucune limite, aucune alerte.
+## Decision
+For each mission: the total consumed, then the detail per agent and per ticket, kept after closing to compare missions. No limit, no alert.
 
-## Pourquoi
-Nicolas veut voir ce qui est consommé pour affiner l'usage, pas être arrêté.
+## Why
+Nicolas wants to see what is consumed to refine the usage, not to be stopped.

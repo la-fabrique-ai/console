@@ -1,18 +1,18 @@
 ---
-titre: Une PR par ticket, empilée sur la PR de la mission
-statut: acceptée
+title: One PR per ticket, stacked on the PR of the mission
+status: accepted
 date: 2026-11-20
-auteur: Pilot
-remplace: aucune
+author: Pilot
+supersedes: none
 ---
 
-# 0008 — Une PR par ticket, empilée sur la PR de la mission
+# 0008 — One PR per ticket, stacked on the PR of the mission
 
-## Contexte
-Nicolas veut un système de pile : le ticket principal a sa PR, chaque sous-ticket la sienne.
+## Context
+Nicolas wants a stack system: the main ticket has its PR, each sub-ticket has its own.
 
-## Décision
-La PR principale va de la branche de la mission vers la branche principale du projet. Chaque sous-ticket a sa branche et sa PR, qui vise la branche de la mission. Un ticket qui dépend d'un autre démarre après la fusion de celui-ci. Le système pousse les branches, ouvre les PR en brouillon et fusionne la PR d'un ticket quand le relecteur l'accepte. La PR principale n'appartient qu'à Nicolas : il la fusionne après sa validation. GitHub seulement, via `gh`, dans la première version.
+## Decision
+The main PR goes from the mission branch to the main branch of the project. Each sub-ticket has its branch and its PR, which targets the mission branch. A ticket that depends on another starts after that one is merged. The system pushes the branches, opens the PRs as drafts and merges the PR of a ticket when the reviewer accepts it. The main PR belongs only to Nicolas: he merges it after his validation. GitHub only, through `gh`, in the first version.
 
-## Pourquoi
-Toutes les PR visant la branche de la mission, il n'y a pas de rebase en chaîne, et deux tickets en parallèle ne se gênent pas.
+## Why
+Since all PRs target the mission branch, there is no chained rebase, and two tickets in parallel do not get in each other's way.

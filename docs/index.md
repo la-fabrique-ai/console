@@ -1,30 +1,31 @@
 ---
-titre: Index
-statut: généré
+title: Index
+status: generated
 date: 2026-11-20
 ---
 
 # Index
 
-Écrit à la main en attendant le moteur, qui le générera à partir des en-têtes des fichiers.
+Written by hand until the engine exists; the engine will generate it from the file headers.
 
-## Décisions
-| N° | Décision | Statut |
+## Decisions
+| No. | Decision | Status |
 |---|---|---|
-| 0001 | [[0001-start-from-scratch]] | acceptée |
-| 0002 | [[0002-flow-and-screens]] | acceptée |
-| 0003 | [[0003-roles-and-devs]] | acceptée |
-| 0004 | [[0004-tickets-and-connectors]] | acceptée |
-| 0005 | [[0005-writes-to-the-ticket-tool]] | acceptée |
-| 0006 | [[0006-requests]] | acceptée |
-| 0007 | [[0007-review-and-high-risk-tickets]] | acceptée |
-| 0008 | [[0008-stacked-prs]] | acceptée |
-| 0009 | [[0009-plans-and-memory-in-docs]] | acceptée |
-| 0010 | [[0010-tokens]] | acceptée |
-| 0011 | [[0011-first-milestone]] | acceptée |
-| 0012 | [[0012-typescript]] | proposée |
+| 0001 | [[0001-start-from-scratch]] | accepted |
+| 0002 | [[0002-flow-and-screens]] | accepted |
+| 0003 | [[0003-roles-and-devs]] | accepted |
+| 0004 | [[0004-tickets-and-connectors]] | accepted |
+| 0005 | [[0005-writes-to-the-ticket-tool]] | accepted |
+| 0006 | [[0006-requests]] | accepted |
+| 0007 | [[0007-review-and-high-risk-tickets]] | accepted |
+| 0008 | [[0008-stacked-prs]] | accepted |
+| 0009 | [[0009-plans-and-memory-in-docs]] | accepted |
+| 0010 | [[0010-tokens]] | accepted |
+| 0011 | [[0011-first-milestone]] | accepted |
+| 0012 | [[0012-typescript]] | proposed |
+| 0013 | [[0013-project-language]] | accepted |
 
 ## Missions
-| Ticket | Mission | Étape |
+| Ticket | Mission | Step |
 |---|---|---|
-| MC-1 | [[plan]] — première version | plan à valider |
+| MC-1 | [[plan]] — first version | plan to validate |

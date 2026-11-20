@@ -1,33 +1,33 @@
 ---
-titre: Mission Control — le projet en une page
-statut: en vigueur
+title: Mission Control — the project in one page
+status: in force
 date: 2026-11-20
-auteur: Pilot
+author: Pilot
 ---
 
 # Mission Control
 
-## But
-Nicolas confie une demande (un ticket) et suit son développement par des agents de code jusqu'à sa validation. L'outil doit rester simple et lisible : un seul parcours, peu d'écrans, l'essentiel seulement.
+## Goal
+Nicolas hands over a request (a ticket) and follows its development by coding agents until its validation. The tool must stay simple and readable: a single flow, few screens, only the essentials.
 
-## Le parcours d'une mission
-1. **Préparer** : Pilot écrit la spec avec Nicolas. Le Lead propose un découpage en tickets, en brouillon. Nicolas valide ; les sous-tickets sont alors créés.
-2. **Développer** : un ou deux devs codent les tickets. Chaque ticket est relu par un relecteur indépendant.
-3. **Tester** : l'agent QA teste selon les critères de la spec.
-4. **Valider** : Nicolas vérifie, puis clôt. S'il refuse, le Lead en fait des tickets de correction dans la même mission.
+## The flow of a mission
+1. **Prepare**: Pilot writes the spec with Nicolas. The Lead proposes a split into tickets, as a draft. Nicolas validates; the sub-tickets are then created.
+2. **Develop**: one or two devs code the tickets. Each ticket is reviewed by an independent reviewer.
+3. **Test**: the QA agent tests against the criteria of the spec.
+4. **Validate**: Nicolas checks, then closes. If he refuses, the Lead turns it into fix tickets in the same mission.
 
-## Les rôles
-Pilot (spec), Lead (découpage et coordination), dev (1 ou 2), relecteur (autre famille de modèle que le dev), QA. Un veilleur lance l'agent suivant quand le précédent a fini.
+## The roles
+Pilot (spec), Lead (split and coordination), dev (1 or 2), reviewer (other model family than the dev), QA. A watcher starts the next agent when the previous one has finished.
 
-## Les briques
-- **Écrans** : natifs dans Herdr App, dans une installation de Herdr à part. Quatre écrans : Inbox, Development, la page d'une mission, le terminal d'un agent. En français.
-- **Moteur** : en TypeScript, lancé en ligne de commande. Un état lisible par mission.
-- **Tickets** : une base propre au système, alimentée par un connecteur par projet (Linear d'abord, puis fichiers MD, Jiroo, Jira).
-- **Code** : une branche et une PR par ticket, empilées sur la PR de la mission. GitHub, via `gh`.
-- **Plans et mémoire** : dans `docs/` du dépôt de chaque projet.
+## The building blocks
+- **Screens**: native in Herdr App, in a separate Herdr installation. Four screens: Inbox, Development, the page of a mission, the terminal of an agent. In French.
+- **Engine**: in TypeScript, run from the command line. One readable state per mission.
+- **Tickets**: a ticket base owned by the system, fed by one connector per project (Linear first, then MD files, Jiroo, Jira).
+- **Code**: one branch and one PR per ticket, stacked on the PR of the mission. GitHub, through `gh`.
+- **Plans and memory**: in `docs/` of each project's repository.
 
-## Ce que la première version ne fait pas
-Limites et alertes de budget, pause et reprise, suivi des écarts au plan, récapitulatif « depuis ta dernière visite », Kanban, plus de deux devs, reprise de l'historique de l'ancien système.
+## What the first version does not do
+Budget limits and alerts, pause and resume, tracking of deviations from the plan, a "since your last visit" summary, Kanban, more than two devs, import of the old system's history.
 
-## Règle de conduite
-Chaque cas particulier ne devient pas une règle. Avant d'ajouter un état ou une commande, on vérifie qu'aucun existant ne suffit. Voir [[0001-start-from-scratch]].
+## Rule of conduct
+Each special case does not become a rule. Before adding a state or a command, we check that no existing one is enough. See [[0001-start-from-scratch]].

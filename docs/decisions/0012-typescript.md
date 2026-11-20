@@ -1,18 +1,18 @@
 ---
-titre: Le moteur est écrit en TypeScript strict
-statut: proposée
+title: The engine is written in strict TypeScript
+status: proposed
 date: 2026-11-20
-auteur: Pilot
-remplace: aucune
+author: Pilot
+supersedes: none
 ---
 
-# 0012 — Le moteur est écrit en TypeScript strict
+# 0012 — The engine is written in strict TypeScript
 
-## Contexte
-L'ancien moteur est en JavaScript simple. Nicolas demande quelque chose de plus solide.
+## Context
+The old engine is in plain JavaScript. Nicolas asks for something more solid.
 
-## Décision
-Le moteur et les connecteurs sont en TypeScript strict. Node 24 exécute TypeScript directement : pas d'étape de compilation pour lancer une commande, et un contrôle des types dans la vérification du projet. Le modèle de ticket, l'état d'une mission et le contrat des commandes sont des types partagés. Les écrans restent des fichiers JavaScript tant que Herdr App ne charge pas autre chose ; ils utilisent ces mêmes types par contrôle de leurs annotations. À vérifier dans le lot 0 : ce que Herdr App accepte comme fichier d'écran.
+## Decision
+The engine and the connectors are in strict TypeScript. Node 24 runs TypeScript directly: no compilation step to run a command, and a type check in the project verification. The ticket model, the state of a mission and the contract of the commands are shared types. The screens stay JavaScript files as long as Herdr App does not load anything else; they use these same types through a check of their annotations. To verify in batch 0: what Herdr App accepts as a screen file.
 
-## Pourquoi
-Les types font respecter le contrat entre moteur, connecteurs et écrans, là où l'ancien système comptait sur des tests et des conventions.
+## Why
+Types enforce the contract between engine, connectors and screens, where the old system relied on tests and conventions.

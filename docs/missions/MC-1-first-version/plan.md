@@ -1,53 +1,53 @@
 ---
-titre: Plan de la première version
-statut: à valider par Nicolas
+title: Plan of the first version
+status: to be validated by Nicolas
 date: 2026-11-20
-auteur: Pilot
+author: Pilot
 ticket: MC-1
 ---
 
-# Plan de la première version
+# Plan of the first version
 
-## Objectif
-Nicolas mène une mission complète avec le nouveau système : une demande dans Linear, une spec, un découpage validé, des tickets développés et relus, une QA, sa validation, des PR empilées. D'abord sur une équipe Linear d'essai, puis sur un vrai ticket FlashGolf.
+## Goal
+Nicolas runs a complete mission with the new system: a request in Linear, a spec, a validated split, tickets developed and reviewed, a QA, his validation, stacked PRs. First on a trial Linear team, then on a real FlashGolf ticket.
 
-## Décisions
-Toutes dans `docs/decisions/` (0001 à 0012). Ce plan ne les répète pas.
+## Decisions
+All in `docs/decisions/` (0001 to 0013). This plan does not repeat them.
 
-## Limites
-- Rien n'est repris de l'ancien code sans décision explicite, brique par brique.
-- Aucune écriture dans un projet Linear réel avant le jalon 2.
-- Chaque lot est livré avec ses tests, relu par l'autre famille de modèle, et montré à l'écran ou en ligne de commande avant le suivant.
-- Un lot tient dans une session d'agent et se relit en une passe. Plus gros, il est redécoupé par le Lead.
+## Limits
+- Nothing is taken from the old code without an explicit decision, block by block.
+- No write to a real Linear project before milestone 2.
+- Each batch is delivered with its tests, reviewed by the other model family, and shown on screen or on the command line before the next one.
+- A batch fits in one agent session and is reviewed in one pass. If bigger, it is split again by the Lead.
 
-## Lots du jalon 1 — le parcours complet minimal
-| Lot | Résultat attendu | Fini quand | Dev |
+## Batches of milestone 1 — the minimal full flow
+| Batch | Expected result | Finished when | Dev |
 |---|---|---|---|
-| 0 Socle | Dépôt en TypeScript strict, tests, vérification du projet ; une installation de Herdr à part qui affiche un écran vide de Mission Control | La vérification passe ; l'écran s'ouvre dans le Herdr à part ; on sait ce que Herdr accepte comme fichier d'écran | Codex (moteur), Claude (écran) |
-| 1 Tickets | Le modèle de ticket, la base, le connecteur Linear en lecture | Un ticket de l'équipe d'essai apparaît dans la base avec tous ses champs | Codex |
-| 2 Mission | L'état d'une mission et ses quatre étapes, lisible dans un fichier | Une mission se crée à partir d'un ticket et avance d'étape en étape par commande | Codex |
-| 3 Agents et demandes | Lancer un agent dans un terminal, lui envoyer un texte une seule fois, recevoir une demande et y répondre | Une demande posée par un agent reçoit sa réponse dans son terminal, une fois, même si la commande est rejouée | Codex |
-| 4 Écrans de base | Inbox, Development et le cadre de la page d'une mission | Nicolas ouvre une mission depuis la liste et répond à une demande sur place | Claude |
-| 5 Préparer | Pilot écrit la spec dans `docs/`, le Lead propose un découpage en brouillon, Nicolas valide, les sous-tickets sont créés dans Linear | Sur l'équipe d'essai : spec écrite, découpage validé, sous-tickets créés, résumé et lien dans le ticket principal | Codex (moteur), Claude (page) |
-| 6 Développer | Un dev code un ticket, un relecteur le relit, la PR du ticket est fusionnée dans la branche de la mission ; niveau Fort compris | Deux tickets à la suite sont acceptés, chacun avec sa PR empilée | Codex (moteur), Claude (page) |
-| 7 Tester et valider | QA, validation de Nicolas, corrections dans la même mission, clôture | Une mission d'essai va jusqu'à la clôture, avec un refus corrigé en chemin | Codex (moteur), Claude (page) |
+| 0 Foundation | Repository in strict TypeScript, tests, project verification; a separate Herdr installation that shows an empty Mission Control screen | The verification passes; the screen opens in the separate Herdr; we know what Herdr accepts as a screen file | Codex (engine), Claude (screen) |
+| 1 Tickets | The ticket model, the base, the Linear connector in read mode | A ticket of the trial team appears in the base with all its fields | Codex |
+| 2 Mission | The state of a mission and its four steps, readable in a file | A mission is created from a ticket and moves from step to step by command | Codex |
+| 3 Agents and requests | Start an agent in a terminal, send it a text only once, receive a request and answer it | A request raised by an agent receives its answer in its terminal, once, even if the command is replayed | Codex |
+| 4 Basic screens | Inbox, Development and the frame of the page of a mission | Nicolas opens a mission from the list and answers a request in place | Claude |
+| 5 Prepare | Pilot writes the spec in `docs/`, the Lead proposes a split as a draft, Nicolas validates, the sub-tickets are created in Linear | On the trial team: spec written, split validated, sub-tickets created, summary and link in the main ticket | Codex (engine), Claude (page) |
+| 6 Develop | A dev codes a ticket, a reviewer reviews it, the PR of the ticket is merged into the mission branch; high-risk tickets included | Two tickets in sequence are accepted, each with its stacked PR | Codex (engine), Claude (page) |
+| 7 Test and validate | QA, Nicolas's validation, fixes in the same mission, closing | A trial mission goes all the way to closing, with a refusal fixed along the way | Codex (engine), Claude (page) |
 
-**Jalon 1** : une mission complète sur l'équipe Linear d'essai, menée par Nicolas.
+**Milestone 1**: a complete mission on the trial Linear team, run by Nicolas.
 
-## Lots suivants
-| Lot | Résultat attendu |
+## Next batches
+| Batch | Expected result |
 |---|---|
-| 8 Deux devs | Le passage à deux devs à l'écran de préparation, le découpage recalculé, la règle des zones |
-| 9 Jetons | La consommation par mission, par agent et par ticket |
-| 10 Connecteur MD | Des tickets en fichiers Markdown, pour prouver que le modèle ne dépend pas de Linear |
-| 11 Import Linear | Les documents Linear d'un projet copiés dans son `docs/` |
-| 12 Machine distante | Des devs lancés sur ai-dev |
-| 13 Finition des écrans | Conformité aux maquettes, textes français choisis par Nicolas |
+| 8 Two devs | The switch to two devs on the preparation screen, the split recomputed, the file area rule |
+| 9 Tokens | The consumption per mission, per agent and per ticket |
+| 10 MD connector | Tickets as Markdown files, to prove that the model does not depend on Linear |
+| 11 Linear import | The Linear documents of a project copied into its `docs/` |
+| 12 Remote machine | Devs started on ai-dev |
+| 13 Screen polish | Conformity to the mockups, French texts chosen by Nicolas |
 
-**Jalon 2** : une vraie mission sur FlashGolf, sur un petit ticket choisi par Nicolas. Jiroo et Jira viennent après.
+**Milestone 2**: a real mission on FlashGolf, on a small ticket chosen by Nicolas. Jiroo and Jira come after.
 
-## Ce qui dépend de Nicolas
-- Créer l'équipe Linear d'essai et une clé d'accès pour le connecteur.
-- Dire si le dépôt est publié sur GitHub (privé), nécessaire pour les PR du projet lui-même.
-- Valider les maquettes de QA et de Validate, et choisir les textes.
-- Confirmer la décision 0012 (TypeScript).
+## What depends on Nicolas
+- Create the trial Linear team and an access key for the connector.
+- Say whether the repository is published on GitHub (private), needed for the PRs of the project itself.
+- Validate the mockups of QA and Validate, and choose the texts.
+- Confirm decision 0012 (TypeScript).

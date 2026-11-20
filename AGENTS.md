@@ -20,3 +20,16 @@ Lis `docs/contexte.md`, puis la spec ou le plan de ta mission dans `docs/mission
 - Tout texte visible à l'écran est en français, rédigé par Codex et choisi par Nicolas.
 - Pas de rustine : un défaut se corrige à sa cause. Si la cause n'est pas trouvée, on le dit au lieu d'ajouter une couche.
 - Ne jamais modifier l'ancien système ni son installation de Herdr.
+
+## Calibrage : faire petit
+L'ancien système est devenu une usine à gaz parce que chaque cas imaginé est devenu une règle. Ici, la mesure d'un bon lot est ce qu'il n'a pas ajouté.
+
+- Fais ce que le lot demande, rien de plus. Pas de commande, d'état, d'option ni de réglage que le critère de réussite n'exige pas.
+- Ne traite pas un cas hypothétique. Si tu vois un cas limite que le lot ne demande pas, ne le code pas : note-le dans ton compte rendu, sous « Non traité », en une ligne. Nicolas décide.
+- Pas d'abstraction pour un seul usage. Une couche, une interface ou un fichier de plus se justifie par deux usages réels, pas par un usage futur.
+- Avant d'ajouter un état ou une commande, vérifie qu'un existant ne suffit pas, et dis-le dans le compte rendu.
+- Taille : un lot de moteur vise quelques centaines de lignes de code, tests à part. Au-delà de 400 lignes, arrête-toi et demande : le lot est trop gros ou tu en fais trop.
+- Tests proportionnés : ils vérifient le contrat du lot (ce qui entre, ce qui sort, les refus demandés), pas chaque branche imaginable. Les tests ne dépassent pas nettement le code qu'ils vérifient.
+- Un refus ou un code d'erreur n'existe que si quelqu'un s'en sert : un écran qui l'affiche, ou un agent qui agit dessus.
+- Le compte rendu finit par trois listes courtes : ce qui est fait, ce qui est volontairement non traité, ce qui pourrait être retiré.
+- Le relecteur vérifie la proportion comme le reste : tout ce que le lot ne demandait pas est une remarque « à retirer ».

@@ -9,14 +9,14 @@ ticket: MC-1
 # Plan of the first version
 
 ## Goal
-An operator runs a whole mission from the screens, without typing in a terminal: a request in Linear, a spec written with Pilot, a validated split, tickets built and reviewed, a QA, a validation, stacked PRs. First on a Linear test team, then on a real FlashGolf ticket.
+An operator runs a whole mission from the screens, without typing in a terminal: a request in Linear, a spec written with Pilot, a validated split, tickets built and reviewed, a QA, a validation, stacked PRs. First on the Linear team Jiroo, used as the test ground, then on a real FlashGolf ticket.
 
 ## Decisions
 All in `docs/adr/` (0001 to 0015). This plan does not repeat them. The method is decision 0014; the screens-first rule is decision 0015.
 
 ## Limits
 - Nothing is taken from the old code without an explicit decision, piece by piece.
-- No write to a real Linear project before milestone 2.
+- Until milestone 2, the only Linear team the system reads and writes is Jiroo (key `JIR`), chosen by Nicolas on 2026-11-20 as the test ground. It is a real project: the system only touches the tickets Nicolas names for a test, and no other team.
 - Each slice ships with its tests, is reviewed by the other model family, and is shown to Nicolas on screen before the next one.
 - In a slice, Codex builds the engine part and Claude the screen part, as two sub-tickets.
 - The flow goes into role skills. A slice adds code only for what must never fail and for what the screen displays.
@@ -26,7 +26,7 @@ Each slice is a thin, complete path that can be shown alone.
 
 | Slice | What the operator can do when it is done | Blocked by |
 |---|---|---|
-| 1 A mission appears | Pick a ticket of the Linear test team, create a mission from it, see it in the Development list and open its page (title, stage) in the separate Herdr | the Linear test team and its key |
+| 1 A mission appears | Pick a ticket of the Linear team Jiroo, create a mission from it, see it in the Development list and open its page (title, stage) in the separate Herdr | the Linear access key |
 | 2 Talk to Pilot | Discuss the request with Pilot in a panel of the page. Pilot asks its questions in rounds, each with a recommended answer and buttons. An answer reaches Pilot once | 1 |
 | 3 The spec | Read the spec Pilot wrote, in the page. It is in `docs/missions/<ticket>/spec.md` on the mission branch; the main ticket carries its summary and link | 2 |
 | 4 The split | Read the Lead's draft split into slices with what blocks each one, ask for changes, validate. The sub-tickets are then created in Linear | 3 |
@@ -34,7 +34,7 @@ Each slice is a thin, complete path that can be shown alone.
 | 6 All the tickets | See the next ready ticket start by itself until all are accepted. A high-risk ticket has its approach reviewed before code and two reviews | 5 |
 | 7 Test and validate | Read the QA report, validate or say what is wrong (the Lead turns it into fix tickets in the same mission), close. The merge of the main PR is a separate step for the technical owner | 6 |
 
-**Milestone 1**: Nicolas runs a whole mission on the Linear test team, from the screens only.
+**Milestone 1**: Nicolas runs a whole mission on the Linear team Jiroo, from the screens only.
 
 Slice 1 also settles the base: TypeScript strict, tests, project check, the separate Herdr installation, and what Herdr accepts as a screen file (decision 0012). It stays a slice: it ends with something on screen.
 
@@ -52,5 +52,5 @@ Slice 1 also settles the base: TypeScript strict, tests, project check, the sepa
 **Milestone 2**: a real mission on FlashGolf, on a small ticket chosen by Nicolas. Jiroo, Jira and several people on one mission come after.
 
 ## What depends on Nicolas
-- Create the Linear test team and an access key for the connector.
+- Create a Linear access key for the connector, and name the Jiroo tickets used for the tests.
 - Mockups still missing: the Pilot discussion panel, Test, Validate, Inbox, Development.

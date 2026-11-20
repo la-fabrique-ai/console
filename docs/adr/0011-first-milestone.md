@@ -16,3 +16,6 @@ First milestone: a full but minimal flow, with the Linear connector, a single de
 
 ## Why
 A whole flow, even a thin one, shows the real problems before any polish.
+
+## Note of 2026-11-20
+No separate test team is created: Nicolas uses the Linear team Jiroo (`JIR`) as the test ground. The system only touches the tickets he names.

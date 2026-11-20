@@ -53,4 +53,4 @@ Slice 1 also settles the base: TypeScript strict, tests, project check, the sepa
 
 ## What depends on Nicolas
 - Create a Linear access key for the connector, and name the Jiroo tickets used for the tests.
-- Mockups: the preparation flow is validated as a direction (`docs/mockups/suggestions/prepare-flow.html`). Still to simplify with Nicolas, slice by slice: Development, Inbox, Test, Validate.
+- Mockups: the preparation flow is validated (`docs/mockups/prepare-flow/`, 26 states); its open points are listed in `docs/mockups.md`. Still to simplify with Nicolas, slice by slice: Development, Inbox, Test, Validate.

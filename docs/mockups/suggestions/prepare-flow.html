@@ -342,10 +342,29 @@ html,body{margin:0;background:#12151D}
 .f-row b{color:#fff;font-weight:600}
 .f-done{display:none;padding:14px 16px;border-radius:10px;background:#132823;border:1px solid #2E8F6C;color:#5DE3B8;margin-top:16px;font-size:15px}
 .f-done.on{display:block}
+
+.f-pilot{font:inherit;font-size:14px;font-weight:600;border-radius:10px;padding:9px 16px;background:#1C2040;border:1px solid #4A52A8;color:#D6DAFF;cursor:pointer;white-space:nowrap;margin-right:8px;display:none}
+.f-pilot:hover{border-color:#A9B4FF}
+.f-term{display:none;position:absolute;top:0;right:0;bottom:0;width:min(760px,60%);background:#0B0D12;border-left:1px solid #2A2F40;flex-direction:column;z-index:5}
+.f-term.on{display:flex}
+.f-term header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #2A2F40;font-weight:600;color:#fff}
+.f-term pre{flex:1;margin:0;padding:16px 18px;overflow:auto;font:13px/1.6 "JetBrains Mono",ui-monospace,Menlo,monospace;color:#C9CFDB;white-space:pre-wrap}
+.f-term .in{display:flex;gap:8px;padding:12px 18px;border-top:1px solid #2A2F40}
+.f-say{margin-top:auto;padding-top:18px;border-top:1px solid #2A2F40}
+.f-say .row{display:flex;gap:8px}
+#qcard{display:flex;flex-direction:column}
 html,body{height:100%}body>.q{min-height:100vh;height:100vh}.qm{min-height:0}
 </style></head>
 <body>
-<div class="q"><div class="qsb"><b>Mission Control</b><div class="it">▣ Inbox<span class="cn am">1</span></div><div class="it">☰ Issues</div><div class="it on">‹/› Development</div><div class="sec">PROJETS</div><div class="pj"><i style="border-color:rgb(63, 191, 90);background:rgb(21, 58, 32)"></i><span>FlashGolf<small>3 missions</small></span></div><div class="cur"><span>FG-729</span><span>Préparer</span></div><div class="cur mu"><span>FG-752</span><span>Préparer</span></div><div class="cur mu"><span>FG-760</span><span>Développer</span></div><div class="pj"><i style="border-color:rgb(217, 87, 140);background:rgb(58, 26, 43)"></i><span>Gonzesses<small>1 mission</small></span></div><div class="pj"><i style="border-color:rgb(142, 124, 255);background:rgb(38, 31, 74)"></i><span>Jiroo<small>1 mission</small></span></div><div class="pj"><i style="border-color:rgb(213, 162, 74);background:rgb(58, 46, 18)"></i><span>LBA<small>Aucune mission en cours</small></span></div><div class="pj"><i style="border-color:rgb(0, 182, 237);background:rgb(14, 46, 58)"></i><span>FooDeCuisine<small>Aucune mission en cours</small></span></div></div><div class="qm"><div class="qhd"><div class="ic">⚑</div><div style="min-width:0;flex:1"><h1>Messages automatiques : espace dédié du golf et du partenaire</h1><div class="sub"><span>FlashGolf · FG-729</span><span><i class="dot on"></i><b>Préparer</b></span><span>›</span><span><i class="dot"></i>Développer</span><span>›</span><span><i class="dot"></i>Tester</span><span>›</span><span><i class="dot"></i>Valider</span></div></div><button class="hb" title="Retour">‹</button><button class="hb" title="Menu">⋯</button></div><div class="f-wrap">
+<div class="q"><div class="qsb"><b>Mission Control</b><div class="it">▣ Inbox<span class="cn am">1</span></div><div class="it">☰ Issues</div><div class="it on">‹/› Development</div><div class="sec">PROJETS</div><div class="pj"><i style="border-color:rgb(63, 191, 90);background:rgb(21, 58, 32)"></i><span>FlashGolf<small>3 missions</small></span></div><div class="cur"><span>FG-729</span><span>Préparer</span></div><div class="cur mu"><span>FG-752</span><span>Préparer</span></div><div class="cur mu"><span>FG-760</span><span>Développer</span></div><div class="pj"><i style="border-color:rgb(217, 87, 140);background:rgb(58, 26, 43)"></i><span>Gonzesses<small>1 mission</small></span></div><div class="pj"><i style="border-color:rgb(142, 124, 255);background:rgb(38, 31, 74)"></i><span>Jiroo<small>1 mission</small></span></div><div class="pj"><i style="border-color:rgb(213, 162, 74);background:rgb(58, 46, 18)"></i><span>LBA<small>Aucune mission en cours</small></span></div><div class="pj"><i style="border-color:rgb(0, 182, 237);background:rgb(14, 46, 58)"></i><span>FooDeCuisine<small>Aucune mission en cours</small></span></div></div><div class="qm"><div class="qhd"><div class="ic">⚑</div><div style="min-width:0;flex:1"><h1>Messages automatiques : espace dédié du golf et du partenaire</h1><div class="sub"><span>FlashGolf · FG-729</span><span><i class="dot on"></i><b>Préparer</b></span><span>›</span><span><i class="dot"></i>Développer</span><span>›</span><span><i class="dot"></i>Tester</span><span>›</span><span><i class="dot"></i>Valider</span></div></div><button class="f-pilot" id="pilotbtn">Ouvrir Pilot</button><button class="hb" title="Retour">‹</button><button class="hb" title="Menu">⋯</button></div><div class="f-term" id="term"><header><span>Pilot · terminal</span><button class="f-alt" id="termx">Fermer</button></header>
+<pre>● Pilot — FG-729 Messages automatiques
+
+J'ai lu l'issue, le contexte du projet et 4 décisions qui s'y rapportent.
+J'ai 6 questions pour préciser la demande. Elles sont affichées dans la page.
+
+> en attente de vos réponses (0 sur 6)
+</pre><div class="in"><input class="f-in" placeholder="Écrire directement à Pilot…"><button class="f-main">Envoyer</button></div></div>
+<div class="f-wrap">
 <div class="f-steps" id="steps" style="display:none">
 <button class="f-step" data-go="1"><i>1</i>Questions</button>
 <button class="f-step" data-go="2"><i>2</i>Spec</button>
@@ -415,7 +434,7 @@ html,body{height:100%}body>.q{min-height:100vh;height:100vh}.qm{min-height:0}
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
   const go=n=>{view=n;$$('.f-view').forEach(v=>v.classList.toggle('on',+v.dataset.view===n));
     $$('.f-step').forEach(b=>{const k=+b.dataset.go;b.classList.toggle('on',k===n);b.classList.toggle('ok',k<n);b.querySelector('i').textContent=k<n?'✓':k;});
-    $('#steps').style.display=n?'':'none';head(n);
+    $('#steps').style.display=n?'':'none';$('#pilotbtn').style.display=n?'inline-block':'none';if(!n)$('#term').classList.remove('on');head(n);
     if(n===2)answers();};
   $$('[data-go]').forEach(b=>b.onclick=()=>go(+b.dataset.go));
   $$('[data-next]').forEach(b=>b.onclick=()=>go(view+1));
@@ -432,7 +451,8 @@ html,body{height:100%}body>.q{min-height:100vh;height:100vh}.qm{min-height:0}
     $('#qcard').innerHTML=`<div class="f-num">Question ${cur+1} sur ${QS.length}</div><h2 style="margin-top:6px">${esc(q[0])}</h2><p>${esc(q[1])}</p>
       <div class="f-sug"><small>Réponse proposée par Pilot</small><b>${esc(q[2])}</b></div>
       <div class="f-acts"><button class="f-main" id="ok">Valider</button><button class="f-alt" id="edit">Changer</button></div>
-      <div class="f-change" id="chg"><span class="f-label">Qu'est-ce qui doit changer ?</span><textarea class="f-ta s" id="txt" placeholder="Écrivez ce que vous voulez à la place…">${typeof state[cur]==='string'?esc(state[cur]):''}</textarea><div class="f-acts"><button class="f-main" id="save">Enregistrer</button></div></div>`;
+      <div class="f-change" id="chg"><span class="f-label">Qu'est-ce qui doit changer ?</span><textarea class="f-ta s" id="txt" placeholder="Écrivez ce que vous voulez à la place…">${typeof state[cur]==='string'?esc(state[cur]):''}</textarea><div class="f-acts"><button class="f-main" id="save">Enregistrer</button></div></div>
+      <div class="f-say"><span class="f-label" style="margin-top:0">Autre chose à dire à Pilot ?</span><div class="row"><input class="f-in" placeholder="Une précision, une question, un point oublié…"><button class="f-alt">Envoyer</button></div></div>`;
     const next=()=>{const n=state.findIndex((s,i)=>!s&&i>cur);cur=n>=0?n:Math.max(0,state.findIndex(s=>!s));if(state.every(Boolean))cur=Math.min(cur,QS.length-1);card();};
     $('#ok').onclick=()=>{state[cur]=true;next();};
     $('#edit').onclick=()=>{$('#chg').classList.add('on');$('#txt').focus();};
@@ -454,6 +474,7 @@ html,body{height:100%}body>.q{min-height:100vh;height:100vh}.qm{min-height:0}
   function side(){const x=ISS[pick];if(pick<0){$('#side').innerHTML=`<div class="f-kl">Nouveau ticket</div><span class="f-label" style="margin-top:0">Titre</span><input class="f-in" placeholder="En quelques mots"><span class="f-label">Ce que vous voulez obtenir</span><textarea class="f-ta" placeholder="Décrivez votre besoin avec vos mots…"></textarea><div class="f-acts"><button class="f-go" id="dev">Créer et préparer</button></div><p class="f-hint" style="margin-top:12px">Le ticket est créé dans FlashGolf, puis Pilot vous pose ses questions.</p>`;}
     else{const busy=x[2]!=='À faire';$('#side').innerHTML=`<div class="f-kl">${x[0]} · ${x[2]}</div><h2 style="font-size:18px">${esc(x[1])}</h2><p style="margin-top:8px">${esc(x[3]||'Cette issue est déjà en mission.')}</p><div class="f-acts"><button class="f-go" id="dev">${busy?'Ouvrir la mission':'Faire développer'}</button></div>${busy?'':'<p class="f-hint" style="margin-top:12px">Pilot lit l\'issue et le projet, puis vous pose ses questions.</p>'}`;}
     $('#dev').onclick=()=>go(1);}
+  $('#pilotbtn').onclick=()=>$('#term').classList.toggle('on');$('#termx').onclick=()=>$('#term').classList.remove('on');
   $('#newbtn').onclick=()=>{pick=-1;issues();side();};
   issues();side();card();go(0);
 })();

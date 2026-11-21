@@ -1,6 +1,7 @@
 // On screen: pick an issue, validate the request, answer Pilot's questions, see the mission.
 import assert from "node:assert/strict";
 import { setup } from "../../engine/tests/pilot-project.ts";
+import { writeFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { test, type TestContext } from "node:test";
 import { draw, screen } from "./herdr-stub.ts";
@@ -181,6 +182,107 @@ test("a validated request becomes a mission, and the operator answers Pilot's qu
   assert.ok(texts.includes("First issue") && texts.includes("Préparer"), "the mission is listed with its stage");
   click("mission-DEMO-1");
   assert.ok((await shown()).includes("Les 2 questions ont une réponse"), "the mission opens where the preparation stands");
+});
+
+test("the operator reads Pilot's spec, asks for a change and validates it", async (t) => {
+  const { cli, calls, git } = project(t);
+  const pilot = (action: string, payload: object) => cli(action, { issueKey: "DEMO-1", ...payload });
+  const spec = (note: string, changed?: boolean) => pilot("pilot.spec", { note, sections: [
+    { title: "Le problème", passages: [{ text: "Les liens sont muets.", source: "votre demande" }] },
+    { title: "Ce que l’utilisateur pourra faire", passages: [
+      { text: "Voir l’ajout d’un lien.", source: "réponse 1" },
+      { text: changed ? "Voir le retrait d’un lien, doublons compris." : "Voir le retrait d’un lien.", source: "proposé par Pilot", ...(changed ? { changed } : {}) },
+    ] },
+  ] });
+  const { shown, click, type, tick } = window();
+  await shown();
+  click("issue-DEMO-1");
+  await shown();
+  click("validate");
+  await shown();
+  await pilot("pilot.questions", { questions: [{ id: "q1", text: "Quels liens ?", context: "Il y en a plusieurs sortes.", proposal: "Tous." }] });
+  tick();
+  await shown();
+  click("validate");
+  let texts = await shown();
+  assert.ok(texts.includes("Pilot vérifie s’il lui reste une question") && !screen.clicks.has("validate"), "the spec waits for Pilot's last word on the questions");
+  await pilot("pilot.questions", { questions: [] });
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("La question a une réponse") && texts.includes("✓  Écrire la spec"));
+  assert.ok(texts.some((text) => text.startsWith("J’ai votre réponse.")), "Pilot offers the spec under the recap");
+
+  click("validate");
+  texts = await shown();
+  assert.ok(texts.includes("Pilot écrit la spec"), "asking for the spec moves on to its step");
+  assert.ok(!screen.clicks.has("validate"), "nothing to validate while Pilot writes");
+
+  await spec("Voici la spec, écrite d’après votre réponse.");
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("LA SPEC, ÉCRITE PAR PILOT · VERSION 1") && texts.includes("Voici la spec, écrite d’après votre réponse."));
+  assert.ok(texts.includes("LE PROBLÈME") && texts.includes("Les liens sont muets.") && texts.includes("votre demande"), "each passage shows with its source");
+  assert.ok(texts.includes("à relire") && texts.includes("Version 1") && !texts.some((text) => text.startsWith("modifié")));
+
+  type("Demandez un changement…", "Compter aussi les doublons");
+  await shown();
+  click("validate");
+  texts = await shown();
+  assert.ok(texts.includes("VOTRE DEMANDE DE CHANGEMENT") && texts.includes("Compter aussi les doublons") && texts.includes("Pilot met la spec à jour"));
+  assert.ok(!screen.clicks.has("validate"), "a version being rewritten cannot be validated");
+
+  await spec("J’ai ajouté les doublons.", true);
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("LA SPEC, ÉCRITE PAR PILOT · VERSION 2") && texts.includes("J’ai ajouté les doublons."));
+  assert.ok(texts.includes("modifié · v2") && texts.includes("Version 2 · à relire") && texts.includes("1 passage modifié à votre demande"));
+
+  click("validate");
+  texts = await shown();
+  assert.ok(texts.includes("Spec validée") && texts.includes("validée · v2"));
+  assert.ok(!screen.clicks.has("validate") && !screen.fields.has("Demandez un changement…"), "a validated spec takes no more change");
+  assert.ok(git("show", "mission/DEMO-1:docs/missions/DEMO-1/spec.md").includes("Voir le retrait d’un lien, doublons compris."), "the validated version is in the project");
+  const sent = calls().filter(([command]) => command === "send").map(([, , , message]) => message);
+  assert.deepEqual(sent.slice(-3).map((message) => JSON.parse(message).action), ["spec.write", "spec.change", "spec.validate"], "Pilot received each gesture once");
+
+  click("step-1");
+  assert.ok((await shown()).includes("Spec écrite"), "the questions stay readable, the spec is not asked twice");
+});
+
+test("a gesture on its way for one mission leaves another mission free", async (t) => {
+  const { cli, path } = project(t);
+  writeFileSync(path("settings.json"), JSON.stringify({ teamKey: "DEMO", allowedIssueKeys: ["DEMO-1", "DEMO-2"], repository: path("repo") }));
+  const { shown, now, click, tick } = window();
+  await shown();
+  for (const key of ["DEMO-1", "DEMO-2"]) {
+    click(`issue-${key}`);
+    await shown();
+    click("validate");
+    await shown();
+    await cli("pilot.questions", { issueKey: key, questions: [{ id: "q1", text: `Question de ${key}`, context: "Contexte.", proposal: "Oui." }] });
+    click("nav-issues");
+    await shown();
+  }
+  click("nav-development");
+  await shown();
+  click("mission-DEMO-1");
+  await shown();
+  let confirm = () => {};
+  screen.slow.set("questions.validate", new Promise((resolve) => { confirm = resolve; }));
+  click("validate");
+  now();
+  click("nav-development");
+  now();
+  click("mission-DEMO-2");
+  for (let wait = 0; wait < 100 && !screen.texts.includes("Question de DEMO-2"); wait++) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    tick();
+    now();
+  }
+  assert.ok(screen.texts.includes("Question de DEMO-2") && screen.clicks.has("validate") && screen.fields.has("Écrivez une autre réponse…"),
+    "the other mission can be read and answered meanwhile");
+  confirm();
+  await shown();
 });
 
 test("a request that needs no question says so instead of waiting", async (t) => {

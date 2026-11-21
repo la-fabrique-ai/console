@@ -8,7 +8,7 @@ import type { Action, IssueDetail, IssueSummary, Mission, MissionDetail, Payload
 
 type Page = "issues" | "request" | "development";
 type Spawner = Pick<Context, "spawn">;
-type Field = "request" | "answer" | "again" | "tell" | "change";
+type Field = "request" | "answer" | "again" | "tell" | "change" | "none";
 type Tab = "request" | "questions" | "spec";
 const TABS: Tab[] = ["request", "questions", "spec"];
 type Tone = "todo" | "done" | "fixed";
@@ -20,6 +20,7 @@ const FIELDS: Record<Field, string> = {
   again: "Écrivez encore, Pilot ajuste sa réponse…",
   tell: "Autre chose à dire à Pilot ?",
   change: "Demandez un changement…",
+  none: "", // a composer that only says where things stand
 };
 
 const PROJECT = "Jiroo";
@@ -512,11 +513,13 @@ export default class MissionControl extends View {
     // Once the spec is asked, the answers it is written from no longer change here: a change goes through the spec.
     const settled = Boolean(detail.spec) || detail.pilotBusy === "spec";
     const closed = detail.spec?.validated === true;
-    const settledHint = closed ? "la spec validée est écrite d’après vos réponses" : "la spec est écrite d’après vos réponses · demandez un changement à l’étape Spec";
+    const settledLabel = detail.spec ? "Spec écrite" : "Pilot écrit la spec…";
+    const settledHint = closed ? "la spec validée est écrite d’après vos réponses"
+      : detail.spec ? "la spec est écrite d’après vos réponses · un changement se demande à l’étape Spec" : "Pilot écrit la spec d’après vos réponses";
     if (total === 0 && !busy) {
       // Pilot answered that the request is enough.
       return page(this.heading("LES QUESTIONS", "Pilot n’a pas de question", "Votre demande lui suffit pour écrire la spec."),
-        settled ? this.composer("tell", closed ? "la spec est validée" : "la spec est écrite d’après votre demande · demandez un changement à l’étape Spec", "Spec écrite", null)
+        settled ? this.composer("none", closed ? "la spec est validée" : detail.spec ? "la spec est écrite d’après votre demande · un changement se demande à l’étape Spec" : "Pilot écrit la spec d’après votre demande", settledLabel, null)
           : this.composer("tell", "votre demande suffit · Pilot écrit ensuite la spec", "✓  Écrire la spec", write, "Pilot en tient compte pour la spec", tell),
         side("Aucune question", "Pilot a lu la demande et le projet.", []));
     }
@@ -535,7 +538,7 @@ export default class MissionControl extends View {
         busy ? this.waiting("Pilot vérifie s’il lui reste une question")
           : settled ? div()
           : this.said(`${total === 1 ? "J’ai votre réponse" : `J’ai vos ${total} réponses`}. Je peux écrire la spec : une page, à relire avant le découpage.`),
-      ], settled ? this.composer("tell", settledHint, "Spec écrite", null)
+      ], settled ? this.composer("none", settledHint, settledLabel, null)
         : this.composer("tell", "vos réponses sont validées · Pilot écrit ensuite la spec", "✓  Écrire la spec", busy ? null : write, "Pilot en tient compte pour la spec", tell),
       side(`${total} réponses sur ${total}`, "Une question par page. Un clic pour revenir sur une réponse.", rows));
     }
@@ -556,7 +559,7 @@ export default class MissionControl extends View {
     const reply = (text: string, cx: Context) => this.send("questions.reply", { issueKey: key, questionId: current.id, text }, cx, current.answer === undefined && revised ? "again" : "answer");
     const validate = (cx: Context) => this.send("questions.validate", { issueKey: key, questionId: current.id }, cx);
     const sendHint = "Pilot met sa réponse à jour · vous validez ensuite";
-    const composer = settled ? this.composer("answer", settledHint, "Réponse validée", null)
+    const composer = settled ? this.composer("none", settledHint, "Réponse validée", null)
       : current.answer !== undefined
       ? this.composer("answer", `ou gardez votre réponse · ${next ? "retour aux questions" : "retour au récapitulatif"}`, "✓  Garder cette réponse", (cx) => {
         this.viewing = "";

@@ -212,6 +212,11 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   assert.ok(texts.includes("La question a une réponse") && texts.includes("✓  Écrire la spec"));
   assert.ok(texts.some((text) => text.startsWith("J’ai votre réponse.")), "Pilot offers the spec under the recap");
 
+  // The operator chose Questions on purpose, then goes to the request and back while the engine answers.
+  click("step-0");
+  await shown();
+  click("step-1");
+  await shown();
   let asked = () => {};
   screen.slow.set("spec.write", new Promise((resolve) => { asked = resolve; }));
   click("validate");
@@ -221,7 +226,8 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   click("step-1");
   asked();
   texts = await shown();
-  assert.ok(texts.includes("La question a une réponse") && texts.includes("Spec écrite"), "the step the operator chose meanwhile stays on screen");
+  assert.ok(texts.includes("La question a une réponse") && texts.includes("Pilot écrit la spec…") && !texts.includes("Spec écrite"),
+    "the step the operator chose meanwhile stays on screen, and says the spec is being written");
   click("step-2");
   texts = await shown();
   assert.ok(texts.includes("Pilot écrit la spec"), "the spec has its step");
@@ -327,8 +333,12 @@ test("a request that needs no question says so instead of waiting", async (t) =>
   await cli("pilot.questions", { issueKey: "DEMO-1", questions: [] });
   tick();
   assert.ok((await shown()).includes("Pilot n’a pas de question"));
+  click("step-0");
+  await shown();
+  click("step-1");
+  await shown();
   click("validate");
-  assert.ok((await shown()).includes("Pilot écrit la spec"), "asking for the spec moves on to its step by itself");
+  assert.ok((await shown()).includes("LA SPEC"), "asking for the spec moves on to its step, also from a step chosen by hand");
 });
 
 test("a reading slower than the clock still reaches the screen", async (t) => {

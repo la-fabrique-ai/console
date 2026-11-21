@@ -71,7 +71,7 @@ function window() {
 test("a validated request becomes a mission, and the operator answers Pilot's questions", async (t) => {
   const { cli, calls } = project(t);
   const pilot = (action: string, payload: object) => cli(action, { issueKey: "DEMO-1", ...payload });
-  const { shown, click, type, tick } = window();
+  const { shown, now, click, type, tick } = window();
   assert.ok((await shown()).includes("First issue"));
 
   click("issue-DEMO-1");
@@ -122,7 +122,16 @@ test("a validated request becomes a mission, and the operator answers Pilot's qu
   assert.ok(texts.includes("VOTRE RÉPONSE · VALIDÉE, APRÈS VOTRE CORRECTION"), "a click on a question reopens it");
   type("Écrivez une autre réponse…", "En français aussi");
   await shown();
+  let confirm = () => {};
+  screen.slow.set("questions.reply", new Promise((resolve) => { confirm = resolve; }));
   click("validate");
+  now();
+  // While the engine has not confirmed, the page stays put and nothing can be written.
+  click("question-q1");
+  now();
+  assert.ok(screen.texts.includes("QUESTION 2 SUR 2"), "the list does not leave a question whose correction is on its way");
+  assert.ok(!screen.fields.has("Écrivez une autre réponse…"), "and there is no field to write in meanwhile");
+  confirm();
   texts = await shown();
   assert.ok(texts.includes("QUESTION 2 SUR 2") && texts.includes("En français aussi"), "a second correction stays on its question, with another one open");
   click("question-q1");

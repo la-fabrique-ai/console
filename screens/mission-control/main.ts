@@ -235,17 +235,19 @@ export default class MissionControl extends View {
       const moved = "data" in reply && this.staged(reply.data, asked);
       if (!moved && error === this.detailError && ("error" in reply || JSON.stringify(reply.data) === JSON.stringify(this.detail))) return;
       this.detailError = error;
-      if ("data" in reply) {
-        // What is written answers the request on screen: it never lands on the next one.
-        const asked = (detail: MissionDetail | null) => detail?.development?.requests.find((request) => request.answer === undefined)?.id;
-        if (asked(reply.data) !== asked(this.detail)) {
-          this.inputs.reply?.set_value("");
-          this.requestError = ""; // nor does the refusal of its answer
-        }
-        this.detail = reply.data;
-      }
+      if ("data" in reply) this.read(reply.data);
       cx.notify();
     });
+  }
+
+  /** The mission as the engine just gave it. What is written answers the request on screen: it never lands on the next one, nor does a refusal. */
+  read(detail: MissionDetail) {
+    const asked = (mission: MissionDetail | null) => mission?.development?.requests.find((request) => request.answer === undefined)?.id;
+    if (asked(detail) !== asked(this.detail)) {
+      this.inputs.reply?.set_value("");
+      this.requestError = "";
+    }
+    this.detail = detail;
   }
 
   /**
@@ -277,7 +279,7 @@ export default class MissionControl extends View {
     const turn = this.opens;
     const choices = this.choices;
     const viewing = this.viewing;
-    if ("text" in payload) this.clear(); // what was written is on its way; it comes back to its field if the engine refuses it
+    if (action !== "develop.start") this.clear(); // starting the Lead again says nothing: a draft stays. Else what was written is on its way; it comes back to its field if the engine refuses it
     this.sending.set(key, action);
     this.sends++;
     this.requestError = "";
@@ -292,7 +294,7 @@ export default class MissionControl extends View {
       }
       if (this.page === "request" && this.requested === key) { // its mission is on screen, even opened again meanwhile
         if ("data" in reply) {
-          this.detail = reply.data as MissionDetail;
+          this.read(reply.data as MissionDetail);
           // A reply stays on its question, to see Pilot's new proposal; a validation moves on.
           this.viewing = action === "questions.reply" ? (payload as Payloads["questions.reply"]).questionId : "";
           // On to the step the preparation has reached, unless the operator chose another one meanwhile.

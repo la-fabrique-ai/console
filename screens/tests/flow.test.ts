@@ -233,6 +233,8 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   click("step-2");
   texts = await shown();
   assert.ok(texts.includes("Pilot écrit la spec"), "the spec has its step");
+  const aside = screen.fields.get("Autre chose à dire à Pilot ?");
+  assert.ok(aside, "while Pilot writes, the operator can tell it something else");
   assert.ok(!screen.clicks.has("validate"), "nothing to validate while Pilot writes");
   type("Autre chose à dire à Pilot ?", "Un brouillon");
   await shown();
@@ -277,6 +279,7 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   assert.ok(texts.includes("Version 2 · à relire") && texts.indexOf("Version 2 · à relire") < texts.indexOf("Version 1"), "the version to read comes first");
   assert.ok(texts.includes("1 passage modifié à votre demande"));
 
+  aside.type("écrit pendant que Pilot écrivait", { notify() {} }); // left unsent in a field the spec then hid
   let validated = () => {};
   screen.slow.set("spec.validate", new Promise((resolve) => { validated = resolve; }));
   click("validate");
@@ -289,6 +292,7 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   validated();
   texts = await shown();
   assert.ok(texts.includes("Spec validée") && texts.includes("validée · v2"));
+  assert.equal(aside.value(), "", "a gesture empties what was written before it: nothing comes back as a message ready to send in the plan");
   assert.ok(!screen.clicks.has("validate") && !screen.fields.has("Demandez un changement…"), "a validated spec takes no more change");
   assert.ok(git("show", "mission/DEMO-1:docs/missions/DEMO-1/spec.md").includes("Voir le retrait d’un lien, doublons compris."), "the validated version is in the project");
   assert.ok(git("show", "mission/DEMO-1:docs/missions/DEMO-1/answers.md").includes("Tous."), "with the operator's answers");
@@ -702,6 +706,11 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   click("restart-lead");
   texts = await shown();
   assert.ok(texts.includes("Par le fil") && sentOf("develop.start").length === 2, "starting the Lead again sends no answer and keeps the draft");
+  // Another window answered meanwhile: the restart comes back with another open request, and the draft does not follow.
+  screen.canned.set("develop.start", [said({ tickets: [], requests: [{ id: "r0b", from: "lead", text: "Autre question ?", context: "c", choices: [] }] })]);
+  click("restart-lead");
+  texts = await shown();
+  assert.ok(texts.includes("Autre question ?") && !texts.includes("Par le fil") && !screen.clicks.has("send-reply"), "a gesture's answer that brings another request empties the draft too");
   const build = { kind: "build", tool: "codex", startedAt: ago(12) };
   const run = (steps: object[], more = {}) => ({ id: "1", branch: "ticket/DEMO-2", steps, ...more });
   screen.canned.set("missions.show", Array(2).fill(said({ tickets: [run([build])], requests: [] })));

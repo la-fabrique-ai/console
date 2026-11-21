@@ -277,7 +277,7 @@ export default class MissionControl extends View {
     const turn = this.opens;
     const choices = this.choices;
     const viewing = this.viewing;
-    this.clear(); // what was written is on its way; it comes back to its field if the engine refuses it
+    if ("text" in payload) this.clear(); // what was written is on its way; it comes back to its field if the engine refuses it
     this.sending.set(key, action);
     this.sends++;
     this.requestError = "";
@@ -1091,7 +1091,7 @@ export default class MissionControl extends View {
     const reply = this.inputs.reply;
     const written = reply?.value().trim() ?? "";
     // The window cannot tell whether the Lead's terminal is still there: starting it again changes nothing when it is.
-    const restart = work && accepted < tickets.length && !this.busy() ? [div().id("restart-lead").px(10).py(4).text_size(13).text_color("#A9B4FF").cursor_pointer()
+    const restart = work && (accepted < tickets.length || open) && !this.busy() ? [div().id("restart-lead").px(10).py(4).text_size(13).text_color("#A9B4FF").cursor_pointer()
       .on_click((_event, cx) => this.send("develop.start", { issueKey: key }, cx)).child("Le terminal du Lead a disparu ? Relancer le Lead")] : [];
     const side = chosen ? (() => {
       const run = runOf(chosen);

@@ -694,6 +694,14 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   tick();
   texts = await shown();
   assert.ok(texts.includes("Vous attend") && !texts.includes("DEMO-2 vous attend"), "a ticket the Lead asks about before its start waits for the operator, and no dev holds it yet");
+  // The Lead that asked may have lost its terminal: it can be started again, and what is being written stays.
+  const waiting = said({ tickets: [], requests: [{ id: "r0", from: "lead", ticketId: "1", text: "Par où commencer ?", context: "c", choices: [] }] });
+  type("Répondez autrement…", "Par le fil");
+  screen.canned.set("develop.start", [waiting]);
+  screen.canned.set("missions.show", [waiting]);
+  click("restart-lead");
+  texts = await shown();
+  assert.ok(texts.includes("Par le fil") && sentOf("develop.start").length === 2, "starting the Lead again sends no answer and keeps the draft");
   const build = { kind: "build", tool: "codex", startedAt: ago(12) };
   const run = (steps: object[], more = {}) => ({ id: "1", branch: "ticket/DEMO-2", steps, ...more });
   screen.canned.set("missions.show", Array(2).fill(said({ tickets: [run([build])], requests: [] })));
@@ -788,4 +796,9 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   texts = await shown();
   assert.ok(texts.includes("Le ticket est accepté") && texts.includes("DEMO-2 accepté et fusionné") && texts.some((text) => text.startsWith("PR #6 vers main")),
     "an accepted ticket is merged into the mission branch; the mission's PR stays the operator's");
+  // A question of the Lead still open once every ticket is accepted: its terminal can still be started again to receive the answer.
+  screen.canned.set("missions.show", [said({ tickets: [run(accepted, { pr: { number: 7, url: "u" } })], requests: [{ id: "r9", from: "lead", text: "Et ensuite ?", context: "c", choices: [] }] })]);
+  tick();
+  await shown();
+  assert.ok(screen.clicks.has("restart-lead"));
 });

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { test, type TestContext } from "node:test";
+import { gitAt } from "../pilot.ts";
 import { development } from "./develop-project.ts";
 
 async function project(t: TestContext, team?: string[]) {
@@ -232,4 +233,36 @@ test("a dev can ask the operator about its own ticket during review", async t =>
   const request = asked.data?.development.requests[0];
   assert.equal(request?.from, "dev", JSON.stringify(asked));
   assert.equal(request.ticketId, "1");
+});
+
+test("a handoff refuses nested repository metadata before Git inspects or stages the ticket", async t => {
+  const p = await project(t);
+  p.commit();
+  const nested = p.cwd + "/vendor/example";
+  mkdirSync(nested, { recursive: true });
+  const { rmSync } = await import("node:fs");
+  const advice = "Retirez le dépôt Git imbriqué du dossier du ticket avant de continuer.";
+  // Inert metadata is sufficient. Nothing executable is installed in the fixture.
+  for (const shape of ["directory", "gitfile", "bare"]) {
+    if (shape === "directory") p.git("init", "-q", nested);
+    else if (shape === "gitfile") writeFileSync(nested + "/.git", "gitdir: missing\n");
+    else p.git("init", "--bare", "-q", nested);
+    assert.equal((await p.done()).error?.message, advice, shape);
+    for (const args of [["add", "--all", "--", "."], ["commit", "-m", "Test"]]) {
+      assert.throws(() => gitAt(p.cwd, ...args), { message: advice });
+    }
+    rmSync(nested, { recursive: true });
+    mkdirSync(nested);
+  }
+  assert.ok((await p.done()).data);
+  const reviewFolder = p.state().agents.reviewer.cwd;
+  mkdirSync(reviewFolder + "/manual/.git", { recursive: true });
+  assert.ok((await p.verdict(false)).data, "keep an externally modified review checkout");
+  assert.ok(existsSync(reviewFolder + "/manual/.git"));
+});
+
+test("engine Git overrides filesystem monitoring at its common command boundary", async t => {
+  const p = await project(t);
+  p.git("config", "core.fsmonitor", "true");
+  assert.equal(gitAt(p.cwd, "config", "--bool", "--get", "core.fsmonitor").trim(), "false");
 });

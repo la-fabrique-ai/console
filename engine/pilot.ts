@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, isAbsolute, join, resolve, sep } from "node:path";
 import { CommandError } from "./contract.ts";
@@ -17,11 +17,41 @@ export function coreEnvironment() {
   return env;
 }
 
+export function containsNestedRepository(root: string) {
+  const pending = [root];
+  while (pending.length) {
+    const directory = pending.pop()!;
+    const entries = readdirSync(directory, { withFileTypes: true });
+    if (directory !== root) {
+      const gitEntry = entries.some(e => e.name.toLowerCase() === ".git");
+      const bare = entries.some(e => e.name === "HEAD" && !e.isDirectory()) &&
+        entries.some(e => e.name === "objects" && e.isDirectory()) &&
+        entries.some(e => e.name === "refs" && e.isDirectory());
+      if (gitEntry || bare) return true;
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory() && entry.name.toLowerCase() !== ".git") pending.push(join(directory, entry.name));
+    }
+  }
+  return false;
+}
+
 export function gitAt(cwd: string, ...args: string[]) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== "LINEAR_API_KEY" && !name.startsWith("GIT_")));
-  return execFileSync("git", ["-c", "core.hooksPath=/dev/null", "-C", cwd, ...args],
-    { env: { ...env, GIT_TERMINAL_PROMPT: "0" }, timeout: ["commit", "fetch", "push", "ls-remote"].includes(args[0]) ? 30_000 : undefined,
-      encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  const run = (command: string[]) => execFileSync("git", [
+    "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "submodule.recurse=false", "-C", cwd, ...command,
+  ], {
+    env: { ...env, GIT_TERMINAL_PROMPT: "0" },
+    timeout: ["commit", "fetch", "push", "ls-remote"].includes(command[0]) ? 30_000 : undefined,
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (["add", "commit", "status"].includes(args[0])) {
+    const branch = run(["rev-parse", "--abbrev-ref", "HEAD"]).trim();
+    if (branch.startsWith("ticket/") && containsNestedRepository(cwd)) {
+      throw new CommandError("Retirez le dépôt Git imbriqué du dossier du ticket avant de continuer.");
+    }
+  }
+  return run(args);
 }
 
 export function worktree(repository: string, key: string, create = false, branch = "mission/" + key) {

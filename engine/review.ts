@@ -6,7 +6,7 @@ import { CommandError, type Payloads, type TicketStep } from "./contract.ts";
 import { github, remoteError } from "./github.ts";
 import { loadDetail, saveMission, visible, withMission } from "./missions.ts";
 import { recordRequest } from "./requests.ts";
-import { gitAt, worktree } from "./pilot.ts";
+import { containsNestedRepository, gitAt, worktree } from "./pilot.ts";
 
 export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
   return withMission(dir, p.issueKey, () => {
@@ -35,7 +35,7 @@ export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
       const commit = gitAt(cwd, "rev-parse", "HEAD").trim();
       const base = gitAt(mission, "rev-parse", "HEAD").trim();
       const previous = run.steps.findLast(s => s.commit)?.commit ?? base;
-      const dirty = gitAt(cwd, "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=none").trim();
+      const dirty = gitAt(cwd, "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=dirty").trim();
       if (dirty || commit === previous || gitAt(cwd, "merge-base", commit, previous).trim() !== previous) {
         throw new CommandError("Commitez vos modifications sur la branche du ticket avant de demander une revue.");
       }
@@ -106,7 +106,8 @@ export function verdict(dir: string, repository: string, p: Payloads["review.ver
         throw new CommandError(waitForAnswer);
       }
     } else if (m.merging) throw refused();
-    if (existsSync(agent.cwd) && !gitAt(agent.cwd, "status", "--porcelain", "--untracked-files=all").trim()) {
+    if (existsSync(agent.cwd) && !containsNestedRepository(agent.cwd) &&
+        !gitAt(agent.cwd, "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=dirty").trim()) {
       gitAt(worktree(repository, m.issueKey), "worktree", "remove", agent.cwd);
     }
     delete m.merging;

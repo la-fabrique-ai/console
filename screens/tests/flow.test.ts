@@ -253,6 +253,10 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   texts = await shown();
   assert.ok(texts.includes("VOTRE DEMANDE DE CHANGEMENT") && texts.includes("Compter aussi les doublons") && texts.includes("Pilot met la spec à jour"));
   assert.ok(!screen.clicks.has("validate"), "a version being rewritten cannot be validated");
+  click("step-1");
+  assert.ok((await shown()).includes("Pilot prépare la prochaine version de la spec"), "meanwhile the questions say a version is on its way");
+  click("step-2");
+  await shown();
 
   await spec("J’ai ajouté les doublons.", true);
   tick();
@@ -278,6 +282,7 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   click("question-q1");
   await shown();
   assert.ok(!screen.fields.has("Écrivez une autre réponse…") && !screen.clicks.has("validate"), "an answer the spec is written from no longer changes here");
+  assert.ok(!screen.texts.includes("Écrivez une autre réponse…") && screen.texts.includes("la spec validée est écrite d’après vos réponses"), "and the page says why, with no invitation to write");
 });
 
 test("a gesture on its way for one mission leaves another mission free", async (t) => {

@@ -8,7 +8,7 @@ import type { Action, IssueDetail, IssueSummary, Mission, MissionDetail, Payload
 
 type Page = "issues" | "request" | "development";
 type Spawner = Pick<Context, "spawn">;
-type Field = "request" | "answer" | "again" | "tell" | "change" | "none";
+type Field = "request" | "answer" | "again" | "tell" | "change";
 type Tab = "request" | "questions" | "spec";
 const TABS: Tab[] = ["request", "questions", "spec"];
 type Tone = "todo" | "done" | "fixed";
@@ -20,7 +20,6 @@ const FIELDS: Record<Field, string> = {
   again: "Écrivez encore, Pilot ajuste sa réponse…",
   tell: "Autre chose à dire à Pilot ?",
   change: "Demandez un changement…",
-  none: "", // a composer that only says where things stand
 };
 
 const PROJECT = "Jiroo";
@@ -364,9 +363,10 @@ export default class MissionControl extends View {
 
   // One block, one button (mockup README, "Le composeur"): the button validates
   // while the field is empty and sends what is written once it is not.
-  composer(field: Field, hint: string, label: string, validate: ((cx: Context) => void) | null,
+  /** `field` is null for a composer that only says where things stand. */
+  composer(field: Field | null, hint: string, label: string, validate: ((cx: Context) => void) | null,
     sendHint = "", send: ((text: string, cx: Context) => void) | null = null): NativeElement {
-    const input = this.inputs[field];
+    const input = field ? this.inputs[field] : undefined;
     const text = send ? input?.value().trim() ?? "" : "";
     const role = this.busy() ? "off" : text ? "send" : validate ? "validate" : "off";
     const button = h_flex().id("validate").flex_none().h(40).px(18).items_center().rounded(10).border_1().text_size(14.5).font_semibold()
@@ -378,7 +378,7 @@ export default class MissionControl extends View {
       .child(v_flex().rounded(14).border_1().border_color(text ? "#4A52A8" : "#3A4052").bg("#0F1219").overflow_hidden()
         .child(div().min_h(66).px(18).pt(16).pb(18).text_size(15).text_color("#E6E9F0")
           // No field while a gesture is on its way: nothing can be written that the answer would erase.
-          .child(input && send && !this.busy() ? Input.new(input) : div().text_color("#6F7689").child(FIELDS[field])))
+          .child(input && send && !this.busy() ? Input.new(input) : div().text_color("#6F7689").child(field ? FIELDS[field] : "")))
         .child(h_flex().items_center().gap(12).pl(18).pr(10).py(10).border_t_1().border_color("#2A2F40").bg("#1B1F2B")
           .child(div().flex_1().min_w_0().truncate().text_size(13.5).text_color(this.requestError ? "#F2C14E" : "#8C93A6")
             .child(this.requestError || (text ? sendHint : hint)))
@@ -513,13 +513,16 @@ export default class MissionControl extends View {
     // Once the spec is asked, the answers it is written from no longer change here: a change goes through the spec.
     const settled = Boolean(detail.spec) || detail.pilotBusy === "spec";
     const closed = detail.spec?.validated === true;
-    const settledLabel = detail.spec ? "Spec écrite" : "Pilot écrit la spec…";
+    const revising = detail.spec !== undefined && !closed && detail.spec.requests.length >= detail.spec.version;
+    const settledLabel = !detail.spec ? "Pilot écrit la spec…" : revising ? "Pilot met la spec à jour…" : "Spec écrite";
     const settledHint = closed ? "la spec validée est écrite d’après vos réponses"
+      : revising ? "Pilot prépare la prochaine version de la spec"
       : detail.spec ? "la spec est écrite d’après vos réponses · un changement se demande à l’étape Spec" : "Pilot écrit la spec d’après vos réponses";
     if (total === 0 && !busy) {
       // Pilot answered that the request is enough.
       return page(this.heading("LES QUESTIONS", "Pilot n’a pas de question", "Votre demande lui suffit pour écrire la spec."),
-        settled ? this.composer("none", closed ? "la spec est validée" : detail.spec ? "la spec est écrite d’après votre demande · un changement se demande à l’étape Spec" : "Pilot écrit la spec d’après votre demande", settledLabel, null)
+        settled ? this.composer(null, closed ? "la spec est validée" : revising ? "Pilot prépare la prochaine version de la spec"
+          : detail.spec ? "la spec est écrite d’après votre demande · un changement se demande à l’étape Spec" : "Pilot écrit la spec d’après votre demande", settledLabel, null)
           : this.composer("tell", "votre demande suffit · Pilot écrit ensuite la spec", "✓  Écrire la spec", write, "Pilot en tient compte pour la spec", tell),
         side("Aucune question", "Pilot a lu la demande et le projet.", []));
     }
@@ -538,7 +541,7 @@ export default class MissionControl extends View {
         busy ? this.waiting("Pilot vérifie s’il lui reste une question")
           : settled ? div()
           : this.said(`${total === 1 ? "J’ai votre réponse" : `J’ai vos ${total} réponses`}. Je peux écrire la spec : une page, à relire avant le découpage.`),
-      ], settled ? this.composer("none", settledHint, settledLabel, null)
+      ], settled ? this.composer(null, settledHint, settledLabel, null)
         : this.composer("tell", "vos réponses sont validées · Pilot écrit ensuite la spec", "✓  Écrire la spec", busy ? null : write, "Pilot en tient compte pour la spec", tell),
       side(`${total} réponses sur ${total}`, "Une question par page. Un clic pour revenir sur une réponse.", rows));
     }
@@ -559,7 +562,7 @@ export default class MissionControl extends View {
     const reply = (text: string, cx: Context) => this.send("questions.reply", { issueKey: key, questionId: current.id, text }, cx, current.answer === undefined && revised ? "again" : "answer");
     const validate = (cx: Context) => this.send("questions.validate", { issueKey: key, questionId: current.id }, cx);
     const sendHint = "Pilot met sa réponse à jour · vous validez ensuite";
-    const composer = settled ? this.composer("none", settledHint, "Réponse validée", null)
+    const composer = settled ? this.composer(null, settledHint, "Réponse validée", null)
       : current.answer !== undefined
       ? this.composer("answer", `ou gardez votre réponse · ${next ? "retour aux questions" : "retour au récapitulatif"}`, "✓  Garder cette réponse", (cx) => {
         this.viewing = "";

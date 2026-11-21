@@ -354,6 +354,7 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   now();
   assert.ok(!screen.texts.includes("Création des tickets dans le tracker…"), "choosing the team never looks like a launch");
   assert.ok(screen.texts.includes("Approuver et lancer le dev") && !screen.clicks.has("launch"), "the launch waits for the team to be recorded: no click is lost");
+  assert.ok(!screen.clicks.has("dev-1") && !screen.clicks.has("add-dev"), "and so does any other choice of the team");
   chosen();
   texts = await shown();
   assert.ok(texts.includes("Approuver et lancer les devs") && texts.includes("ÉTAPE 2") && texts.includes("Dev 2") && texts.includes("≈ 1 h 30"), "two devs: one line each, by steps");
@@ -373,23 +374,37 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   // A launch the engine refuses says why, and can be tried again.
   const settings = { teamKey: "DEMO", repository: path("repo") };
   writeFileSync(path("settings.json"), JSON.stringify({ ...settings, allowedIssueKeys: [] }));
-  click("launch");
-  texts = await shown();
-  assert.ok(texts.includes("Ce ticket ne figure pas dans la liste autorisée.") && screen.clicks.has("launch"), "the refusal shows in the banner, the launch stays possible");
-  assert.equal(writes(), 0);
-  writeFileSync(path("settings.json"), JSON.stringify({ ...settings, allowedIssueKeys: ["DEMO-1"] }));
-
-  // The operator leaves and opens the mission again while the launch is on its way.
-  let launched = () => {};
-  screen.slow.set("plan.launch", new Promise((resolve) => { launched = resolve; }));
+  const until = async (ready: () => boolean) => {
+    for (let wait = 0; wait < 100 && !ready(); wait++) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      tick();
+      now();
+    }
+  };
+  // The operator opens the mission again before the refusal arrives: it still reaches the page.
+  let refused = () => {};
+  screen.slow.set("plan.launch", new Promise((resolve) => { refused = resolve; }));
   click("launch");
   now();
   click("nav-development");
   now();
   click("mission-DEMO-1");
-  launched();
-  await shown();
-  tick();
+  refused();
+  texts = await shown();
+  assert.ok(texts.includes("Ce ticket ne figure pas dans la liste autorisée.") && screen.clicks.has("launch"), "the refusal shows in the banner, the launch stays possible");
+  assert.equal(writes(), 0);
+  writeFileSync(path("settings.json"), JSON.stringify({ ...settings, allowedIssueKeys: ["DEMO-1"] }));
+
+  // A reading of the list made before the launch is answered after it: the stage does not go back.
+  let late = () => {};
+  screen.slow.set("missions.list", new Promise((resolve) => { late = resolve; }));
+  click("nav-development");
+  now();
+  click("mission-DEMO-1");
+  await until(() => screen.clicks.has("launch"));
+  click("launch");
+  await until(() => screen.texts.includes("C’est parti : 4 tickets créés dans le tracker"));
+  late();
   texts = await shown();
   assert.ok(texts.includes("C’est parti : 4 tickets créés dans le tracker") && texts.some((text) => text.endsWith("rattachés à DEMO-1")));
   assert.equal(writes(), 5, "the launch creates the four sub-tickets and one comment");

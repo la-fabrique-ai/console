@@ -120,6 +120,7 @@ export default class MissionControl extends View {
       if (turn !== this.refreshes) return;
       this.missionsError = "error" in reply ? reply.error.message : "";
       if ("data" in reply) this.missions = reply.data;
+      if (this.detail) this.staged(this.detail); // this list may be older than what the open mission already said
       cx.notify();
     });
     cx.spawn(async (cx) => {
@@ -179,20 +180,20 @@ export default class MissionControl extends View {
       if (this.reading === turn) this.reading = 0;
       if (turn !== this.opens || sends !== this.sends) return;
       const error = "error" in reply ? reply.error.message : "";
+      if ("data" in reply) this.staged(reply.data);
       if (error === this.detailError && ("error" in reply || JSON.stringify(reply.data) === JSON.stringify(this.detail))) return;
       this.detailError = error;
-      if ("data" in reply) {
-        this.detail = reply.data;
-        this.staged(reply.data);
-      }
+      if ("data" in reply) this.detail = reply.data;
       cx.notify();
     });
   }
 
   /** The menu and the header follow the stage the engine last gave for a mission: a launch moves it to the next one. */
   staged(detail: MissionDetail) {
+    // A mission only moves forward: an older answer never takes it back a stage.
+    const order = (stage: Stage) => STAGES.findIndex(([key]) => key === stage);
     this.missions = (this.missions ?? []).map((mission) =>
-      (mission.issueKey === detail.issueKey ? { issueKey: detail.issueKey, title: detail.title, stage: detail.stage } : mission));
+      (mission.issueKey === detail.issueKey && order(detail.stage) > order(mission.stage) ? { ...mission, stage: detail.stage } : mission));
   }
 
   /** A gesture about the page on screen is on its way: its button and its field wait for the engine. */
@@ -220,7 +221,7 @@ export default class MissionControl extends View {
       const reply = await call(action, payload);
       this.sending.delete(key);
       if ("data" in reply) this.staged(reply.data as MissionDetail); // also when the operator opened another page meanwhile
-      if (turn === this.opens) {
+      if (this.page === "request" && this.requested === key) { // its mission is on screen, even opened again meanwhile
         if ("data" in reply) {
           this.detail = reply.data as MissionDetail;
           // A reply stays on its question, to see Pilot's new proposal; a validation moves on.
@@ -229,6 +230,8 @@ export default class MissionControl extends View {
           if ((action === "spec.write" || action === "spec.validate") && this.choices === choices) this.tab = "";
         } else {
           this.requestError = reply.error.message;
+          // A mission opened again while its gesture was on its way has not been read yet: read it now.
+          if (!this.detail) this.follow(cx);
           // A refused text comes back to its field only if the operator is still on its step.
           if (field && "text" in payload && this.choices === choices) this.inputs[field]?.set_value(payload.text);
         }
@@ -778,6 +781,8 @@ export default class MissionControl extends View {
     const setTeam = (next: Tool[], cx: Context) => this.send("plan.team", { issueKey: key, team: next }, cx);
     const other = (tool: Tool): Tool => (tool === "claude" ? "codex" : "claude");
     const frozen = launched || launching;
+    // One gesture at a time: the team waits while a choice or the launch is on its way, so no choice is lost.
+    const held = frozen || this.busy();
 
     const banner = h_flex().h(76).flex_none().items_center().gap(16).px(22).rounded(12).border_1()
       .border_color(frozen ? "#3A4AB8" : "#2E8F6C").bg(frozen ? "#151A38" : "#132823")
@@ -807,15 +812,15 @@ export default class MissionControl extends View {
     const chip = (dev: number, tool: Tool) => {
       const el = h_flex().id(`dev-${dev}`).h(30).pl(5).pr(10).gap(7).items_center().rounded(9).border_1().border_color("#2A2F40").bg("#161923").text_size(13)
         .child(this.devBadge(dev, tool)).child(TOOLS[tool]);
-      return frozen ? el : el.cursor_pointer().hover((style) => style.border_color("#7B8CFF"))
+      return held ? el : el.cursor_pointer().hover((style) => style.border_color("#7B8CFF"))
         .on_click((_event, cx) => setTeam(plan.team.map((current, index) => (index === dev - 1 ? other(current) : current)), cx));
     };
     const teamRow = h_flex().h(32).flex_none().items_center().gap(8)
       .child(div().mr(4).text_size(17).font_semibold().child("Plan"))
       .children(plan.team.map((tool, index) => chip(index + 1, tool)))
-      .when(!frozen && devs === 2, (el) => el.child(h_flex().id("remove-dev").w(26).h(30).items_center().justify_center().rounded(8).border_1().border_color("#2A2F40")
+      .when(!held && devs === 2, (el) => el.child(h_flex().id("remove-dev").w(26).h(30).items_center().justify_center().rounded(8).border_1().border_color("#2A2F40")
         .text_size(11).text_color("#6F7689").cursor_pointer().on_click((_event, cx) => setTeam(plan.team.slice(0, 1), cx)).child("✕")))
-      .when(!frozen && devs === 1 && tickets.length > 1, (el) => el.child(h_flex().id("add-dev").h(30).px(12).items_center().rounded(9).border_1().border_dashed()
+      .when(!held && devs === 1 && tickets.length > 1, (el) => el.child(h_flex().id("add-dev").h(30).px(12).items_center().rounded(9).border_1().border_dashed()
         .border_color("#4A5066").text_size(13).text_color("#A9B4FF").cursor_pointer()
         .on_click((_event, cx) => setTeam([plan.team[0] ?? "claude", other(plan.team[0] ?? "claude")], cx)).child("+ Ajouter un dev")))
       .when(devs === 1 && tickets.length === 1, (el) => el.child(div().text_size(13).text_color("#8C93A6").child("Un seul ticket : un dev suffit")))
@@ -881,9 +886,9 @@ export default class MissionControl extends View {
       ...(tickets.length > 1 ? [
         this.label("UN 2ᵉ DEV FERAIT-IL GAGNER DU TEMPS ?"),
         this.line(devs === 1 ? "✓" : " ", `1 dev · ${duration(total(1))}`, TOOLS[plan.team[0] ?? "claude"], devs === 1 ? "done" : "todo")
-          .id("team-1").cursor_pointer().on_click((_event, cx) => { if (devs !== 1) setTeam(plan.team.slice(0, 1), cx); }),
+          .id("team-1").cursor_pointer().on_click((_event, cx) => { if (devs !== 1 && !this.busy()) setTeam(plan.team.slice(0, 1), cx); }),
         this.line(devs === 2 ? "✓" : " ", `2 devs · ${duration(total(2))}`, "les tickets d’une même étape se font en même temps", devs === 2 ? "done" : "todo")
-          .id("team-2").cursor_pointer().on_click((_event, cx) => { if (devs !== 2) setTeam([plan.team[0] ?? "claude", other(plan.team[0] ?? "claude")], cx); }),
+          .id("team-2").cursor_pointer().on_click((_event, cx) => { if (devs !== 2 && !this.busy()) setTeam([plan.team[0] ?? "claude", other(plan.team[0] ?? "claude")], cx); }),
       ] : []),
       ...(plan.advice ? [this.label("CONSEIL"), text(plan.advice)] : []),
     ]);

@@ -51,13 +51,52 @@ export interface Spec {
   validated?: boolean;
 }
 
+export type Tool = "claude" | "codex";
+
+export interface PlanTicket {
+  /** "1", "2"… in the order one dev builds them. */
+  id: string;
+  title: string;
+  /** What it changes for the user. */
+  change: string;
+  how: string;
+  /** The points of the spec it covers. */
+  covers: string[];
+  /** The tickets that must be done before it, by id. */
+  after: string[];
+  minutes: number;
+  /** A high-risk ticket: approach reviewed before code, two reviews. */
+  sensitive: boolean;
+  /** Its place when two devs work: which dev, and at which step (1, 2…). Tickets of one step run at the same time. */
+  parallel: { dev: 1 | 2; step: number };
+  /** Its key in the tracker, once the launch has created it. */
+  key?: string;
+}
+
+export interface Plan {
+  /** What Pilot has found so far, while it is still splitting. */
+  found: { id: string; title: string; change: string }[];
+  /** Empty until the split is complete. */
+  tickets: PlanTicket[];
+  testMinutes: number;
+  validationMinutes: number;
+  /** Pilot's one-line advice on the team. */
+  advice: string;
+  /** The operator's choice: one tool per dev, one or two devs. Starts with one dev. */
+  team: Tool[];
+  /** Set once the operator approved the plan: the sub-tickets exist in the tracker and nothing changes any more. */
+  launched?: boolean;
+}
+
 export interface MissionDetail extends Mission {
   /** What the operator added to the issue before validating the request. */
   details: string[];
   /** What Pilot is working on. Absent when it waits for the operator. */
-  pilotBusy?: "questions" | "proposal" | "spec";
+  pilotBusy?: "questions" | "proposal" | "spec" | "split";
   /** Absent until Pilot has sent its first spec. */
   spec?: Spec;
+  /** Absent until Pilot has found a first ticket. A draft until it is launched. */
+  plan?: Plan;
   /** Pilot's terminal in Herdr Core, for whoever wants to open it. */
   pilotTerminal?: string;
   /** Empty until Pilot has sent its questions. */
@@ -90,6 +129,14 @@ export interface Payloads {
   /** Validate the current version: it is written in the project's `docs/`, on the mission branch. */
   "spec.validate": OfMission;
   "pilot.spec": OfMission & { note: string; sections: Spec["sections"] };
+  /** Choose one or two devs and their tools. Local: nothing is asked of Pilot, nothing is written to the tracker. */
+  "plan.team": OfMission & { team: Tool[] };
+  /** Approve the plan: the sub-tickets are created in the tracker and the mission moves to the develop stage. */
+  "plan.launch": OfMission;
+  /** One ticket found: the screen shows the split as it grows. */
+  "pilot.ticket": OfMission & { ticket: Plan["found"][number] };
+  /** The split is complete. `summary` is the short summary of the spec written in the main ticket at launch. */
+  "pilot.plan": OfMission & { tickets: Omit<PlanTicket, "key">[]; testMinutes: number; validationMinutes: number; advice: string; summary: string };
   /** Anything else the operator tells Pilot. */
   "pilot.tell": OfMission & { text: string };
   /** Pilot's questions, or questions it adds after an answer. */
@@ -109,6 +156,10 @@ export interface Results {
   "spec.change": MissionDetail;
   "spec.validate": MissionDetail;
   "pilot.spec": MissionDetail;
+  "plan.team": MissionDetail;
+  "plan.launch": MissionDetail;
+  "pilot.ticket": MissionDetail;
+  "pilot.plan": MissionDetail;
   "pilot.tell": MissionDetail;
   "pilot.questions": MissionDetail;
   "pilot.propose": MissionDetail;

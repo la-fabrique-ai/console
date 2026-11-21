@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { basename, isAbsolute, join, resolve, sep } from "node:path";
 import { CommandError } from "./contract.ts";
 
-function coreEnvironment() {
+export function coreEnvironment() {
   const { HERDR_APP_HOME: ui, HC_SOCKET: socket, HC_SESSION: session } = process.env;
   try {
     const root = realpathSync(join(homedir(), ".mc1")) + sep;
@@ -13,7 +13,7 @@ function coreEnvironment() {
         !lstatSync(join(ui, ".mission-control")).isFile()) throw new Error();
   } catch { throw new CommandError("Le terminal de Mission Control est indisponible."); }
   const env: NodeJS.ProcessEnv = { ...process.env, HC_SOCKET: realpathSync(socket!) };
-  for (const name of ["LINEAR_API_KEY", "HC_TERMINAL_ID", "HC_TERMINAL_SOCKET"]) delete env[name];
+  for (const name of ["LINEAR_API_KEY", "MC_AGENT_ID", "HC_TERMINAL_ID", "HC_TERMINAL_SOCKET"]) delete env[name];
   return env;
 }
 
@@ -24,10 +24,9 @@ export function gitAt(cwd: string, ...args: string[]) {
       encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
-export function worktree(repository: string, key: string, create = false) {
+export function worktree(repository: string, key: string, create = false, branch = "mission/" + key) {
   const repo = realpathSync(repository.startsWith("~/") ? join(homedir(), repository.slice(2)) : repository);
   const target = join(homedir(), "Developer", "worktrees", basename(repo), key);
-  const branch = "mission/" + key;
   if (create && !existsSync(target)) {
     try { gitAt(repo, "fetch", "--no-tags", "--no-recurse-submodules", "origin", "+refs/heads/main:refs/remotes/origin/main"); }
     catch { throw new CommandError("Impossible de récupérer la branche principale du projet."); }

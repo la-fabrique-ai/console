@@ -8,6 +8,7 @@ import { CommandError, type Action, type Payloads, type Reply, type Results } fr
 import { askQuestions, propose, deliver } from "./questions.ts";
 import { receiveSpec, specGesture } from "./spec.ts";
 import { chooseTeam, completePlan, foundTicket, launchPlan } from "./plan.ts";
+import { build, startDevelopment, caller, refused } from "./agents.ts";
 import { startPilot } from "./pilot.ts";
 
 interface Settings { teamKey: string; allowedIssueKeys: string[]; repository: string }
@@ -39,7 +40,12 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
         !("issueKey" in payload) || payload.issueKey !== process.env.MC_PILOT_ISSUE)) {
       throw new Error("Invalid Pilot callback");
     }
-    if (action.startsWith("plan.") || action.startsWith("questions.") || action.startsWith("pilot.") || action.startsWith("spec.")) {
+    if (process.env.MC_AGENT_ID || ["lead.build", "dev.done", "review.verdict", "request.ask"].includes(action)) {
+      if (!("issueKey" in payload)) throw refused();
+      issueNumber(payload.issueKey, teamKey);
+      caller(loadDetail(dir, payload.issueKey), action, "ticketId" in payload ? payload.ticketId : undefined);
+    }
+    if (action === "develop.start" || action === "requests.answer" || action.startsWith("plan.") || action.startsWith("questions.") || action.startsWith("pilot.") || action.startsWith("spec.")) {
       issueNumber("issueKey" in payload ? payload.issueKey : undefined, teamKey);
     }
     function update(key: string, change: (mission: SavedMission) => void) {
@@ -64,9 +70,12 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
       "pilot.ticket": p => update(p.issueKey, m => foundTicket(m, p.ticket)),
       "pilot.plan": p => update(p.issueKey, m => completePlan(m, p)),
       "plan.team": p => update(p.issueKey, m => chooseTeam(m, p.team)),
-      "plan.launch": p => {
+      "develop.start": p => startDevelopment(dir, repository, p.issueKey),
+      "lead.build": p => build(dir, repository, p),
+      "plan.launch": async p => {
         if (!allowedIssueKeys.includes(p.issueKey)) throw new CommandError("Ce ticket ne figure pas dans la liste autorisée.", "issue_not_allowed");
-        return launchPlan(dir, p.issueKey, teamKey, repository);
+        await launchPlan(dir, p.issueKey, teamKey, repository);
+        return startDevelopment(dir, repository, p.issueKey);
       },
       "missions.list": () => listMissions(dir),
       "issues.list": async () => {

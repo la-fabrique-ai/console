@@ -249,7 +249,15 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
 
   type("Demandez un changement…", "Compter aussi les doublons");
   await shown();
+  let recorded = () => {};
+  screen.slow.set("spec.change", new Promise((resolve) => { recorded = resolve; }));
   click("validate");
+  now();
+  click("step-1");
+  now();
+  assert.ok(screen.texts.includes("Pilot prépare la prochaine version de la spec"), "the questions say so before the engine has recorded the change");
+  click("step-2");
+  recorded();
   texts = await shown();
   assert.ok(texts.includes("VOTRE DEMANDE DE CHANGEMENT") && texts.includes("Compter aussi les doublons") && texts.includes("Pilot met la spec à jour"));
   assert.ok(!screen.clicks.has("validate"), "a version being rewritten cannot be validated");

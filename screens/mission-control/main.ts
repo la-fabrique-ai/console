@@ -212,7 +212,10 @@ export default class MissionControl extends View {
       this.sending.delete(key);
       if (turn === this.opens) {
         if ("data" in reply) {
-          this.detail = reply.data as MissionDetail;
+          const detail = reply.data as MissionDetail;
+          this.detail = detail;
+          // The menu and the header follow at once: a launch moves the mission to its next stage.
+          this.missions = (this.missions ?? []).map((mission) => (mission.issueKey === key ? { issueKey: key, title: detail.title, stage: detail.stage } : mission));
           // A reply stays on its question, to see Pilot's new proposal; a validation moves on.
           this.viewing = action === "questions.reply" ? (payload as Payloads["questions.reply"]).questionId : "";
           // On to the step the preparation has reached, unless the operator chose another one meanwhile.
@@ -675,15 +678,16 @@ export default class MissionControl extends View {
   }
 
   ticketCard(ticket: PlanTicket, plan: Plan, compact: boolean): NativeElement {
-    const on = this.ticket === ticket.id;
+    const launched = plan.launched === true; // a launched plan shows what happened, not a ticket's detail
+    const on = !launched && this.ticket === ticket.id;
     const section = (label: string, lines: NativeElement[]) => v_flex().mt(8).pt(10).gap(3).border_t_1().border_color("#2A2F40").text_size(12.5).text_color("#A3AABB")
       .when(label, (el) => el.child(div().mb(1).text_size(10.5).font_semibold().text_color("#6F7689").child(label))).children(lines);
     return v_flex().id(`ticket-${ticket.id}`).flex_none().w(compact ? 207 : 241).gap(6).px(compact ? 13 : 15).py(compact ? 12 : 14).rounded(10).border_1()
       .border_color(on ? "#E6E9ED" : ticket.sensitive ? "#6E5BD6" : "#2A2F40").bg(ticket.sensitive ? "#221D3A" : "#1B1F2B")
-      .cursor_pointer().on_click((_event, cx) => {
+      .when(!launched, (el) => el.cursor_pointer().on_click((_event, cx) => {
         this.ticket = on ? "" : ticket.id;
         cx.notify();
-      })
+      }))
       .child(h_flex().min_h(20).items_center().gap(6).text_size(11).text_color("#8C93A6")
         .child(div().font_family("JetBrains Mono").child(ticket.key ? `${ticket.id} · ${ticket.key}` : ticket.id))
         .child(div().flex_1())
@@ -754,7 +758,7 @@ export default class MissionControl extends View {
     const total = (count: number) => development(tickets, count) + closing;
     const team = (count: number) => (count === 1 ? "1 dev" : "2 devs en parallèle");
     const launched = plan.launched === true;
-    const launching = !launched && this.busy();
+    const launching = !launched && this.sending.get(key) === "plan.launch";
     const setTeam = (next: Tool[], cx: Context) => this.send("plan.team", { issueKey: key, team: next }, cx);
     const other = (tool: Tool): Tool => (tool === "claude" ? "codex" : "claude");
     const frozen = launched || launching;
@@ -768,8 +772,9 @@ export default class MissionControl extends View {
           launching ? "Création des tickets dans le tracker…"
             : launched ? `C’est parti : ${tickets.length === 1 ? "1 ticket créé" : `${tickets.length} tickets créés`} dans le tracker`
             : tickets.length === 1 ? "Le plan est prêt : 1 ticket, pas de découpage nécessaire" : `Le plan est prêt : ${tickets.length} tickets`))
-        .child(div().mt(4).text_size(14).text_color(frozen ? "#A9B1D6" : "#A9C9BE").truncate().child(
-          launching ? "Le plan est figé · rien d’autre à faire"
+        .child(div().mt(4).text_size(14).text_color(this.requestError && !frozen ? "#F2C14E" : frozen ? "#A9B1D6" : "#A9C9BE").truncate().child(
+          this.requestError && !frozen ? this.requestError
+            : launching ? "Le plan est figé · rien d’autre à faire"
             : launched ? "Le plan est figé · le développement arrive avec la prochaine étape"
             : `Environ ${duration(total(devs))} avec ${team(devs)}, test et validation compris`
               + (tickets.length > 1 ? ` · ${duration(total(devs === 1 ? 2 : 1))} avec ${team(devs === 1 ? 2 : 1)}` : ""))))
@@ -794,11 +799,11 @@ export default class MissionControl extends View {
         .on_click((_event, cx) => setTeam([plan.team[0] ?? "claude", other(plan.team[0] ?? "claude")], cx)).child("+ Ajouter un dev")))
       .when(devs === 1 && tickets.length === 1, (el) => el.child(div().text_size(13).text_color("#8C93A6").child("Un seul ticket : un dev suffit")))
       .child(div().flex_1())
-      .child(h_flex().id("estimate").h(30).px(11).gap(7).items_center().rounded(9).border_1().border_color(this.ticket ? "#2A2F40" : "#7B8CFF").bg("#161923")
-        .text_size(13).text_color("#C9CFDB").cursor_pointer().on_click((_event, cx) => {
+      .child(h_flex().id("estimate").h(30).px(11).gap(7).items_center().rounded(9).border_1().border_color(this.ticket || launched ? "#2A2F40" : "#7B8CFF").bg("#161923")
+        .text_size(13).text_color("#C9CFDB").when(!launched, (el) => el.cursor_pointer().on_click((_event, cx) => {
           this.ticket = "";
           cx.notify();
-        })
+        }))
         .child(div().font_family("JetBrains Mono").text_size(14).font_medium().text_color("#ffffff").child(`≈ ${duration(total(devs))}`)).child("›"));
 
     const closings = (compact: boolean) => [
@@ -862,7 +867,8 @@ export default class MissionControl extends View {
       ...(plan.advice ? [this.label("CONSEIL"), text(plan.advice)] : []),
     ]);
 
-    return body([banner, v_flex().flex_1().min_h_0().gap(16).px(24).pt(20).pb(18).rounded(12).border_1().border_color("#2A2F40").bg("#1B1F2B").child(teamRow).child(board)], right);
+    return v_flex().flex_1().min_h_0().gap(14).child(banner)
+      .child(body([v_flex().flex_1().min_h_0().gap(16).px(24).pt(20).pb(18).rounded(12).border_1().border_color("#2A2F40").bg("#1B1F2B").child(teamRow).child(board)], right));
   }
 
   missionPage(): NativeElement[] {

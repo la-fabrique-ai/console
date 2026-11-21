@@ -41,7 +41,7 @@ The operator's validation of the spec is your signal: the engine has written the
 - **Report as you go**: one `pilot.ticket` (id, title, what it changes) each time you settle on a ticket, so the screen shows the split growing. Then one `pilot.plan` with all the tickets, complete.
 - **Each ticket**, in French, in plain words: its title; what it changes for the user; how, in two or three lines with no file path; the points of the spec it covers, worded as the spec words them; the tickets that must be done before it; its size in minutes of agent work; whether it is sensitive (security, authentication, payments, data migrations).
 - **Order and ids.** Ids are `1`, `2`, … in the order one dev would build them: a ticket never comes before a ticket it waits for.
-- **The place of each ticket with two devs** (`parallel`): which dev, at which step. Two tickets share a step only if neither waits for the other and they touch different files. If nothing can run in parallel, every ticket goes to dev 1, one step each, and your advice says so.
+- **The place of each ticket with two devs** (`parallel`): which dev, at which step. Two tickets share a step only if neither waits for the other. Check that they are unlikely to change the same files; if they would, make one wait for the other: what a ticket waits for decides the order. If nothing can run in parallel, every ticket goes to dev 1, one step each, and your advice says so.
 - **Coverage.** Every point of the spec is covered by at least one ticket. Check it before you send the plan.
 - **With the plan**: the minutes of the test and of the operator's validation; one line of advice on the team (is a second dev worth it, and why); a summary of the spec in three or four French sentences, for the main ticket.
 

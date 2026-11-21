@@ -307,7 +307,7 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   const pilot = (action: string, payload: object) => cli(action, { issueKey: "DEMO-1", ...payload });
   const writes = () => (existsSync(path("linear-requests")) ? readFileSync(path("linear-requests"), "utf8").trim().split("\n") : [])
     .filter((line) => JSON.parse(line).query.startsWith("mutation")).length;
-  const { shown, click, tick } = window();
+  const { shown, now, click, tick } = window();
   await shown();
   click("issue-DEMO-1");
   await shown();
@@ -332,24 +332,31 @@ test("the operator sees the plan with one dev and with two, then launches it", a
 
   const ticket = (id: string, title: string, minutes: number, after: string[], dev: number, step: number, sensitive = false) =>
     ({ id, title, change: `Change ${id}.`, how: `Comment ${id}.`, covers: [`Point ${id}`], after, minutes, sensitive, parallel: { dev, step } });
-  await pilot("pilot.plan", { tickets: [ticket("1", "Afficher les ajouts", 30, [], 1, 1), ticket("2", "Afficher les retraits", 45, ["1"], 1, 2, true),
-    ticket("3", "Mettre à jour le guide", 20, ["1"], 2, 2)], testMinutes: 10, validationMinutes: 5, advice: "Un second dev fait gagner vingt minutes.", summary: "Le fil montre les liens." });
+  // The slower dev is not the same at each step: 30 against 10, then 20 against 45.
+  await pilot("pilot.plan", { tickets: [ticket("1", "Afficher les ajouts", 30, [], 1, 1), ticket("2", "Écrire le guide", 10, [], 2, 1),
+    ticket("3", "Afficher les retraits", 20, ["1"], 1, 2, true), ticket("4", "Traduire le guide", 45, ["2"], 2, 2)],
+    testMinutes: 10, validationMinutes: 5, advice: "Un second dev fait gagner trente minutes.", summary: "Le fil montre les liens." });
   tick();
   texts = await shown();
-  assert.ok(texts.includes("Le plan est prêt : 3 tickets") && texts.includes("Approuver et lancer le dev"));
-  assert.ok(texts.includes("Environ 1 h 50 avec 1 dev, test et validation compris · 1 h 30 avec 2 devs en parallèle"), "both durations follow the tickets");
-  assert.ok(texts.includes("Sensible") && texts.includes("après 1") && texts.includes("Un second dev fait gagner vingt minutes."));
+  assert.ok(texts.includes("Le plan est prêt : 4 tickets") && texts.includes("Approuver et lancer le dev"));
+  assert.ok(texts.includes("Environ 2 h avec 1 dev, test et validation compris · 1 h 30 avec 2 devs en parallèle"), "each step lasts as long as its slower dev");
+  assert.ok(texts.includes("Sensible") && texts.includes("après 1") && texts.includes("Un second dev fait gagner trente minutes."));
 
-  click("ticket-2");
+  click("ticket-3");
   texts = await shown();
-  assert.ok(texts.includes("TICKET 2 SUR 3") && texts.includes("~45 min · sensible : relu deux fois") && texts.includes("Le ticket 1"), "a click on a ticket shows its detail");
+  assert.ok(texts.includes("TICKET 3 SUR 4") && texts.includes("~20 min · sensible : relu deux fois") && texts.includes("Le ticket 1"), "a click on a ticket shows its detail");
   click("estimate");
   await shown();
 
+  let chosen = () => {};
+  screen.slow.set("plan.team", new Promise((resolve) => { chosen = resolve; }));
   click("add-dev");
+  now();
+  assert.ok(!screen.texts.includes("Création des tickets dans le tracker…"), "choosing the team never looks like a launch");
+  chosen();
   texts = await shown();
   assert.ok(texts.includes("Approuver et lancer les devs") && texts.includes("ÉTAPE 2") && texts.includes("Dev 2") && texts.includes("≈ 1 h 30"), "two devs: one line each, by steps");
-  assert.ok(texts.includes("Environ 1 h 30 avec 2 devs en parallèle, test et validation compris · 1 h 50 avec 1 dev"));
+  assert.ok(texts.includes("Environ 1 h 30 avec 2 devs en parallèle, test et validation compris · 2 h avec 1 dev"));
   const tools = () => screen.texts.filter((text) => text === "Claude" || text === "Codex").slice(0, 2);
   assert.deepEqual(tools(), ["Claude", "Codex"]);
   click("dev-2");
@@ -357,20 +364,26 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   assert.deepEqual(tools(), ["Claude", "Claude"], "each dev's tool is the operator's choice");
   click("remove-dev");
   texts = await shown();
-  assert.ok(texts.includes("Approuver et lancer le dev") && texts.includes("≈ 1 h 50"));
+  assert.ok(texts.includes("Approuver et lancer le dev") && texts.includes("≈ 2 h"));
   click("team-2");
   await shown();
   assert.equal(writes(), 0, "looking at the plan and choosing the team writes nothing to the tracker");
 
+  // A launch the engine refuses says why, and can be tried again.
+  const settings = { teamKey: "DEMO", repository: path("repo") };
+  writeFileSync(path("settings.json"), JSON.stringify({ ...settings, allowedIssueKeys: [] }));
   click("launch");
   texts = await shown();
-  assert.ok(texts.includes("C’est parti : 3 tickets créés dans le tracker") && texts.some((text) => text.endsWith("rattachés à DEMO-1")));
-  assert.equal(writes(), 4, "the launch creates the three sub-tickets and one comment");
-  for (const id of ["launch", "add-dev", "remove-dev", "dev-1", "team-1"]) assert.ok(!screen.clicks.has(id), `nothing changes after the launch: ${id}`);
+  assert.ok(texts.includes("Ce ticket ne figure pas dans la liste autorisée.") && screen.clicks.has("launch"), "the refusal shows in the banner, the launch stays possible");
+  assert.equal(writes(), 0);
+  writeFileSync(path("settings.json"), JSON.stringify({ ...settings, allowedIssueKeys: ["DEMO-1"] }));
 
-  click("nav-development");
+  click("launch");
   texts = await shown();
-  assert.ok(texts.includes("Développer"), "the mission is in the develop stage");
+  assert.ok(texts.includes("C’est parti : 4 tickets créés dans le tracker") && texts.some((text) => text.endsWith("rattachés à DEMO-1")));
+  assert.equal(writes(), 5, "the launch creates the four sub-tickets and one comment");
+  assert.equal(texts[texts.indexOf("DEMO-1") + 1], "Développer", "the menu shows the new stage without leaving the page");
+  for (const id of ["launch", "add-dev", "remove-dev", "dev-1", "team-1", "ticket-1", "estimate"]) assert.ok(!screen.clicks.has(id), `nothing changes after the launch: ${id}`);
 });
 
 test("a gesture on its way for one mission leaves another mission free", async (t) => {

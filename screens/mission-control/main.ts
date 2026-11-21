@@ -519,7 +519,8 @@ export default class MissionControl extends View {
         ...this.heading("LES QUESTIONS", total === 1 ? "La question a une réponse" : `Les ${total} questions ont une réponse`,
           "Relisez-les si vous voulez : un clic sur une question, à droite, la rouvre."),
         v_flex().mt(18).children(questions.map((question, index) => this.line(this.badge(question, index), question.text, question.answer, this.tone(question)))),
-        ...(busy ? [this.waiting("Pilot vérifie s’il lui reste une question")] : []),
+        busy ? this.waiting("Pilot vérifie s’il lui reste une question")
+          : this.said(`${total === 1 ? "J’ai votre réponse" : `J’ai vos ${total} réponses`}. Je peux écrire la spec : une page, à relire avant le découpage.`),
       ], this.composer("tell", "vos réponses sont validées · Pilot écrit ensuite la spec",
         detail.spec ? "Spec écrite" : "✓  Écrire la spec", busy || detail.spec || detail.pilotBusy === "spec" ? null : write, "Pilot en tient compte pour la spec", tell),
       side(`${total} réponses sur ${total}`, "Une question par page. Un clic pour revenir sur une réponse.", rows));

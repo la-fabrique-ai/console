@@ -24,7 +24,7 @@ A remark is something that must change for the ticket to be accepted: what is wr
 
 ## The verdict
 
-`review.verdict` with `accepted: true` and no remark, or `accepted: false` with the remarks, most serious first, each one sentence a dev can act on. Accepted means the ticket's PR is merged into the mission branch at once: accept only what you would merge.
+`review.verdict` with `accepted: true` and no remark, or `accepted: false` with the remarks, most serious first, each one sentence a dev can act on, in French and in plain words since the operator reads them on screen. Accepted means the ticket's PR is merged into the mission branch at once: accept only what you would merge.
 
 ## Your limits
 

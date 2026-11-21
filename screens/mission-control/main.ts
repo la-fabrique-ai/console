@@ -39,9 +39,9 @@ type Tone = "todo" | "done" | "fixed";
 /** Where a ticket stands during the development: who holds it. */
 type Holding = "todo" | "building" | "review" | "fixing" | "waiting" | "accepted";
 
-function holding(run: TicketRun | undefined, requests: Request[]): Holding {
+function holding(id: string, run: TicketRun | undefined, requests: Request[]): Holding {
+  if (requests.some((request) => request.ticketId === id && request.answer === undefined)) return "waiting";
   if (!run) return "todo";
-  if (requests.some((request) => request.ticketId === run.id && request.answer === undefined)) return "waiting";
   const last = run.steps.at(-1);
   if (last?.kind === "review") return !last.endedAt ? "review" : last.accepted ? "accepted" : "fixing";
   return last?.kind === "fix" ? "fixing" : "building";
@@ -235,7 +235,12 @@ export default class MissionControl extends View {
       const moved = "data" in reply && this.staged(reply.data, asked);
       if (!moved && error === this.detailError && ("error" in reply || JSON.stringify(reply.data) === JSON.stringify(this.detail))) return;
       this.detailError = error;
-      if ("data" in reply) this.detail = reply.data;
+      if ("data" in reply) {
+        // What is written answers the request on screen: it never lands on the next one.
+        const asked = (detail: MissionDetail | null) => detail?.development?.requests.find((request) => request.answer === undefined)?.id;
+        if (asked(reply.data) !== asked(this.detail)) this.inputs.reply?.set_value("");
+        this.detail = reply.data;
+      }
       cx.notify();
     });
   }
@@ -974,7 +979,7 @@ export default class MissionControl extends View {
     const name = (ticket: PlanTicket) => ticket.key ?? `ticket ${ticket.id}`;
     const devOf = (ticket: PlanTicket) => (plan.team.length === 1 ? 1 : ticket.parallel.dev);
     const toolOf = (ticket: PlanTicket) => plan.team[devOf(ticket) - 1] ?? "claude";
-    const held = new Map(tickets.map((ticket) => [ticket.id, holding(runOf(ticket), requests)]));
+    const held = new Map(tickets.map((ticket) => [ticket.id, holding(ticket.id, runOf(ticket), requests)]));
     const accepted = tickets.filter((ticket) => held.get(ticket.id) === "accepted").length;
     const count = `${accepted} sur ${tickets.length} ${accepted > 1 ? "acceptés" : "accepté"}`;
     const open = requests.find((request) => request.answer === undefined);
@@ -996,7 +1001,8 @@ export default class MissionControl extends View {
       : accepted === tickets.length ? ["green", "✓", tickets.length === 1 ? "Le ticket est accepté" : `Les ${tickets.length} tickets sont acceptés`,
         "Fusionné dans la branche de la mission · le test arrive avec une prochaine étape", null]
       : active ? ["blue", spinner(), `En cours : ${name(active)} ${doing[held.get(active.id)!]}`, `${count} · ${clock}`, null]
-      : ["blue", spinner(), "Le Lead prend la mission", `${count} · il lance le prochain ticket prêt`, null];
+      : accepted === 0 ? ["blue", spinner(), "Le Lead prend la mission", "Il lit la spec, le plan et vos réponses, puis lance le premier ticket", null]
+      : ["blue", "✓", count[0]!.toUpperCase() + count.slice(1), "Les tickets suivants se lancent avec une prochaine étape", null];
     const [edge, back, disc, ink, soft] = tone === "blue" ? ["#3A4AB8", "#151A38", "#1F2756", "#A9B4FF", "#A9B1D6"] as const
       : tone === "amber" ? ["#8F6B1E", "#2A220F", "#3A2E12", "#F2C14E", "#D9C9A3"] as const : ["#2E8F6C", "#132823", "#1C3A31", "#5DE3B8", "#A9C9BE"] as const;
     const banner = h_flex().h(76).flex_none().items_center().gap(16).px(22).rounded(12).border_1().border_color(edge).bg(back)
@@ -1009,7 +1015,6 @@ export default class MissionControl extends View {
 
     const pick = (id: string, cx: Context) => {
       this.ticket = this.ticket === id ? "" : id;
-      this.clear(); // a draft answer belongs to its request
       cx.notify();
     };
     const row = h_flex().h(32).flex_none().items_center().gap(8)
@@ -1139,7 +1144,11 @@ export default class MissionControl extends View {
         div().px(10).font_family("JetBrains Mono").text_size(26).font_medium().text_color("#ffffff").child(clock),
         div().px(10).mt(4).text_size(13.5).text_color("#8C93A6").child(`temps passé sur temps estimé · ${count}`),
         this.label("QUI TRAVAILLE"),
-        ...(work ? [this.line("L", "Lead · Claude", accepted === tickets.length ? "tous les tickets sont acceptés" : "coordonne la mission")] : [this.line("L", "Lead", "pas encore démarré")]),
+        ...(work ? [this.line("L", "Lead · Claude", accepted === tickets.length ? "tous les tickets sont acceptés" : "coordonne la mission"),
+          // The window cannot tell whether the Lead's terminal is still there: starting it again changes nothing when it is.
+          ...(accepted < tickets.length && !this.busy() ? [div().id("restart-lead").pl(43).pb(4).text_size(13).text_color("#A9B4FF").cursor_pointer()
+            .on_click((_event, cx) => this.send("develop.start", { issueKey: key }, cx)).child("Son terminal a disparu ? Relancer le Lead")] : []),
+        ] : [this.line("L", "Lead", "pas encore démarré")]),
         ...plan.team.map((tool, index) => {
           const mine = tickets.find((ticket) => devOf(ticket) === index + 1 && !["todo", "accepted"].includes(held.get(ticket.id)!));
           return this.line(`D${index + 1}`, `Dev ${index + 1} · ${TOOLS[tool]}`, mine ? `${name(mine)} ${doing[held.get(mine.id)!]}` : "attend son prochain ticket");

@@ -692,10 +692,16 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
 
   const build = { kind: "build", tool: "codex", startedAt: ago(12) };
   const run = (steps: object[], more = {}) => ({ id: "1", branch: "ticket/DEMO-2", steps, ...more });
-  screen.canned.set("missions.show", [said({ tickets: [run([build])], requests: [] })]);
+  screen.canned.set("missions.show", Array(2).fill(said({ tickets: [run([build])], requests: [] })));
   tick();
   texts = await shown();
   assert.ok(texts.includes("En cours : DEMO-2 en construction") && texts.includes("Codex construit") && texts.includes("12 min"), "the dev's work shows by itself, with the time it has taken");
+  const later = Date.now() + 2 * 60_000;
+  t.mock.method(Date, "now", () => later);
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("14 min") && !screen.texts.includes("12 min"), "the time spent goes on while the engine has nothing new to say");
+  t.mock.restoreAll();
 
   const request = { id: "r1", from: "dev", ticketId: "1", text: "Faut-il aussi les liens retirés ?", context: "La spec ne le dit pas.", choices: ["Oui, les deux", "Non, seulement les ajouts"] };
   const asked = said({ tickets: [run([build])], requests: [request] });
@@ -709,6 +715,20 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   assert.ok(screen.texts.includes("DÉROULÉ") && !screen.clicks.has("choice-0"), "the operator can still look at a ticket");
   click("see-request");
   now();
+  assert.ok(screen.clicks.has("choice-0"), "the banner brings the request back");
+
+  // What is written answers the request on screen: when another one takes its place, the draft does not follow.
+  type("Répondez autrement…", "Oui pour les deux");
+  const other = { ...request, id: "r2", text: "Et les liens en double ?" };
+  screen.canned.set("missions.show", [said({ tickets: [run([build])], requests: [{ ...request, answer: "Oui, les deux" }, other] })]);
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes(other.text) && !texts.includes("Oui pour les deux") && !screen.clicks.has("send-reply"), "a draft never lands on another request");
+  screen.canned.set("requests.answer", [said({ tickets: [run([build])], requests: [{ ...request, answer: "Oui, les deux" }, { ...other, answer: "Oui, les deux" }, request] })]);
+  click("choice-0");
+  texts = await shown();
+  assert.deepEqual(sentOf("requests.answer"), [{ issueKey: "DEMO-1", requestId: "r2", text: "Oui, les deux" }], "a proposed answer is sent once, for the request on screen");
+  screen.sent.length = 0;
 
   // A refused answer comes back to its field; the answer then reaches the engine once.
   const refusal = JSON.stringify({ error: { code: "failed", message: "L’envoi au dev n’est pas confirmé." } });
@@ -723,19 +743,26 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   assert.ok(texts.includes("L’envoi au dev n’est pas confirmé.") && texts.includes("Seulement les ajouts pour l’instant"), "the refusal shows and the text is back in its field");
   click("send-reply");
   texts = await shown();
-  assert.deepEqual(sentOf("requests.answer").at(-1), { issueKey: "DEMO-1", requestId: "r1", text: "Seulement les ajouts pour l’instant" });
+  const answer = { issueKey: "DEMO-1", requestId: "r1", text: "Seulement les ajouts pour l’instant" };
+  assert.deepEqual(sentOf("requests.answer"), [answer, answer], "one call for the refused answer, one for the second try");
   assert.ok(texts.includes("VOS RÉPONSES") && texts.includes("En cours : DEMO-2 en construction") && !screen.clicks.has("send-reply"), "once answered, the request leaves the banner and the work goes on");
 
   const built = { ...build, endedAt: ago(8), summary: "Feed entry for added links", commit: "abcdef1234" };
-  const refused = { kind: "review", tool: "claude", startedAt: ago(8), endedAt: ago(5), accepted: false, remarks: ["The removed link is not tested"] };
+  const refused = { kind: "review", tool: "claude", startedAt: ago(8), endedAt: ago(5), accepted: false, remarks: ["Le retrait d’un lien n’est pas testé"] };
   screen.canned.set("missions.show", [said({ tickets: [run([built, refused, { kind: "fix", tool: "codex", startedAt: ago(5) }], { pr: { number: 7, url: "u" } })], requests: [] })]);
   tick();
   texts = await shown();
   assert.ok(texts.includes("En cours : DEMO-2 en correction") && texts.includes("Relecture · corrections demandées") && texts.includes("Codex corrige · tour 1"), "fixes asked by the reviewer show as a round");
   click("ticket-1");
   now();
-  assert.ok(screen.texts.includes("– The removed link is not tested") && screen.texts.some((text) => text.includes("commit abcdef1")), "the ticket's panel gives the reviewer's remarks and the commit reviewed");
+  assert.ok(screen.texts.includes("– Le retrait d’un lien n’est pas testé") && screen.texts.some((text) => text.includes("commit abcdef1")), "the ticket's panel gives the reviewer's remarks and the commit reviewed");
   click("ticket-1");
+  now();
+  // The window cannot know the Lead's terminal is gone: the operator can always start it again.
+  screen.canned.set("develop.start", [said({ tickets: [run([built, refused, { kind: "fix", tool: "codex", startedAt: ago(5) }])], requests: [] })]);
+  click("restart-lead");
+  await shown();
+  assert.deepEqual(sentOf("develop.start"), [{ issueKey: "DEMO-1" }], "starting the Lead again is one call");
 
   const accepted = [built, refused, { kind: "fix", tool: "codex", startedAt: ago(5), endedAt: ago(3), commit: "bcdef12345" },
     { kind: "review", tool: "claude", startedAt: ago(3), endedAt: ago(1), accepted: true, remarks: [] }];

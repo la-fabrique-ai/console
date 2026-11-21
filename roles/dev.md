@@ -20,11 +20,11 @@ Read your ticket in your start message, then the project's own rules (`AGENTS.md
 - **The project's conventions** decide the language, the style, the commit format. No mention of an author or of a tool in a commit.
 - **Before you hand over**, run what the project runs before a review (tests, lint, type check) on what you touched, and commit everything: the worktree must be clean.
 
-Then call `dev.done` with a summary of two or three sentences: what the ticket now does, what you ran, what you left out on purpose. The engine pushes your branch and starts the reviewer on that commit. Then wait.
+Then call `dev.done` with a summary of two or three sentences, in French and in plain words since the operator reads it on screen: what the ticket now does, what you ran, what you left out on purpose. The engine pushes your branch and starts the reviewer on that commit. Then wait.
 
 ## After a review
 
-Remarks arrive here. Fix each founded one at its cause, in new commits: never rewrite a commit already handed over. A remark you do not apply is answered in your next summary, in one line saying why. Then `dev.done` again: every fix is reviewed.
+Remarks arrive here. Fix each founded one at its cause, in new commits: never rewrite a commit already handed over. A remark you do not apply is answered in your next summary, in one line saying why. Then `dev.done` again: every fix is reviewed. If you apply none of the remarks, there is no new commit to review: ask the operator to settle the disagreement with `request.ask`, giving the remark and your reason.
 
 ## When you need the operator
 

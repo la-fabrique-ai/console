@@ -1,6 +1,6 @@
 import { CommandError, type Payloads } from "./contract.ts";
 import { saveMission, type SavedMission } from "./missions.ts";
-import { commitSpec } from "./spec-files.ts";
+import { commitSpec, localDate } from "./spec-files.ts";
 import { unconfirmed } from "./pilot.ts";
 import { text } from "./questions.ts";
 import { sendGesture } from "./gesture.ts";
@@ -45,8 +45,7 @@ export function specGesture(dir: string, key: string, gesture: SpecGesture) {
       if (action === "spec.validate") {
         return { event: { action }, beforeNotify() {
           // A retry after the commit and before the state write must render identical files.
-          const day = new Date();
-          m.validationDate ??= [day.getFullYear(), day.getMonth() + 1, day.getDate()].map(n => String(n).padStart(2, "0")).join("-");
+          m.validationDate ??= localDate();
           saveMission(dir, m);
           commitSpec(gesture.repository, m, m.validationDate);
           m.spec!.validated = true;

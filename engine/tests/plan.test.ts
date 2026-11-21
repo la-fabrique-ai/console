@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { setup } from "./pilot-project.ts";
 
@@ -22,7 +22,10 @@ test("Pilot streams a local draft after validation and the operator can choose o
   assert.equal((await cli("missions.list")).data[0].stage, "prepare");
   await cli("pilot.plan", complete);
   assert.equal((await cli("missions.show", key)).data.plan, undefined);
-  assert.equal((await cli("spec.validate", key)).data.pilotBusy, "split");
+  writeFileSync(path("send.callback"), JSON.stringify(["pilot.ticket", { ...key, ticket: first }]));
+  const splitting = (await cli("spec.validate", key)).data;
+  assert.equal(splitting.pilotBusy, "split"); assert.deepEqual(splitting.plan.found, [first]);
+  unlinkSync(path("send.callback"));
   const sends = calls();
   const pilot: NodeJS.ProcessEnv = env;
   pilot.MC_PILOT_ISSUE = key.issueKey;
@@ -32,6 +35,9 @@ test("Pilot streams a local draft after validation and the operator can choose o
   assert.deepEqual(partial.data.plan.found, [first]); assert.deepEqual(partial.data.plan.team, ["claude"]);
   assert.equal(partial.data.pilotBusy, "split"); assert.deepEqual(partial.data.plan.tickets, []);
   assert.deepEqual(await cli("pilot.ticket", { ...key, ticket: first }), partial);
+  const second = { ...first, id: "2", title: "Ouvrir" };
+  const next = (await cli("pilot.ticket", { ...key, ticket: second })).data;
+  assert.deepEqual(next.plan.found, [first, second]); assert.equal(next.pilotBusy, "split");
   delete pilot.MC_PILOT_ISSUE;
   assert.ok((await cli("plan.launch", key)).error);
   for (const team of [[], ["other"], ["claude", "codex", "claude"]]) assert.ok((await cli("plan.team", { ...key, team })).error);
@@ -39,16 +45,28 @@ test("Pilot streams a local draft after validation and the operator can choose o
   assert.deepEqual((await cli("plan.team", { ...key, team })).data.plan.team, team);
   pilot.MC_PILOT_ISSUE = key.issueKey;
   const long = { ...ticket, how: "Indexation. ".repeat(15000) };
-  const done = (await cli("pilot.plan", { ...complete, tickets: [{ ...long, key: "FAKE-1" }] }, true)).data;
+  const full = [long, { ...ticket, ...second }];
+  const done = (await cli("pilot.plan", { ...complete, tickets: full.map(t => ({ ...t, key: "FAKE-1" })) }, true)).data;
   assert.equal(done.pilotBusy, undefined); assert.equal(done.stage, "prepare");
-  assert.deepEqual(done.plan, { found: [first], tickets: [long], testMinutes: 10, validationMinutes: 5, advice: complete.advice, team });
+  assert.deepEqual(done.plan, { found: [first, second], tickets: full, testMinutes: 10, validationMinutes: 5, advice: complete.advice, team });
   assert.equal(done.planSummary, undefined);
   assert.deepEqual((await cli("pilot.plan", complete)).data, done);
-  assert.deepEqual((await cli("pilot.ticket", { ...key, ticket: { ...first, id: "2" } })).data, done);
+  assert.deepEqual((await cli("pilot.ticket", { ...key, ticket: { ...first, id: "3" } })).data, done);
   delete pilot.MC_PILOT_ISSUE;
-  assert.deepEqual((await cli("plan.team", { ...key, team: ["claude"] })).data.plan.tickets, [long]);
+  assert.deepEqual((await cli("plan.team", { ...key, team: ["claude"] })).data.plan.tickets, full);
   assert.deepEqual(calls(), sends);
   assert.equal(existsSync(path("Developer/worktrees/repo/DEMO-1/docs/missions/DEMO-1/split.md")), false);
   const queries = readFileSync(path("linear-requests"), "utf8").trim().split("\n").map(line => JSON.parse(line).query);
   assert.equal(queries.length, 1); assert.match(queries[0], /query Issues/);
+});
+
+test("the final plan arriving during a terminal send leaves Pilot ready", async t => {
+  const { cli, path, git } = setup(t);
+  git("config", "user.name", "Test"); git("config", "user.email", "test@example.invalid");
+  await cli("missions.create", key); await cli("pilot.questions", { ...key, questions: [] });
+  await cli("spec.write", key); await cli("pilot.spec", { ...key, note: "Spec", sections: [] });
+  await cli("spec.validate", key);
+  writeFileSync(path("send.callback"), JSON.stringify(["pilot.plan", complete]));
+  const m = (await cli("pilot.tell", { ...key, text: "Une précision" })).data;
+  assert.equal(m.pilotBusy, undefined); assert.deepEqual(m.plan.tickets, [ticket]);
 });

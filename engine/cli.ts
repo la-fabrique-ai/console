@@ -7,7 +7,7 @@ import { CommandError, type Action, type Payloads, type Reply, type Results } fr
 
 import { askQuestions, propose, deliver } from "./questions.ts";
 import { receiveSpec, specGesture } from "./spec.ts";
-import { chooseTeam, completePlan, foundTicket, incompletePlan } from "./plan.ts";
+import { chooseTeam, completePlan, foundTicket, launchPlan } from "./plan.ts";
 import { startPilot } from "./pilot.ts";
 
 interface Settings { teamKey: string; allowedIssueKeys: string[]; repository: string }
@@ -15,9 +15,10 @@ type Handlers = { [A in Action]: (payload: Payloads[A]) => Results[A] | Promise<
 
 function issueNumber(key: unknown, teamKey: string): number {
   const parts = typeof key === "string" && /^([A-Z0-9]+)-([1-9][0-9]*)$/.exec(key);
-  if (!parts || parts[1] !== teamKey || !Number.isSafeInteger(Number(parts[2]))) {
+  if (!parts || !Number.isSafeInteger(Number(parts[2]))) {
     throw new Error("Invalid issue key");
   }
+  if (parts[1] !== teamKey) throw new CommandError("Ce ticket n’appartient pas à l’équipe configurée.");
   return Number(parts[2]);
 }
 
@@ -44,6 +45,7 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
     function update(key: string, change: (mission: SavedMission) => void) {
       return withMission(dir, key, () => {
         const mission = loadDetail(dir, key, true);
+        if (mission.launch || mission.plan?.launched) return visible(mission);
         change(mission);
         saveMission(dir, mission);
         return visible(mission);
@@ -62,7 +64,10 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
       "pilot.ticket": p => update(p.issueKey, m => foundTicket(m, p.ticket)),
       "pilot.plan": p => update(p.issueKey, m => completePlan(m, p)),
       "plan.team": p => update(p.issueKey, m => chooseTeam(m, p.team)),
-      "plan.launch": () => { throw incompletePlan(); },
+      "plan.launch": p => {
+        if (!allowedIssueKeys.includes(p.issueKey)) throw new CommandError("Ce ticket ne figure pas dans la liste autorisée.", "issue_not_allowed");
+        return launchPlan(dir, p.issueKey, teamKey, repository);
+      },
       "missions.list": () => listMissions(dir),
       "issues.list": async () => {
         failure = "Impossible de lire les tickets dans Linear.";

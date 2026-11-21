@@ -20,6 +20,10 @@ function answersFrozen(m: SavedMission) {
 
 function pilotReady(m: SavedMission) {
   if (m.pilotBusy !== "spec" && m.pilotBusy !== "split") delete m.pilotBusy;
+  clearQuestionReceipts(m);
+}
+
+export function clearQuestionReceipts(m: SavedMission) {
   for (const message of Object.keys(m.delivery ?? {})) {
     if (!JSON.parse(message).action.startsWith("spec.")) delete m.delivery![message];
   }

@@ -61,6 +61,7 @@ function launchRequest(query: string, variables: { parent?: string; key?: string
     const pageInfo = { hasNextPage: start + 1 < tracker[field].length, endCursor: String(start + 1) };
     return Response.json({ data: { issue: { [field]: { nodes, pageInfo } } } });
   }
+  if (fault === "before-write") return new Response(null, { status: 503 });
   const input = variables.input!;
   assert.match(input.id, /^[0-9a-f-]{36}$/);
   let data;

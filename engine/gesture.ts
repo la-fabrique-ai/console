@@ -13,6 +13,7 @@ export function sendGesture(dir: string, key: string, prepare: (mission: SavedMi
   return withMission(dir, key + ".operator", async () => {
     const attempt = await withMission(dir, key, () => {
       const m = loadDetail(dir, key);
+      if (m.launch || m.plan?.launched) return;
       const gesture = prepare(m);
       if (!gesture) return;
       const message = JSON.stringify(gesture.event);

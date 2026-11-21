@@ -1,17 +1,21 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 
-function project(t: TestContext, linearFailure = "") {
+function project(t: TestContext, linearFailure = "", legacy = false) {
   const home = mkdtempSync(join(tmpdir(), "mission-control-"));
   t.after(() => rmSync(home, { recursive: true, force: true }));
   writeFileSync(join(home, "settings.json"), JSON.stringify({
     project: "Jiroo", teamKey: "DEMO", allowedIssueKeys: ["DEMO-1"],
   }));
+  if (legacy) {
+    mkdirSync(join(home, "missions"));
+    writeFileSync(join(home, "missions/DEMO-1.json"), JSON.stringify({ issueKey: "DEMO-1", title: "First issue", stage: "prepare" }));
+  }
   return (action: string, payload = {}, noKey = false) => {
     const child = spawnSync(process.execPath, ["--import", new URL("./linear-fixture.ts", import.meta.url).href,
       fileURLToPath(new URL("../cli.ts", import.meta.url)), action, JSON.stringify(payload)], {
@@ -43,12 +47,10 @@ test("opens the issue as written, including its Markdown and link", t => {
 test("explains a missing Linear key before trying HTTP", t => {
   assert.equal(project(t)("issues.list", {}, true).error.code, "linear_key_missing");
 });
-test("creates one mission and shows its stage on both issue screens", t => {
-  const run = project(t);
+test("lists and shows a slice 1 mission without starting Pilot", t => {
+  const run = project(t, "", true);
   const mission = { issueKey: "DEMO-1", title: "First issue", stage: "prepare" };
-  assert.deepEqual(run("missions.list", {}, true), { data: [] });
-  assert.deepEqual(run("missions.create", { issueKey: "DEMO-1" }), { data: mission });
-  assert.deepEqual(run("missions.create", { issueKey: "DEMO-1" }, true), { data: mission });
+  assert.deepEqual(run("missions.show", { issueKey: "DEMO-1" }, true), { data: { ...mission, details: [], questions: [] } });
   assert.deepEqual(run("missions.list", {}, true), { data: [mission] });
   assert.deepEqual(run("issues.list").data.map((i: { missionStage?: string }) => i.missionStage), ["prepare", undefined]);
   assert.equal(run("issues.show", { key: "DEMO-1" }).data.missionStage, "prepare");
@@ -63,6 +65,7 @@ test("refuses a mission outside the operator's list before contacting Linear", t
 for (const [failure, message] of [
   ["unauthorized", "Linear refuse l’accès avec cette clé."],
   ["network", "Impossible de joindre Linear."],
+  ["http", "Linear a rejeté la requête de lecture des tickets."],
   ["graphql", "Linear a rejeté la requête de lecture des tickets."],
 ]) {
   test(`reports the Linear ${failure} failure on screen`, t => {

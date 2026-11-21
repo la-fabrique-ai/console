@@ -11,6 +11,7 @@ globalThis.fetch = async (url, init) => {
   switch (process.env.TEST_LINEAR_FAILURE) {
     case "unauthorized": return new Response(null, { status: 401 });
     case "network": throw new TypeError("fetch failed");
+    case "http": return new Response(null, { status: 503 });
     case "graphql": return Response.json({ errors: [{ message: "Internal diagnostic" }] });
   }
   const { query, variables: { filter, after } } = JSON.parse(String(init.body));

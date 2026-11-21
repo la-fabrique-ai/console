@@ -1,9 +1,7 @@
 // Slice 1 on screen: pick an issue, ask for its development, see the mission.
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { setup } from "../../engine/tests/pilot-project.ts";
 import { registerHooks } from "node:module";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { draw, screen } from "./herdr-stub.ts";
 
@@ -17,11 +15,11 @@ const { default: MissionControl } = await import(new URL("../mission-control/mai
 const STAGES = ["Préparer", "Développer", "Tester", "Valider"];
 
 function project(t: TestContext) {
-  screen.home = mkdtempSync(join(tmpdir(), "mission-control-screen-"));
+  const { env, cliArgs } = setup(t);
+  screen.env = env;
+  screen.cliArgs = cliArgs;
   screen.failure = "";
   screen.slow.clear();
-  t.after(() => rmSync(screen.home, { recursive: true, force: true }));
-  writeFileSync(join(screen.home, "settings.json"), JSON.stringify({ teamKey: "DEMO", allowedIssueKeys: ["DEMO-1"] }));
 }
 
 /** Opens the window on the current project. */

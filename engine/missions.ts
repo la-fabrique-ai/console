@@ -1,42 +1,52 @@
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { closeSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Mission } from "./contract.ts";
+import { CommandError, type Mission, type MissionDetail } from "./contract.ts";
 
-function hasCode(error: unknown, code: string) {
-  return error instanceof Error && "code" in error && error.code === code;
-}
+// Per-message delivery confirmations last until Pilot calls back.
+export type SavedMission = MissionDetail & { delivery?: Record<string, boolean> };
+export function visible({ delivery: _receipt, ...mission }: SavedMission): MissionDetail { return mission; }
 
-function load(dir: string, file: string): Mission {
-  return JSON.parse(readFileSync(join(dir, file), "utf8")) as Mission;
-}
+export function summary({ issueKey, title, stage }: Mission): Mission { return { issueKey, title, stage }; }
 
-export function readMission(dir: string, key: string): Mission | undefined {
+export function readMission(dir: string, key: string): SavedMission | undefined {
   try {
-    return load(dir, key + ".json");
-  } catch (error) {
-    if (!hasCode(error, "ENOENT")) throw error;
+    const saved: Mission & Partial<MissionDetail> = JSON.parse(readFileSync(join(dir, key + ".json"), "utf8"));
+    return { details: [], questions: [], ...saved, issueKey: key };
+  } catch (e) {
+    if (!(e instanceof Error && "code" in e && e.code === "ENOENT")) throw e;
   }
+}
+
+export function loadDetail(dir: string, key: string): SavedMission {
+  const mission = readMission(dir, key);
+  if (!mission) throw new CommandError("Mission introuvable.");
+  return mission;
 }
 
 export function listMissions(dir: string): Mission[] {
   let files: string[];
   try {
     files = readdirSync(dir);
-  } catch (error) {
-    if (hasCode(error, "ENOENT")) return [];
-    throw error;
+  } catch (e) {
+    if (e instanceof Error && "code" in e && e.code === "ENOENT") return [];
+    throw e;
   }
-  return files.filter(file => file.endsWith(".json")).sort().map(file => load(dir, file));
+  return files.filter(f => f.endsWith(".json")).sort().map(f => summary(loadDetail(dir, f.slice(0, -5))));
 }
 
-export function createMission(dir: string, mission: Mission): Mission {
+// macOS lockf locks the shared file descriptor. Closing it releases the lock even on process exit.
+export async function withMission<T>(dir: string, key: string, update: () => T | Promise<T>): Promise<T> {
   mkdirSync(dir, { recursive: true });
-  const file = mission.issueKey + ".json";
+  const fd = openSync(join(dir, key + ".lock"), "a");
   try {
-    writeFileSync(join(dir, file), JSON.stringify(mission, null, 2) + "\n", { flag: "wx" });
-    return mission;
-  } catch (error) {
-    if (hasCode(error, "EEXIST")) return load(dir, file);
-    throw error;
-  }
+    execFileSync("/usr/bin/lockf", ["-s", "3"], { stdio: ["ignore", "ignore", "ignore", fd] });
+    return await update();
+  } finally { closeSync(fd); }
+}
+
+export function saveMission(dir: string, mission: SavedMission) {
+  const file = join(dir, mission.issueKey + ".json");
+  writeFileSync(file + ".tmp", JSON.stringify(mission, null, 2) + "\n");
+  renameSync(file + ".tmp", file);
 }

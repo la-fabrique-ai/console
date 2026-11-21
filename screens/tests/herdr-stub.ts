@@ -3,7 +3,6 @@
 // attached to its root, and exec runs the real engine against the Linear
 // fixture of the engine tests.
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 
 type Click = (event: unknown, cx: unknown) => void;
 interface Drawn { id: string; texts: string[]; click?: Click; children: Drawn[] }
@@ -11,7 +10,8 @@ interface Drawn { id: string; texts: string[]; click?: Click; children: Drawn[] 
 export const screen = {
   texts: [] as string[],
   clicks: new Map<string, Click>(),
-  home: "",
+  env: {} as NodeJS.ProcessEnv,
+  cliArgs: [] as string[],
   /** "network": Linear cannot be reached (see the engine's Linear fixture). */
   failure: "",
   /** The next call of an action waits for its promise before answering: a slow reply. */
@@ -62,9 +62,7 @@ export const props = () => ({ engine: "engine.sh" });
 export async function exec(_command: string, [, ...args]: string[]) {
   const gate = screen.slow.get(args[0]);
   screen.slow.delete(args[0]);
-  const fixture = new URL("../../engine/tests/linear-fixture.ts", import.meta.url).href;
-  const cli = fileURLToPath(new URL("../../engine/cli.ts", import.meta.url));
-  const child = spawnSync(process.execPath, ["--import", fixture, cli, ...args], { env: { MISSION_CONTROL_HOME: screen.home, TEST_LINEAR_FAILURE: screen.failure }, encoding: "utf8" });
+  const child = spawnSync(process.execPath, [...screen.cliArgs, ...args], { env: { ...screen.env, TEST_LINEAR_FAILURE: screen.failure }, encoding: "utf8" });
   await gate;
   return { code: child.status, stdout: child.stdout, stderr: child.stderr };
 }

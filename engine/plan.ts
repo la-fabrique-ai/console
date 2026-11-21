@@ -78,7 +78,8 @@ export function launchPlan(dir: string, key: string, teamKey: string, repository
     if (plan?.launched) return visible(m);
     if (!m.spec?.validated || !plan?.tickets.length || !m.planSummary) throw new CommandError("Le découpage des tickets n’est pas terminé.");
     // Remember the approved draft and every remote identity before the first side effect.
-    if (!Object.hasOwn(m, "launch")) {
+    const resuming = Object.hasOwn(m, "launch");
+    if (!resuming) {
       m.launch = { date: localDate(), children: plan.tickets.map(() => randomUUID()), comment: randomUUID() };
       saveMission(dir, m);
     }
@@ -91,7 +92,7 @@ export function launchPlan(dir: string, key: string, teamKey: string, repository
       throw new CommandError("Les données de reprise du lancement sont endommagées.");
     }
     commitSplit(repository, key, plan, journal.date);
-    const parent = await launchInventory(key, teamKey);
+    const parent = await launchInventory(key, teamKey, resuming ? journal.children : []);
     const prior = new Map<string, PlanTicket>();
     for (const [index, ticket] of plan.tickets.entries()) {
       const id = journal.children[index];

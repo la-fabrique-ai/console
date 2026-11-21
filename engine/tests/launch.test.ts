@@ -74,7 +74,8 @@ test("approval commits only the safe split, creates ordered children, comments l
 
 for (const [fault, count] of [["after-commit", 0], ["after-two", 2], ["after-comment", 4], ["lost-answer", 1]] as const) {
   test("a second launch recovers after " + fault + " without repeating a write", async t => {
-    const { cli, cliArgs, env, requests, writes, branch } = await ready(t);
+    const { cli, cliArgs, env, requests, writes, branch, path } = await ready(t);
+    writeFileSync(path("tracker.json"), JSON.stringify({ children: [], comments: [{ id: "existing" }] }));
     const stopped = spawnSync(process.execPath, [...cliArgs, "plan.launch", JSON.stringify(key)], {
       env: { ...env, TEST_LAUNCH_FAULT: fault }, encoding: "utf8",
     });
@@ -94,6 +95,9 @@ for (const [fault, count] of [["after-commit", 0], ["after-two", 2], ["after-com
     const resumed = requests().slice(previous), firstWrite = resumed.findIndex(r => r.query.startsWith("mutation"));
     const reads = firstWrite < 0 ? resumed : resumed.slice(0, firstWrite);
     for (const field of ["children(", "comments("]) assert.ok(reads.some(r => r.query.includes(field)));
+    if (fault === "after-comment") for (const field of ["children(", "comments("]) {
+      assert.ok(reads.some(r => r.query.includes(field) && r.variables.after === "1"));
+    }
     assert.deepEqual(writes().map(r => Object.keys(r.variables.input).includes("issueId") ? "comment" : r.variables.input.title),
       ["Chercher ## Suite", "Ouvrir", "Exporter", "comment"]);
   });
@@ -149,4 +153,54 @@ test("a damaged launch journal never reaches Git or the tracker on repeated laun
     for (let i = 0; i < 2; i++) assert.equal((await cli("plan.launch", key)).error?.message, "Les données de reprise du lancement sont endommagées.");
     assert.deepEqual(requests(), before); assert.equal(branch("rev-parse", "HEAD"), head);
   }
+});
+
+test("a closed or unreadable main ticket prevents every tracker write", async t => {
+  const { cli, env, writes } = await ready(t);
+  for (const [fault, message] of [
+    ...["archived", "trashed", "canceled", "completed"].map(f => [f, "Le ticket principal n’est plus ouvert dans Linear."]),
+    ["other-parent", "Ticket introuvable dans Linear."], ["bad-read", "Impossible de lire le ticket principal dans Linear."],
+    ["bad-inventory", "Impossible de lire le ticket principal dans Linear."],
+  ]) {
+    Object.assign(env, { TEST_LAUNCH_FAULT: fault });
+    assert.equal((await cli("plan.launch", key)).error?.message, message, fault); assert.equal(writes().length, 0);
+  }
+});
+
+for (const [fault, count] of [["wrong-child", 1], ["wrong-comment", 4]] as const) {
+  test("an unconfirmed mutation ID keeps the mission pending: " + fault, async t => {
+    const { cli, env, writes } = await ready(t);
+    const fixture: NodeJS.ProcessEnv = env;
+    fixture.TEST_LAUNCH_FAULT = fault;
+    assert.match((await cli("plan.launch", key)).error?.message ?? "", /Linear n’a pas confirmé/);
+    assert.equal(writes().length, count); assert.equal((await cli("missions.show", key)).data.stage, "prepare");
+    delete fixture.TEST_LAUNCH_FAULT;
+    assert.equal((await cli("plan.launch", key)).data.stage, "develop"); assert.equal(writes().length, 4);
+  });
+}
+
+test("definite refusals are distinguished from lost acknowledgements", async t => {
+  const { cli, env } = await ready(t);
+  for (const fault of ["reject-write", "graphql-refusal", "denied-create", "denied-comment"]) {
+    Object.assign(env, { TEST_LAUNCH_FAULT: fault });
+    assert.equal((await cli("plan.launch", key)).error?.message, "Linear a refusé l’écriture.", fault);
+  }
+});
+
+test("a resumed launch adopts moved, archived and trashed children by UUID, leaving them as found", async t => {
+  const { cli, cliArgs, path, env, writes } = await ready(t);
+  const fixture: NodeJS.ProcessEnv = env;
+  const stopped = spawnSync(process.execPath, [...cliArgs, "plan.launch", JSON.stringify(key)], {
+    env: { ...env, TEST_LAUNCH_FAULT: "after-comment" },
+  });
+  assert.equal(stopped.status, 73);
+  const file = path("tracker.json"), remote = JSON.parse(readFileSync(file, "utf8"));
+  for (const [i, location] of ["another-parent", "archived", "trashed"].entries()) remote.children[i].location = location;
+  writeFileSync(file, JSON.stringify(remote));
+  fixture.TEST_LAUNCH_FAULT = "lookup-error";
+  assert.ok((await cli("plan.launch", key)).error); assert.equal(writes().length, 4);
+  delete fixture.TEST_LAUNCH_FAULT;
+  const done = await cli("plan.launch", key);
+  assert.deepEqual(done.data?.plan.tickets.map((t: { key: string }) => t.key), ["DEMO-10", "DEMO-11", "DEMO-12"]);
+  assert.equal(writes().length, 4); assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), remote);
 });

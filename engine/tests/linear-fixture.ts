@@ -39,10 +39,10 @@ globalThis.fetch = async (url, init) => {
   } } } });
 };
 
-interface Child { id: string; identifier: string }
+interface Child { id: string; identifier: string; location?: string }
 interface Tracker { children: Child[]; comments: { id: string }[] }
 
-function launchRequest(query: string, variables: { parent?: string; key?: string; after?: string; input?: Record<string, string> }) {
+function launchRequest(query: string, variables: { parent?: string; key?: string; id?: string; after?: string; input?: Record<string, string> }) {
   const home = process.env.MISSION_CONTROL_HOME!;
   const file = join(home, "tracker.json");
   const tracker: Tracker = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { children: [], comments: [] };
@@ -50,17 +50,36 @@ function launchRequest(query: string, variables: { parent?: string; key?: string
   if (query.includes("query LaunchParent(")) {
     if (fault === "after-commit") process.exit(73);
     assert.equal(variables.key, "DEMO-1");
-    return Response.json({ data: { issue: { id: "parent", identifier: "DEMO-1", team: { id: "team", key: fault === "other-team" ? "OTHER" : "DEMO" } } } });
+    if (fault === "bad-read") return Response.json({ data: {} });
+    return Response.json({ data: { issue: { id: "parent", identifier: fault === "other-parent" ? "DEMO-2" : "DEMO-1",
+      team: { id: "team", key: fault === "other-team" ? "OTHER" : "DEMO" },
+      ...(query.includes("archivedAt") && { archivedAt: fault === "archived" ? "yesterday" : null }),
+      ...(query.includes("trashed") && { trashed: fault === "trashed" || null }),
+      ...(query.includes("state { type }") && { state: { type: ["canceled", "completed"].includes(fault ?? "") ? fault : "started" } }),
+    } } });
   }
   if (query.includes("query LaunchInventory(")) {
     assert.equal(variables.parent, "parent");
     const field = query.includes("children(") ? "children" : "comments";
     assert.ok(query.includes(field + "(first: 50, after: $after, includeArchived: true)"));
     const start = Number(variables.after ?? 0);
-    const nodes = tracker[field].slice(start, start + 1);
-    const pageInfo = { hasNextPage: start + 1 < tracker[field].length, endCursor: String(start + 1) };
+    if (fault === "bad-inventory") return Response.json({ data: { issue: null } });
+    const entries = field === "children" ? tracker.children.filter(c => !c.location) : tracker.comments;
+    const nodes = entries.slice(start, start + 1);
+    const pageInfo = { hasNextPage: start + 1 < entries.length, endCursor: String(start + 1) };
     return Response.json({ data: { issue: { [field]: { nodes, pageInfo } } } });
   }
+  if (query.includes("query LaunchChild(")) {
+    assert.match(query, /issue\(id: \$id\)/);
+    if (fault === "lookup-error") return Response.json({ errors: [{ message: "Unavailable" }] });
+    const child = tracker.children.find(c => c.id === variables.id);
+    return child ? Response.json({ data: { issue: child } }) :
+      Response.json({ data: null, errors: [{ path: ["issue"], message: "Entity not found: Issue" }] }, { status: 400 });
+  }
+  if (fault === "reject-write") return new Response(null, { status: 422 });
+  if (fault === "graphql-refusal") return Response.json({ errors: [{ extensions: { type: "invalid input" } }] });
+  if (fault === "denied-create") return Response.json({ data: { issueCreate: { success: false } } });
+  if (fault === "denied-comment" && query.includes("commentCreate(")) return Response.json({ data: { commentCreate: { success: false } } });
   if (fault === "before-write") return new Response(null, { status: 503 });
   const input = variables.input!;
   assert.match(input.id, /^[0-9a-f-]{36}$/);
@@ -70,13 +89,13 @@ function launchRequest(query: string, variables: { parent?: string; key?: string
     assert.equal(tracker.children.some(c => c.id === input.id), false);
     const issue = { id: input.id, identifier: "DEMO-" + (10 + tracker.children.length) };
     tracker.children.push(issue);
-    data = { issueCreate: { success: true, issue } };
+    data = { issueCreate: { success: true, issue: fault === "wrong-child" ? { ...issue, id: "wrong" } : issue } };
   } else {
     assert.ok(query.includes("commentCreate(input: $input)")); assert.equal(input.issueId, "parent");
     assert.equal(tracker.comments.some(c => c.id === input.id), false);
     const comment = { id: input.id };
     tracker.comments.push(comment);
-    data = { commentCreate: { success: true, comment } };
+    data = { commentCreate: { success: true, comment: fault === "wrong-comment" ? { id: "wrong" } : comment } };
   }
   writeFileSync(file, JSON.stringify(tracker));
   if ((fault === "after-two" && tracker.children.length === 2) || (fault === "after-comment" && data.commentCreate)) process.exit(73);

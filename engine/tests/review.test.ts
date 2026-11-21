@@ -177,3 +177,36 @@ test("automatic branch deletion blocks the merge with a specific explanation", a
   assert.equal((await p.verdict(true)).error?.message,"GitHub supprimerait la branche du ticket après la fusion. Vérifiez les réglages du dépôt.");
   assert.ok(!p.log().some(c => c.includes("ready") || c.includes("repos/demo/repo/pulls/2/merge")));
 });
+
+test("reworded retries finish the same handoff and verdict with the original text", async t => {
+  const p = await project(t);
+  const sha = p.commit();
+  const handoff = (summary: string) => p.action("dev.done", { ticketId: "1", summary }, p.dev);
+  writeFileSync(p.path("fail-at"), "1");
+  assert.ok((await handoff("Premier résumé")).error);
+  writeFileSync(p.path("offline"), "reviewer has not started");
+  assert.ok((await handoff("Deuxième résumé")).error);
+  const { unlinkSync } = await import("node:fs");
+  unlinkSync(p.path("offline"));
+  const resumed = await handoff("Troisième résumé");
+  assert.equal(resumed.data?.development.tickets[0].steps[0].summary, "Premier résumé");
+  assert.deepEqual(await handoff("Reçu"), resumed);
+  const reviewer = p.state().agents.reviewer;
+  const start = p.calls().findLast(args => args[0] === "run" && args.includes(reviewer.terminal))!;
+  assert.equal(JSON.parse(start.at(-1)!.split("\n").at(-1)!).summary, "Premier résumé");
+  const reject = (remark: string) => p.action("review.verdict",
+    { ticketId: "1", accepted: false, remarks: [remark] }, reviewer.id);
+  writeFileSync(p.path("offline"), "before send");
+  assert.ok((await reject("Première remarque")).error);
+  unlinkSync(p.path("offline"));
+  const fixed = await reject("Autres mots");
+  const steps = fixed.data?.development.tickets[0].steps;
+  assert.deepEqual(steps.map((s: any) => s.kind), ["build", "review", "fix"]);
+  assert.equal(steps[0].commit, sha);
+  assert.deepEqual(steps[1].remarks, ["Première remarque"]);
+  assert.deepEqual(await reject("Encore autrement"), fixed);
+  assert.ok((await p.verdict(true)).error);
+  const delivered = readFileSync(p.path("delivered"), "utf8").trim().split("\n");
+  assert.equal(delivered.length, 1);
+  assert.deepEqual(JSON.parse(JSON.parse(delivered[0])[3]).remarks, ["Première remarque"]);
+});

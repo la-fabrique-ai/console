@@ -12,9 +12,9 @@ export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
     const m = loadDetail(dir,p.issueKey), dev = caller(m,"dev.done",p.ticketId);
     const d = m.development!, run = d.tickets.find(t => t.id === p.ticketId)!;
     const last = run.steps.at(-1)!, ticket = m.plan!.tickets.find(t => t.id === p.ticketId)!;
-    if (last.kind === "review" && !last.endedAt && run.steps.at(-2)?.summary === p.summary) {
+    if (last.kind === "review" && !last.endedAt) {
       const reviewer = m.agents!.reviewer!;
-      if (reviewer.starting) startAgent(dir, m, reviewer, true, ticket, run.steps.at(-2)!.commit, p.summary);
+      if (reviewer.starting) startAgent(dir, m, reviewer, true, ticket, run.steps.at(-2)!.commit, run.steps.at(-2)!.summary);
       return visible(m);
     }
     if (last.endedAt || last.kind === "review" || !p.summary?.trim() || d.requests.some(r => r.ticketId === p.ticketId && !r.answer)) throw refused();
@@ -31,7 +31,6 @@ export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
       saveMission(dir,m);
     }
     const { commit, base, summary } = m.publication;
-    if (summary !== p.summary) throw refused();
     try {
       const remote = github(mission);
       remote.publish(missionBranch,base); remote.publish(run.branch,commit);
@@ -69,7 +68,7 @@ export function verdict(dir: string, repository: string, p: Payloads["review.ver
     if (typeof p.accepted !== "boolean" || !Array.isArray(p.remarks) || !p.remarks.every(v => typeof v === "string" && v.trim()) ||
         (p.accepted ? p.remarks.length !== 0 : !p.remarks.length)) throw refused();
     if (previous.endedAt) {
-      if (previous.accepted !== p.accepted || JSON.stringify(previous.remarks) !== JSON.stringify(p.remarks)) throw refused();
+      if (previous.accepted !== p.accepted) throw refused();
       return finishNotice(dir, m);
     }
     if (m.development!.requests.some(r => r.ticketId === p.ticketId && !r.answer)) throw refused();

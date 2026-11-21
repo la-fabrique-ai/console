@@ -20,46 +20,46 @@ export function foundTicket(m: SavedMission, ticket: Plan["found"][number]) {
   if (!plan.found.some(entry => entry.id === ticket.id)) plan.found.push(preview(ticket));
 }
 
-function count(n: number, minimum = 0) {
-  if (!Number.isSafeInteger(n) || n < minimum) throw new CommandError("Les estimations et les étapes doivent être des nombres entiers valides.");
-  return n;
+function hasText(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
-function planTicket(t: PlanTicket): PlanTicket {
-  if (typeof t.sensitive !== "boolean" || ![1, 2].includes(t.parallel?.dev)) throw new CommandError("Précisez le niveau de risque et le développeur de chaque ticket.");
-  if (!Array.isArray(t.covers) || ![t.title, t.change, t.how, ...t.covers].every(v => typeof v === "string" && v.trim())) {
-    throw new CommandError("Vérifiez le titre, le changement, la méthode et les points couverts de chaque ticket.");
-  }
-  if (!Number.isSafeInteger(t.minutes) || t.minutes < 1) throw new CommandError("La durée de chaque ticket doit être un nombre entier positif de minutes.");
-  return { ...preview(t), how: text(t.how), covers: t.covers.map(text), after: t.after.map(text),
-    minutes: t.minutes, sensitive: t.sensitive, parallel: { dev: t.parallel.dev, step: count(t.parallel.step, 1) } };
+function estimate(minutes: number, field: string) {
+  if (!Number.isSafeInteger(minutes) || minutes < 0) throw new CommandError("Le champ " + field + " doit contenir un nombre entier de minutes supérieur ou égal à zéro.");
+  return minutes;
 }
 
-function checkedTickets(input: PlanTicket[]) {
+function checkedTickets(input: PlanTicket[]): PlanTicket[] {
   if (!Array.isArray(input) || !input.length) throw new CommandError("Le plan doit contenir au moins un ticket.");
   const steps = new Map<string, number>();
   return input.map((t, i) => {
-    if (t?.id !== String(i + 1)) throw new CommandError("Les tickets doivent être numérotés dans l’ordre à partir de 1.");
-    if (!Array.isArray(t.after) || t.after.some(id => !steps.has(id))) throw new CommandError("Chaque dépendance doit désigner un ticket précédent.");
-    const ticket = planTicket(t);
-    if (ticket.after.some(id => ticket.parallel.step <= steps.get(id)!)) {
-      throw new CommandError("Placez chaque ticket à une étape postérieure à celles de ses dépendances.");
+    const position = i + 1;
+    const invalid = (rule: string) => new CommandError("Ticket " + position + " — " + rule);
+    if (t?.id !== String(position)) throw invalid("l’identifiant doit être le texte « " + position + " ».");
+    for (const field of ["title", "change", "how"] as const) {
+      if (!hasText(t[field])) throw invalid("le champ " + field + " doit contenir du texte.");
     }
-    steps.set(ticket.id, ticket.parallel.step);
-    return ticket;
+    if (!Array.isArray(t.covers) || !t.covers.every(hasText)) throw invalid("le champ covers doit être une liste de textes non vides.");
+    if (!Array.isArray(t.after) || t.after.some(id => !steps.has(id))) throw invalid("chaque dépendance doit désigner un ticket précédent.");
+    if (!Number.isSafeInteger(t.minutes) || t.minutes < 1) throw invalid("le champ minutes doit être un entier positif.");
+    if (typeof t.sensitive !== "boolean") throw invalid("le champ sensitive doit être un booléen.");
+    if (![1, 2].includes(t.parallel?.dev)) throw invalid("le numéro du développeur doit être 1 ou 2.");
+    const { dev, step } = t.parallel;
+    if (!Number.isSafeInteger(step) || step < 1) throw invalid("le numéro d’étape doit être un entier positif.");
+    if (t.after.some(id => step <= steps.get(id)!)) throw invalid("l’étape doit être postérieure à celles de ses dépendances.");
+    steps.set(t.id, step);
+    return { ...preview(t), how: t.how, covers: t.covers, after: t.after, minutes: t.minutes, sensitive: t.sensitive, parallel: { dev, step } };
   });
 }
 
 export function completePlan(m: SavedMission, p: Payloads["pilot.plan"]) {
   if (!m.spec?.validated) throw new CommandError("La spec doit être validée avant de transmettre le découpage.");
-  if (m.plan?.tickets.length) {
-    // An older draft may predate the dependency checks; Pilot can correct it until launch.
-    try { checkedTickets(m.plan.tickets); return; }
-    catch (error) { if (!(error instanceof CommandError)) throw error; }
-  }
+  if (m.plan?.tickets.length) return;
   const tickets = checkedTickets(p.tickets);
-  if (![p.advice, p.summary].every(v => typeof v === "string" && v.trim())) throw new CommandError("Le plan doit inclure un conseil et un résumé.");
-  m.plan = { ...draft(m), tickets, testMinutes: count(p.testMinutes), validationMinutes: count(p.validationMinutes), advice: p.advice };
+  for (const field of ["advice", "summary"] as const) {
+    if (!hasText(p[field])) throw new CommandError("Le champ " + field + " doit contenir du texte.");
+  }
+  m.plan = { ...draft(m), tickets, testMinutes: estimate(p.testMinutes, "testMinutes"), validationMinutes: estimate(p.validationMinutes, "validationMinutes"), advice: p.advice };
   m.planSummary = p.summary;
   clearQuestionReceipts(m);
   delete m.pilotBusy;
@@ -102,11 +102,13 @@ export function launchPlan(dir: string, key: string, teamKey: string, repository
     const journal = m.launch;
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
     if (!journal || typeof journal.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(journal.date) ||
-        !Array.isArray(journal.children) || journal.children.length !== plan.tickets.length ||
-        ![...journal.children, journal.comment].every(id => typeof id === "string" && uuid.test(id)) ||
-        new Set([...journal.children, journal.comment]).size !== plan.tickets.length + 1) {
-      throw new CommandError(damagedLaunch);
+        !Array.isArray(journal.children)) throw new CommandError(damagedLaunch);
+    const ids = new Set<string>();
+    for (const id of [...journal.children, journal.comment]) {
+      if (typeof id !== "string" || !uuid.test(id) || ids.has(id)) throw new CommandError(damagedLaunch);
+      ids.add(id);
     }
+    if (ids.size !== plan.tickets.length + 1) throw new CommandError(damagedLaunch);
     commitSplit(repository, key, plan, journal.date);
     const parent = await launchInventory(key, teamKey, resuming ? journal.children : []);
     const prior = new Map<string, PlanTicket>();
@@ -115,7 +117,7 @@ export function launchPlan(dir: string, key: string, teamKey: string, repository
       ticket.key = parent.children.get(id) ?? await createSubTicket(parent, id, singleLine(ticket.title), description(ticket, prior));
       prior.set(ticket.id, ticket);
     }
-    if (!parent.comments.has(journal.comment)) await addComment(parent.id, journal.comment, m.planSummary);
+    if (!parent.comments.has(journal.comment)) await addComment(parent.id, journal.comment, markdownText(m.planSummary));
     plan.launched = true;
     m.stage = "develop";
     delete m.pilotBusy;

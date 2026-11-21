@@ -5,10 +5,10 @@ import { test, type TestContext } from "node:test";
 import { setup } from "./pilot-project.ts";
 
 const key = { issueKey: "DEMO-1" };
-const summary = "Les équipes peuvent retrouver une fiche.";
+const summary = "# Retrouver une fiche\n- Afficher les résultats.";
 const tickets = ["Chercher", "Ouvrir", "Exporter"].map((title, i) => ({
   id: String(i + 1), title: i === 0 ? title + "\n## Suite" : title, change: "# le changement\n> exemple",
-  how: "Indexer à 50 % dans nom_fichier.", covers: i === 0 ? [] : ["Les fiches", "Les accents"], after: i === 0 ? [] : [String(i)],
+  how: "Indexer à 50 % dans nom_fichier.", covers: i === 0 ? [] : ["Les fiches\n## Titre", "- Les accents"], after: i === 0 ? [] : [String(i)],
   minutes: 15 + i, sensitive: i === 1, parallel: { dev: i === 1 ? 2 : 1, step: i + 1 },
 }));
 const file = "docs/missions/DEMO-1/split.md";
@@ -57,14 +57,15 @@ test("approval commits only the safe split, creates ordered children, comments l
     const { query, variables: { input } } = mutations[i];
     assert.match(query, /issueCreate\(input: \$input\)/);
     const description = ["**Ce que ça change**\n\\# le changement\n\\> exemple", "**Comment**\nIndexer à 50 % dans nom_fichier.",
-      ...(i ? ["**Couvre, dans la spec**\n- Les fiches\n- Les accents",
+      ...(i ? ["**Couvre, dans la spec**\n- Les fiches\n\\## Titre\n- \\- Les accents",
         "**Attend**\n- " + (i === 1 ? "DEMO-10 — Chercher ## Suite" : "DEMO-11 — Ouvrir")] : []),
       "**Taille** : environ " + ticket.minutes + " min" + (i === 1 ? "\n**Sensible** : approche relue avant le code, deux revues" : "")].join("\n\n");
     assert.deepEqual(input, { id: input.id, teamId: "team", parentId: "parent", title: i ? ticket.title : "Chercher ## Suite", description });
   }
   assert.match(mutations[3].query, /commentCreate\(input: \$input\)/);
-  assert.deepEqual(mutations[3].variables.input, { id: mutations[3].variables.input.id, issueId: "parent", body: summary });
+  assert.deepEqual(mutations[3].variables.input, { id: mutations[3].variables.input.id, issueId: "parent", body: "\\# Retrouver une fiche\n\\- Afficher les résultats." });
   const all = requests();
+  assert.ok(!all.some(r => r.query.includes("query LaunchChildren(")));
   for (const [action, data] of [["plan.team", { team: ["claude"] }], ["plan.launch", {}],
     ["pilot.tell", { text: "Autre" }], ["pilot.ticket", { ticket: tickets[0] }]] as const) {
     assert.deepEqual(await cli(action, { ...key, ...data }), first);
@@ -95,6 +96,10 @@ for (const [fault, count] of [["after-commit", 0], ["after-two", 2], ["after-com
     const resumed = requests().slice(previous), firstWrite = resumed.findIndex(r => r.query.startsWith("mutation"));
     const reads = firstWrite < 0 ? resumed : resumed.slice(0, firstWrite);
     for (const field of ["children(", "comments("]) assert.ok(reads.some(r => r.query.includes(field)));
+    if (fault === "after-two") {
+      const lookup = reads.find(r => r.query.includes("query LaunchChildren("));
+      assert.deepEqual(lookup?.variables.ids, [resumed[firstWrite].variables.input.id]);
+    }
     if (fault === "after-comment") for (const field of ["children(", "comments("]) {
       assert.ok(reads.some(r => r.query.includes(field) && r.variables.after === "1"));
     }
@@ -147,7 +152,7 @@ test("a damaged launch journal never reaches Git or the tracker on repeated laun
   const ids = ["1", "2", "3", "4"].map(d => d.repeat(8) + "-1234-4123-a123-123456789abc");
   const valid = { date: "2026-11-21", children: ids.slice(0, 3), comment: ids[3] };
   for (const launch of [null, {}, { ...valid, children: ids.slice(0, 2) }, { ...valid, children: ["bad", ...ids.slice(1,3)] },
-    { ...valid, children: [ids[0], ids[0], ids[2]] }, { ...valid, comment: ids[0] }, { ...valid, comment: null },
+    { ...valid, children: [ids[0], ids[0], ids[2]] }, { ...valid, children: [ids[0], ids[0], ids[1], ids[2]] }, { ...valid, comment: ids[0] }, { ...valid, comment: null },
     { ...valid, date: "x\n---" }]) {
     writeFileSync(file, JSON.stringify({ ...saved, launch }));
     for (let i = 0; i < 2; i++) assert.equal((await cli("plan.launch", key)).error?.message, "Les données de reprise du lancement sont endommagées.");
@@ -159,8 +164,8 @@ test("a closed or unreadable main ticket prevents every tracker write", async t 
   const { cli, env, writes } = await ready(t);
   for (const [fault, message] of [
     ...["archived", "trashed", "canceled", "completed"].map(f => [f, "Le ticket principal n’est plus ouvert dans Linear."]),
-    ["other-parent", "Ticket introuvable dans Linear."], ["bad-read", "Impossible de lire le ticket principal dans Linear."],
-    ["bad-inventory", "Impossible de lire le ticket principal dans Linear."],
+    ["null-parent", "Impossible de lire le ticket principal dans Linear."], ["other-parent", "Ticket introuvable dans Linear."],
+    ["bad-read", "Impossible de lire le ticket principal dans Linear."], ["bad-inventory", "Impossible de lire le ticket principal dans Linear."],
   ]) {
     Object.assign(env, { TEST_LAUNCH_FAULT: fault });
     assert.equal((await cli("plan.launch", key)).error?.message, message, fault); assert.equal(writes().length, 0);
@@ -188,7 +193,7 @@ test("definite refusals are distinguished from lost acknowledgements", async t =
 });
 
 test("a resumed launch adopts moved, archived and trashed children by UUID, leaving them as found", async t => {
-  const { cli, cliArgs, path, env, writes } = await ready(t);
+  const { cli, cliArgs, path, env, writes, requests } = await ready(t);
   const fixture: NodeJS.ProcessEnv = env;
   const stopped = spawnSync(process.execPath, [...cliArgs, "plan.launch", JSON.stringify(key)], {
     env: { ...env, TEST_LAUNCH_FAULT: "after-comment" },
@@ -197,11 +202,19 @@ test("a resumed launch adopts moved, archived and trashed children by UUID, leav
   const file = path("tracker.json"), remote = JSON.parse(readFileSync(file, "utf8"));
   for (const [i, location] of ["another-parent", "archived", "trashed"].entries()) remote.children[i].location = location;
   writeFileSync(file, JSON.stringify(remote));
-  fixture.TEST_LAUNCH_FAULT = "lookup-error";
-  assert.ok((await cli("plan.launch", key)).error); assert.equal(writes().length, 4);
+  for (const fault of ["lookup-not-found", "lookup-partial", "lookup-http", "lookup-bad-page", "lookup-no-nodes",
+    "lookup-empty-cursor", "lookup-numeric-cursor", "lookup-wrong-id", "lookup-empty-key", "lookup-numeric-key"]) {
+    fixture.TEST_LAUNCH_FAULT = fault;
+    assert.equal((await cli("plan.launch", key)).error?.message, "Impossible de vérifier le sous-ticket dans Linear.", fault);
+    assert.equal(writes().length, 4, fault);
+  }
+  const before = requests().length;
   delete fixture.TEST_LAUNCH_FAULT;
   const done = await cli("plan.launch", key);
   assert.deepEqual(done.data?.plan.tickets.map((t: { key: string }) => t.key), ["DEMO-10", "DEMO-11", "DEMO-12"]);
+  const pages = requests().slice(before).filter(r => r.query.includes("query LaunchChildren("));
+  assert.deepEqual(pages.map(r => r.variables.after), [null, "1", "2"]);
+  assert.deepEqual(pages[0].variables.ids, remote.children.map((c: { id: string }) => c.id));
   assert.equal(writes().length, 4); assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), remote);
 });
 
@@ -229,15 +242,4 @@ test("losing the entire journal after a confirmed split cannot start a second la
   delete saved.launch; writeFileSync(state, JSON.stringify(saved));
   for (let i = 0; i < 2; i++) assert.equal((await cli("plan.launch", key)).error?.message, "Les données de reprise du lancement sont endommagées.");
   assert.deepEqual(requests(), before);
-});
-
-test("Pilot can correct a draft saved with invalid dependencies before this validation existed", async t => {
-  const { cli, path, requests, branch } = await ready(t);
-  const state = path("missions/DEMO-1.json"), saved = JSON.parse(readFileSync(state, "utf8"));
-  saved.plan.tickets[1].after = ["99"]; writeFileSync(state, JSON.stringify(saved));
-  const before = requests(), head = branch("rev-parse", "HEAD");
-  assert.match((await cli("plan.launch", key)).error?.message ?? "", /ticket précédent/);
-  assert.deepEqual(requests(), before); assert.equal(branch("rev-parse", "HEAD"), head);
-  const corrected = await cli("pilot.plan", { ...key, tickets, summary, testMinutes: 30, validationMinutes: 10, advice: "À deux." });
-  assert.deepEqual(corrected.data.plan.tickets, tickets); assert.equal((await cli("plan.launch", key)).data.stage, "develop");
 });

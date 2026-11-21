@@ -11,10 +11,6 @@ const parentReadFailed = "Impossible de lire le ticket principal dans Linear.";
 const childReadFailed = "Impossible de vérifier le sous-ticket dans Linear.";
 const writeRefused = "Linear a refusé l’écriture.";
 
-class IssueNotFound extends CommandError {
-  constructor() { super("Ticket introuvable dans Linear."); }
-}
-
 async function request<T>(query: string, variables: object, message: string): Promise<T> {
   const key = process.env.LINEAR_API_KEY?.trim();
   if (!key) throw new CommandError("La clé d’accès à Linear est absente.", "linear_key_missing");
@@ -25,12 +21,9 @@ async function request<T>(query: string, variables: object, message: string): Pr
   if (response.status === 401 || response.status === 403) throw new CommandError("Linear refuse l’accès avec cette clé.");
   const body = await response.json().catch(() => null);
   const errors = body?.errors;
-  if ((response.ok || response.status === 400 || response.status === 404) && errors?.length === 1 &&
-      errors[0]?.path?.[0] === "issue" && errors[0].message === "Entity not found: Issue") throw new IssueNotFound();
   if (!response.ok || !body?.data || errors?.length) {
     const definite = (response.status >= 400 && response.status < 500 && response.status !== 408) ||
-      (Array.isArray(errors) && errors.some(e => ["invalid input", "forbidden", "ratelimited"].includes(e?.extensions?.type) ||
-        ["BAD_USER_INPUT", "GRAPHQL_VALIDATION_FAILED", "FORBIDDEN", "RATELIMITED"].includes(e?.extensions?.code)));
+      (Array.isArray(errors) && errors.some(e => e?.extensions?.type === "invalid input"));
     throw new CommandError(message === writeUnconfirmed && definite ? writeRefused : message);
   }
   return body.data;
@@ -59,7 +52,7 @@ function summary(issue: LinearIssue): IssueSummary {
 }
 
 export async function openIssues(teamKey: string): Promise<IssueSummary[]> {
-  const open = { state: { type: { nin: ["completed", "canceled", "duplicate"] } } };
+  const open = { state: { type: { nin: ["completed", "canceled"] } } };
   return (await queryIssues<LinearIssue>(teamKey, open, "")).map(summary);
 }
 
@@ -91,16 +84,26 @@ async function members<I>(parent: string, field: "children" | "comments"): Promi
   return nodes;
 }
 
-async function findChild(id: string) {
-  try {
-    const { issue } = await request<{ issue: Child }>(
-      "query LaunchChild($id: String!) { issue(id: $id) { id identifier } }", { id }, childReadFailed);
-    if (issue?.id !== id || !issue.identifier) throw new CommandError(childReadFailed);
-    return issue.identifier;
-  } catch (error) {
-    if (error instanceof IssueNotFound) return undefined;
-    throw error;
-  }
+async function lookupMissingChildren(savedIds: string[], keys: Map<string, string>) {
+  const ids = savedIds.filter(id => !keys.has(id));
+  if (!ids.length) return;
+  const query = `query LaunchChildren($ids: [ID!]!, $after: String) {
+    issues(filter: { id: { in: $ids } }, includeArchived: true, first: 50, after: $after) {
+      nodes { id identifier } pageInfo { hasNextPage endCursor }
+    }
+  }`;
+  let after: string | null = null;
+  do {
+    const { issues }: { issues: Page<Child> } = await request(query, { ids, after }, childReadFailed);
+    if (!Array.isArray(issues?.nodes) || typeof issues.pageInfo?.hasNextPage !== "boolean") throw new CommandError(childReadFailed);
+    for (const child of issues.nodes) {
+      if (!ids.includes(child?.id) || typeof child.identifier !== "string" || !child.identifier) throw new CommandError(childReadFailed);
+      keys.set(child.id, child.identifier);
+    }
+    if (!issues.pageInfo.hasNextPage) return;
+    after = issues.pageInfo.endCursor;
+    if (typeof after !== "string" || !after) throw new CommandError(childReadFailed);
+  } while (after);
 }
 
 export async function launchInventory(key: string, teamKey: string, savedIds: string[]) {
@@ -110,19 +113,15 @@ export async function launchInventory(key: string, teamKey: string, savedIds: st
     { key }, parentReadFailed);
   if (!issue?.id || !issue.identifier || !issue.team?.id || !issue.team.key || !issue.state?.type ||
       issue.archivedAt === undefined || issue.trashed === undefined) throw new CommandError(parentReadFailed);
-  if (issue.identifier !== key || issue.team.key !== teamKey) throw new IssueNotFound();
-  if (issue.archivedAt || issue.trashed || ["canceled", "completed", "duplicate"].includes(issue.state.type)) {
+  if (issue.identifier !== key || issue.team.key !== teamKey) throw new CommandError("Ticket introuvable dans Linear.");
+  if (issue.archivedAt || issue.trashed || ["canceled", "completed"].includes(issue.state.type)) {
     throw new CommandError("Le ticket principal n’est plus ouvert dans Linear.");
   }
   const children = await members<Child>(issue.id, "children");
   const comments = await members<{ id: string }>(issue.id, "comments");
   if (children.some(c => !c?.id || !c.identifier) || comments.some(c => !c?.id)) throw new CommandError(parentReadFailed);
   const keys = new Map(children.map(c => [c.id, c.identifier]));
-  for (const id of savedIds) {
-    if (keys.has(id)) continue;
-    const found = await findChild(id);
-    if (found) keys.set(id, found);
-  }
+  await lookupMissingChildren(savedIds, keys);
   return { id: issue.id, teamId: issue.team.id, children: keys, comments: new Set(comments.map(c => c.id)) };
 }
 

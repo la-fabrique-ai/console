@@ -48,14 +48,29 @@ test("Pilot streams a local draft after validation and the operator can choose o
   pilot.MC_PILOT_ISSUE = key.issueKey;
   const later = { ...ticket, ...second, after: ["1"], parallel: { dev: 2, step: 2 } };
   for (const [invalid, reason] of [
-    [[ticket, { ...later, id: "1" }], /numérot/], [[{ ...ticket, id: "2" }], /numérot/],
-    [[{ ...ticket, after: ["2"] }, later], /précédent/], [[ticket, { ...later, after: ["9"] }], /précédent/],
-    [[ticket, { ...later, parallel: { dev: 2, step: 1 } }], /étape/],
-    [[{ ...ticket, parallel: { dev: 1, step: 3 } }, later], /étape/],
-    [[{ ...ticket, minutes: 0 }], /minutes/], [[{ ...ticket, minutes: 1.5 }], /minutes/],
+    [[ticket, { ...later, id: "1" }], /Ticket 2.*identifiant.*texte « 2 »/],
+    [[{ ...ticket, id: 1 }], /Ticket 1.*identifiant.*texte « 1 »/],
+    [[{ ...ticket, id: "2" }], /Ticket 1.*identifiant.*texte « 1 »/],
+    [[{ ...ticket, after: ["2"] }, later], /Ticket 1.*dépendance.*précédent/],
+    [[ticket, { ...later, after: ["9"] }], /Ticket 2.*dépendance.*précédent/],
+    [[ticket, { ...later, parallel: { dev: 2, step: 1 } }], /Ticket 2.*étape.*postérieure/],
+    [[{ ...ticket, parallel: { dev: 1, step: 3 } }, later], /Ticket 2.*étape.*postérieure/],
+    [[{ ...ticket, minutes: 0 }], /Ticket 1.*minutes.*entier positif/],
+    [[ticket, { ...later, minutes: 1.5 }], /Ticket 2.*minutes.*entier positif/],
+    [[ticket, { ...later, parallel: { dev: 3, step: 2 } }], /Ticket 2.*développeur.*1 ou 2/],
+    [[ticket, { ...later, parallel: { dev: 2, step: 0 } }], /Ticket 2.*étape.*entier positif/],
+    [[ticket, { ...later, sensitive: "oui" }], /Ticket 2.*sensitive.*booléen/],
+    [[ticket, { ...later, title: "" }], /Ticket 2.*title/],
+    [[ticket, { ...later, change: "" }], /Ticket 2.*change/],
+    [[ticket, { ...later, how: "" }], /Ticket 2.*how/],
+    [[ticket, { ...later, covers: [null] }], /Ticket 2.*covers/],
   ] as const) {
     const refused = await cli("pilot.plan", { ...complete, tickets: invalid });
     assert.match(refused.error?.message ?? "", reason);
+  }
+  for (const [field, value] of [["testMinutes", -1], ["validationMinutes", 0.5], ["advice", ""], ["summary", " "]] as const) {
+    const refused = await cli("pilot.plan", { ...complete, [field]: value });
+    assert.ok(refused.error?.message.includes(field), field);
   }
   const long = { ...ticket, how: "Indexation. ".repeat(15000) };
   const full = [long, { ...ticket, ...second }];

@@ -49,7 +49,7 @@ globalThis.fetch = async (url, init) => {
     { number: 2, title: "Second issue", type: "triage" },
     { number: 3, title: "Closed", type: "completed" },
     { number: 4, title: "Canceled", type: "canceled" },
-    { number: 5, title: "Duplicate", type: "duplicate" },
+    { number: 5, title: "Duplicate", type: "canceled" },
   ].filter(i => !filter.state?.type.nin.includes(i.type) && (!filter.number || filter.number.eq === i.number));
   const index = Number(after ?? 0);
   const nodes = issues.slice(index, index + 1).map(i => ({
@@ -64,7 +64,7 @@ globalThis.fetch = async (url, init) => {
 interface Child { id: string; identifier: string; location?: string }
 interface Tracker { children: Child[]; comments: { id: string }[] }
 
-function launchRequest(query: string, variables: { parent?: string; key?: string; id?: string; after?: string; input?: Record<string, string> }) {
+function launchRequest(query: string, variables: { parent?: string; key?: string; ids?: string[]; after?: string; input?: Record<string, string> }) {
   const home = process.env.MISSION_CONTROL_HOME!;
   const file = join(home, "tracker.json");
   const tracker: Tracker = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { children: [], comments: [] };
@@ -72,6 +72,7 @@ function launchRequest(query: string, variables: { parent?: string; key?: string
   if (query.includes("query LaunchParent(")) {
     if (fault === "after-commit") process.exit(73);
     assert.equal(variables.key, "DEMO-1");
+    if (fault === "null-parent") return Response.json({ data: { issue: null } });
     if (fault === "bad-read") return Response.json({ data: {} });
     return Response.json({ data: { issue: { id: "parent", identifier: fault === "other-parent" ? "DEMO-2" : "DEMO-1",
       team: { id: "team", key: fault === "other-team" ? "OTHER" : "DEMO" },
@@ -91,12 +92,28 @@ function launchRequest(query: string, variables: { parent?: string; key?: string
     const pageInfo = { hasNextPage: start + 1 < entries.length, endCursor: String(start + 1) };
     return Response.json({ data: { issue: { [field]: { nodes, pageInfo } } } });
   }
-  if (query.includes("query LaunchChild(")) {
-    assert.match(query, /issue\(id: \$id\)/);
-    if (fault === "lookup-error") return Response.json({ errors: [{ message: "Unavailable" }] });
-    const child = tracker.children.find(c => c.id === variables.id);
-    return child ? Response.json({ data: { issue: child } }) :
-      Response.json({ data: null, errors: [{ path: ["issue"], message: "Entity not found: Issue" }] }, { status: 400 });
+  if (query.includes("query LaunchChildren(")) {
+    assert.match(query, /filter: \{ id: \{ in: \$ids \} \}/);
+    assert.match(query, /after: \$after/);
+    const matches = tracker.children.filter(c => variables.ids!.includes(c.id) &&
+      (query.includes("includeArchived: true") || (c.location !== "archived" && c.location !== "trashed")));
+    const page = Number(variables.after ?? 0);
+    const nodes = matches.slice(page, page + 1);
+    const pageInfo = { hasNextPage: page + 1 < matches.length, endCursor: String(page + 1) };
+    const data = { issues: { nodes, pageInfo } };
+    if (fault === "lookup-not-found") return Response.json({ errors: [{ path: ["issue"], message: "Entity not found: Issue" }] }, { status: 400 });
+    if (fault === "lookup-http") return Response.json({ data }, { status: 503 });
+    if (fault === "lookup-partial" && page === 1) return Response.json({ data, errors: [{ message: "Erreur temporaire" }] });
+    if (fault === "lookup-bad-page") return Response.json({ data: { issues: { nodes } } });
+    if (page === 0 && (fault === "lookup-empty-cursor" || fault === "lookup-numeric-cursor")) {
+      return Response.json({ data: { issues: { nodes, pageInfo: { hasNextPage: true, endCursor: fault === "lookup-empty-cursor" ? "" : 1 } } } });
+    }
+    if (fault === "lookup-no-nodes") return Response.json({ data: { issues: { pageInfo } } });
+    if (fault === "lookup-wrong-id") return Response.json({ data: { issues: { nodes: [{ id: "unrequested", identifier: "DEMO-4" }], pageInfo } } });
+    if (fault === "lookup-empty-key" || fault === "lookup-numeric-key") {
+      return Response.json({ data: { issues: { nodes: [{ id: variables.ids![0], identifier: fault === "lookup-empty-key" ? "" : 4 }], pageInfo } } });
+    }
+    return Response.json({ data });
   }
   if (fault === "reject-write") return new Response(null, { status: 422 });
   if (fault === "graphql-refusal") return Response.json({ errors: [{ extensions: { type: "invalid input" } }] });

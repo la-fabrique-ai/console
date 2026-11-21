@@ -3,18 +3,22 @@ import { closeSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, 
 import { join } from "node:path";
 import { CommandError, type Mission, type MissionDetail } from "./contract.ts";
 
+// Per-message delivery confirmations last until Pilot calls back.
+export type SavedMission = MissionDetail & { delivery?: Record<string, boolean> };
+export function visible({ delivery: _receipt, ...mission }: SavedMission): MissionDetail { return mission; }
+
 export function summary({ issueKey, title, stage }: Mission): Mission { return { issueKey, title, stage }; }
 
-export function readMission(dir: string, key: string): MissionDetail | undefined {
+export function readMission(dir: string, key: string): SavedMission | undefined {
   try {
     const saved: Mission & Partial<MissionDetail> = JSON.parse(readFileSync(join(dir, key + ".json"), "utf8"));
-    return { details: [], questions: [], ...saved };
+    return { details: [], questions: [], ...saved, issueKey: key };
   } catch (e) {
     if (!(e instanceof Error && "code" in e && e.code === "ENOENT")) throw e;
   }
 }
 
-export function loadDetail(dir: string, key: string): MissionDetail {
+export function loadDetail(dir: string, key: string): SavedMission {
   const mission = readMission(dir, key);
   if (!mission) throw new CommandError("Mission introuvable.");
   return mission;
@@ -41,7 +45,7 @@ export async function withMission<T>(dir: string, key: string, update: () => T |
   } finally { closeSync(fd); }
 }
 
-export function saveMission(dir: string, mission: MissionDetail) {
+export function saveMission(dir: string, mission: SavedMission) {
   const file = join(dir, mission.issueKey + ".json");
   writeFileSync(file + ".tmp", JSON.stringify(mission, null, 2) + "\n");
   renameSync(file + ".tmp", file);

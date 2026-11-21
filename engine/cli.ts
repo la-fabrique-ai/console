@@ -2,9 +2,10 @@ import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { issueDetail, openIssues } from "./linear.ts";
-import { listMissions, readMission, loadDetail, saveMission, summary, withMission } from "./missions.ts";
+import { listMissions, readMission, loadDetail, saveMission, summary, visible, withMission, type SavedMission } from "./missions.ts";
 import { CommandError, type Action, type Payloads, type Reply, type Results } from "./contract.ts";
 
+import { askQuestions, propose, answer, tell } from "./questions.ts";
 import { startPilot } from "./pilot.ts";
 
 interface Settings { teamKey: string; allowedIssueKeys: string[]; repository: string }
@@ -29,8 +30,26 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
     failure = "Les paramètres de la commande sont invalides.";
     const payload: Payloads[A] = JSON.parse(json === "-" ? readFileSync(0, "utf8") : json);
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new CommandError(failure);
+    if (process.env.MC_PILOT_ISSUE && (!(action === "pilot.questions" || action === "pilot.propose") ||
+        !("issueKey" in payload) || payload.issueKey !== process.env.MC_PILOT_ISSUE)) {
+      throw new CommandError("Ce rappel ne correspond pas à la mission de Pilot.");
+    }
     const reading = "Impossible de lire les missions enregistrées.";
+    function update(key: string, change: (mission: SavedMission) => void) {
+      issueNumber(key, teamKey);
+      return withMission(dir, key, () => {
+        const mission = loadDetail(dir, key);
+        change(mission);
+        saveMission(dir, mission);
+        return visible(mission);
+      });
+    }
     const handlers: Handlers = {
+      "questions.validate": p => update(p.issueKey, m => answer(dir, m, p.questionId, "validate")),
+      "questions.reply": p => update(p.issueKey, m => answer(dir, m, p.questionId, "reply", p.text)),
+      "pilot.tell": p => update(p.issueKey, m => tell(m, p.text)),
+      "pilot.questions": p => update(p.issueKey, m => askQuestions(m, p.questions)),
+      "pilot.propose": p => update(p.issueKey, m => propose(m, p.questionId, p.proposal)),
       "missions.list": () => listMissions(dir),
       "issues.list": async () => {
         failure = "Impossible de lire les tickets dans Linear.";
@@ -47,7 +66,7 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
       },
       "missions.show": ({ issueKey }) => {
         issueNumber(issueKey, teamKey);
-        return loadDetail(dir, issueKey);
+        return visible(loadDetail(dir, issueKey));
       },
       "missions.create": async ({ issueKey, details = [] }) => {
         if (!allowedIssueKeys.includes(issueKey)) throw new CommandError("Ce ticket ne figure pas dans la liste autorisée.", "issue_not_allowed");

@@ -8,7 +8,9 @@ import type { Action, IssueDetail, IssueSummary, Mission, MissionDetail, Payload
 
 type Page = "issues" | "request" | "development";
 type Spawner = Pick<Context, "spawn">;
-type Field = "request" | "answer" | "again" | "tell";
+type Field = "request" | "answer" | "again" | "tell" | "change";
+type Tab = "request" | "questions" | "spec";
+const TABS: Tab[] = ["request", "questions", "spec"];
 type Tone = "todo" | "done" | "fixed";
 
 // A field keeps the placeholder it was created with: one field per placeholder.
@@ -17,6 +19,7 @@ const FIELDS: Record<Field, string> = {
   answer: "Écrivez une autre réponse…",
   again: "Écrivez encore, Pilot ajuste sa réponse…",
   tell: "Autre chose à dire à Pilot ?",
+  change: "Demandez un changement…",
 };
 
 const PROJECT = "Jiroo";
@@ -56,7 +59,8 @@ export default class MissionControl extends View {
   creating = new Set<string>();
   /** The open mission as the engine knows it: Pilot's questions and the answers. */
   detail: MissionDetail | null = null;
-  tab: "request" | "questions" = "questions";
+  /** The step the operator chose to look at; none: the one the preparation has reached. */
+  tab: Tab | "" = "";
   /** The question the operator chose to look at; none: the first one still open. */
   viewing = "";
   /** What the operator adds to the issue before validating the request. */
@@ -119,7 +123,7 @@ export default class MissionControl extends View {
     this.requestError = "";
     this.detail = null;
     this.detailError = "";
-    this.tab = "questions";
+    this.tab = "";
     this.viewing = "";
     this.details = [];
     for (const input of Object.values(this.inputs)) input.set_value("");
@@ -161,11 +165,11 @@ export default class MissionControl extends View {
 
   /** What is written belongs to the question on screen: it never follows the operator to another one. */
   clear() {
-    for (const field of ["answer", "again", "tell"] as const) this.inputs[field]?.set_value("");
+    for (const field of ["answer", "again", "tell", "change"] as const) this.inputs[field]?.set_value("");
   }
 
   /** One gesture of the operator towards Pilot; the button is off until the engine answers. */
-  send<A extends "questions.validate" | "questions.reply" | "pilot.tell">(action: A, payload: Payloads[A], cx: Context, field?: Field) {
+  send<A extends "questions.validate" | "questions.reply" | "pilot.tell" | "spec.write" | "spec.change" | "spec.validate">(action: A, payload: Payloads[A], cx: Context, field?: Field) {
     const key = payload.issueKey;
     if (this.sending.has(key)) return;
     const turn = this.opens;
@@ -182,6 +186,7 @@ export default class MissionControl extends View {
           this.detail = reply.data as MissionDetail;
           // A reply stays on its question, to see Pilot's new proposal; a validation moves on.
           this.viewing = action === "questions.reply" ? (payload as Payloads["questions.reply"]).questionId : "";
+          if (action === "spec.write") this.tab = ""; // on to the step the preparation has reached
         } else {
           this.requestError = reply.error.message;
           if (field && "text" in payload) this.inputs[field]?.set_value(payload.text);
@@ -310,24 +315,38 @@ export default class MissionControl extends View {
     return h_flex().items_center().gap(10).children(parts);
   }
 
-  /** The four steps of the preparation. Once the request is validated, the first two open their page. */
-  steps(created: boolean, answered: string): NativeElement {
-    const current = !created ? 0 : 1;
-    const shown = created && this.tab === "request" ? 0 : current;
+  /** The step the preparation has reached: 0 the request, 1 the questions, 2 the spec. */
+  reached(created: boolean): number {
+    return !created ? 0 : this.detail?.spec || this.detail?.pilotBusy === "spec" ? 2 : 1;
+  }
+
+  /** The four steps of the preparation. A step that was reached opens its page. */
+  steps(created: boolean): NativeElement {
+    const current = this.reached(created);
+    const shown = created && this.tab ? TABS.indexOf(this.tab) : current;
+    const questions = this.detail?.questions ?? [];
+    const answers = questions.filter((question) => question.answer !== undefined).length;
+    const spec = this.detail?.spec;
+    const smalls = [
+      created ? "validée" : "",
+      !questions.length ? "" : current > 1 ? (answers === 1 ? "1 réponse" : `${answers} réponses`) : `${answers} sur ${questions.length}`,
+      !spec ? "" : spec.validated ? `validée · v${spec.version}` : "à relire",
+      "",
+    ];
     const parts: NativeElement[] = [];
     STEPS.forEach((name, index) => {
       if (index > 0) parts.push(div().text_size(13).text_color("#4A5066").child("›"));
-      const done = index < current;
       const on = index === shown;
-      const small = index === 0 && created ? "validée" : index === 1 ? answered : "";
+      const done = !on && (index < current || (index === 2 && spec?.validated === true));
+      const small = smalls[index];
       const pill = h_flex().id(`step-${index}`).h(30).items_center().gap(8).pl(5).pr(13).rounded(15).border_1()
         .border_color(on ? "#4A52A8" : "#2A2F40").bg(on ? "#1C2040" : CLEAR).text_size(13.5).text_color(on ? "#ffffff" : done ? "#C9CFDB" : "#8C93A6")
         .child(h_flex().w(20).h(20).rounded_full().items_center().justify_center().text_size(11).font_semibold()
           .bg(done ? "#163028" : on ? "#7B8CFF" : "#262B3A").text_color(done ? "#5DE3B8" : on ? "#12151D" : "#C9CFDB").child(done ? "✓" : String(index + 1)))
         .child(name)
-        .when(small, (el) => el.child(div().text_size(12.5).text_color(on ? "#A9B4FF" : "#6F7689").child(small)));
-      parts.push(created && index < 2 ? pill.cursor_pointer().on_click((_event, cx) => {
-        this.tab = index === 0 ? "request" : "questions";
+        .when(small, (el) => el.child(div().text_size(12.5).text_color(on ? "#A9B4FF" : "#6F7689").child(small!)));
+      parts.push(created && index <= current ? pill.cursor_pointer().on_click((_event, cx) => {
+        this.tab = TABS[index]!;
         cx.notify();
       }) : pill);
     });
@@ -393,10 +412,10 @@ export default class MissionControl extends View {
   }
 
   // ---- the request (mockup 02) ---------------------------------------------
-  bubble(text: string): NativeElement {
+  bubble(text: string, label = "VOUS"): NativeElement {
     return h_flex().mt(14).justify_end().child(v_flex().max_w(686).px(14).py(10).rounded(12).border_1().border_color("#4A52A8").bg("#262B5E")
       .text_size(14.5).text_color("#E6E9F0")
-      .child(div().mb(3).text_size(11.5).font_semibold().text_color("#A9B4FF").child("VOUS")).child(text));
+      .child(div().mb(3).text_size(11.5).font_semibold().text_color("#A9B4FF").child(label)).child(text));
   }
 
   requestBody(issue: IssueDetail, created: boolean): NativeElement {
@@ -461,6 +480,7 @@ export default class MissionControl extends View {
     const done = questions.filter((question) => question.answer !== undefined).length;
     const current = questions.find((question) => question.id === this.viewing) ?? questions.find((question) => question.answer === undefined);
     const tell = (text: string, cx: Context) => this.send("pilot.tell", { issueKey: key, text }, cx, "tell");
+    const write = (cx: Context) => this.send("spec.write", { issueKey: key }, cx);
     const side = (counter: string, lead: string, rows: NativeElement[]) => this.column("LES QUESTIONS DE PILOT", "questions-list", [
       div().px(10).text_size(20).font_semibold().text_color("#ffffff").child(counter),
       div().px(10).mt(6).mb(8).text_size(13.5).text_color("#8C93A6").child(lead),
@@ -484,7 +504,7 @@ export default class MissionControl extends View {
     if (total === 0 && !busy) {
       // Pilot answered that the request is enough.
       return page(this.heading("LES QUESTIONS", "Pilot n’a pas de question", "Votre demande lui suffit pour écrire la spec."),
-        this.composer("tell", "la spec arrive avec la prochaine étape", "✓  Écrire la spec", null, "Pilot en tient compte pour la spec", tell),
+        this.composer("tell", "votre demande suffit · Pilot écrit ensuite la spec", "✓  Écrire la spec", write, "Pilot en tient compte pour la spec", tell),
         side("Aucune question", "Pilot a lu la demande et le projet.", []));
     }
     if (total === 0) {
@@ -500,7 +520,8 @@ export default class MissionControl extends View {
           "Relisez-les si vous voulez : un clic sur une question, à droite, la rouvre."),
         v_flex().mt(18).children(questions.map((question, index) => this.line(this.badge(question, index), question.text, question.answer, this.tone(question)))),
         ...(busy ? [this.waiting("Pilot vérifie s’il lui reste une question")] : []),
-      ], this.composer("tell", "vos réponses sont validées · la spec arrive avec la prochaine étape", "✓  Écrire la spec", null, "Pilot en tient compte pour la spec", tell),
+      ], this.composer("tell", "vos réponses sont validées · Pilot écrit ensuite la spec",
+        detail.spec ? "Spec écrite" : "✓  Écrire la spec", busy || detail.spec || detail.pilotBusy === "spec" ? null : write, "Pilot en tient compte pour la spec", tell),
       side(`${total} réponses sur ${total}`, "Une question par page. Un clic pour revenir sur une réponse.", rows));
     }
 
@@ -532,6 +553,67 @@ export default class MissionControl extends View {
     return page(content, composer, side(`${done} sur ${total}`, "Une question par page. Un clic pour revenir sur une réponse.", rows));
   }
 
+  // ---- the spec (mockups 14 to 16, 25) --------------------------------------
+  said(text: string): NativeElement {
+    return v_flex().mt(22).px(18).py(16).rounded(12).border_1().border_color("#2A2F40").bg("#161923")
+      .child(div().mb(4).text_size(12).font_semibold().text_color("#5DE3B8").child("PILOT"))
+      .child(div().text_size(15.5).font_medium().text_color("#E6E9F0").child(text));
+  }
+
+  specBody(detail: MissionDetail): NativeElement {
+    const key = detail.issueKey;
+    const spec = detail.spec;
+    const questions = detail.questions;
+    const count = questions.length === 1 ? "1 réponse" : `${questions.length} réponses`;
+    const tell = (text: string, cx: Context) => this.send("pilot.tell", { issueKey: key, text }, cx, "tell");
+    const versions = !spec ? [] : [this.label("VERSIONS"), ...Array.from({ length: spec.version }, (_unused, index) => {
+      const version = index + 1;
+      const last = version === spec.version;
+      const changed = spec.sections.reduce((sum, section) => sum + section.passages.filter((passage) => passage.changed).length, 0);
+      return this.line(String(version), last && version > 1 && !spec.validated ? `Version ${version} · à relire` : `Version ${version}`,
+        version === 1 ? `écrite d’après vos ${count}` : last ? (changed === 1 ? "1 passage modifié à votre demande" : `${changed} passages modifiés à votre demande`) : "",
+        last && version > 1 ? "fixed" : "todo");
+    })];
+    const column = this.column("VOS RÉPONSES", "spec-answers", [
+      div().px(10).text_size(20).font_semibold().text_color("#ffffff").child(questions.length ? `${count}, 1 page` : "Aucune question"),
+      div().px(10).mt(6).mb(8).text_size(13.5).text_color("#8C93A6").child("La spec est écrite d’après elles. À droite de chaque passage : d’où il vient."),
+      ...questions.map((question, index) => this.line(this.badge(question, index), question.text, question.answer ?? "", this.tone(question))),
+      ...versions,
+    ]);
+    const page = (content: NativeElement[], composer: NativeElement) =>
+      h_flex().flex_1().min_h_0().gap(14).items_stretch().child(this.conversation("spec", content, composer)).child(column);
+    if (!spec) {
+      return page([...this.heading("LA SPEC", "Pilot écrit la spec", "Une page, à relire avant le découpage en tickets."), this.waiting("Pilot écrit la spec d’après vos réponses")],
+        this.composer("tell", "vous pouvez quitter cette page, Pilot continue", "Pilot écrit la spec…", null, "Pilot en tient compte pour la spec", tell));
+    }
+
+    // A change request waits for its version: version 1 answers none, version 2 the first, and so on.
+    const pending = !spec.validated && spec.requests.length >= spec.version;
+    const document = v_flex().mt(4).opacity(pending ? 0.45 : 1).children(spec.sections.flatMap((section) => [
+      div().mt(22).mb(6).text_size(11.5).font_semibold().text_color("#8C93A6").child(section.title.toUpperCase()),
+      ...section.passages.map((passage, index) => h_flex().items_start().gap(11).px(10).py(7).rounded(9).border_1()
+        .border_color(passage.changed ? "#8A6B1F" : CLEAR).bg(passage.changed ? "#241F12" : CLEAR).text_size(15).text_color("#E6E9F0")
+        .when(section.passages.length > 1, (el) => el.child(h_flex().flex_none().min_w(22).h(22).mt(1).rounded(6).bg("#262B3A").items_center().justify_center()
+          .text_size(11).font_bold().text_color("#C9CFDB").child(String(index + 1))))
+        .child(div().flex_1().min_w_0().child(passage.text))
+        .when(passage.changed === true, (el) => el.child(h_flex().flex_none().h(19).px(8).rounded(11).bg("#3A2E12").items_center()
+          .text_size(11.5).font_semibold().text_color("#F2C14E").child(`modifié · v${spec.version}`)))
+        .child(div().flex_none().mt(3).text_size(12).text_color("#6F7689").child(passage.source))),
+    ]));
+    const content = [
+      div().text_size(12).font_semibold().text_color("#A9B4FF").child(`LA SPEC, ÉCRITE PAR PILOT · VERSION ${spec.version}`),
+      div().mt(6).text_size(26).font_semibold().text_color("#ffffff").child(detail.title),
+      ...(pending ? [this.bubble(spec.requests[spec.requests.length - 1] ?? "", "VOTRE DEMANDE DE CHANGEMENT"),
+        this.waiting("Pilot met la spec à jour", "Il vérifie ce que ça change ailleurs, puis réécrit ce qui doit l’être")] : [this.said(spec.note)]),
+      document,
+    ];
+    const composer = spec.validated ? this.composer("change", "la spec est dans le projet · le plan arrive avec la prochaine étape", "Spec validée", null)
+      : pending ? this.composer("change", "Pilot réécrit ce qui change, le reste ne bouge pas.", "Pilot met la spec à jour…", null)
+      : this.composer("change", "ou validez la spec · Pilot découpe ensuite en tickets", "✓  Valider la spec", (cx) => this.send("spec.validate", { issueKey: key }, cx),
+        "Pilot met la spec à jour · vous validez ensuite", (text, cx) => this.send("spec.change", { issueKey: key, text }, cx, "change"));
+    return page(content, composer);
+  }
+
   missionPage(): NativeElement[] {
     const key = this.requested;
     const issue = this.issue;
@@ -541,15 +623,14 @@ export default class MissionControl extends View {
     const title = issue?.title ?? mission?.title;
     const header = title ? this.header(title, this.stages(key, stage ?? "prepare")) : this.header(PROJECT, h_flex().child("La demande"));
     const note = (text: string, color: `#${string}` = "#8C93A6") => this.card().px(24).py(22).child(this.note(text, color));
-    const questions = this.detail?.questions ?? [];
-    const answered = questions.length ? `${questions.filter((question) => question.answer !== undefined).length} sur ${questions.length}` : "";
-    if (created && this.tab === "questions") {
-      // The questions are local: they never wait for the tracker.
-      return [header, this.steps(true, answered), this.detail ? this.questionsBody(this.detail)
-        : note(this.detailError || "Chargement…", this.detailError ? "#F2C14E" : "#8C93A6")];
+    const tab = this.tab || TABS[this.reached(created)]!;
+    if (created && tab !== "request") {
+      // The questions and the spec are local: they never wait for the tracker.
+      return [header, this.steps(true), !this.detail ? note(this.detailError || "Chargement…", this.detailError ? "#F2C14E" : "#8C93A6")
+        : tab === "spec" ? this.specBody(this.detail) : this.questionsBody(this.detail)];
     }
-    if (!issue) return [header, ...(created ? [this.steps(true, answered)] : []), note(this.issueError || "Chargement…", this.issueError ? "#F2C14E" : "#8C93A6")];
-    return [header, this.steps(created, answered), this.requestBody(issue, created)];
+    if (!issue) return [header, ...(created ? [this.steps(true)] : []), note(this.issueError || "Chargement…", this.issueError ? "#F2C14E" : "#8C93A6")];
+    return [header, this.steps(created), this.requestBody(issue, created)];
   }
 
   render(): NativeElement {

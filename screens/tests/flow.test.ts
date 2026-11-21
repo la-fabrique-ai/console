@@ -806,8 +806,9 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   assert.ok(texts.includes("Le ticket est accepté") && texts.includes("DEMO-2 accepté et fusionné") && texts.some((text) => text.startsWith("PR #6 vers main")),
     "an accepted ticket is merged into the mission branch; the mission's PR stays the operator's");
   // A question of the Lead still open once every ticket is accepted: its terminal can still be started again to receive the answer.
-  screen.canned.set("missions.show", [said({ tickets: [run(accepted, { pr: { number: 7, url: "u" } })], requests: [{ id: "r9", from: "lead", text: "Et ensuite ?", context: "c", choices: [] }] })]);
+  screen.canned.set("missions.show", [said({ tickets: [run(accepted, { pr: { number: 7, url: "u" } })], requests: [{ id: "r9", from: "lead", ticketId: "1", text: "Et ensuite ?", context: "c", choices: [] }] })]);
   tick();
-  await shown();
+  texts = await shown();
   assert.ok(screen.clicks.has("restart-lead"));
+  assert.ok(texts.some((text) => text.endsWith("1 sur 1 accepté")) && texts.includes("Accepté") && !texts.includes("Vous attend"), "a question about a merged ticket leaves it accepted");
 });

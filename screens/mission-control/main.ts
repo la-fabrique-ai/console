@@ -40,10 +40,11 @@ type Tone = "todo" | "done" | "fixed";
 type Holding = "todo" | "building" | "review" | "fixing" | "waiting" | "accepted";
 
 function holding(id: string, run: TicketRun | undefined, requests: Request[]): Holding {
+  const last = run?.steps.at(-1);
+  if (last?.kind === "review" && last.endedAt && last.accepted) return "accepted"; // merged: a later question about it changes nothing
   if (requests.some((request) => request.ticketId === id && request.answer === undefined)) return "waiting";
   if (!run) return "todo";
-  const last = run.steps.at(-1);
-  if (last?.kind === "review") return !last.endedAt ? "review" : last.accepted ? "accepted" : "fixing";
+  if (last?.kind === "review") return last.endedAt ? "fixing" : "review";
   return last?.kind === "fix" ? "fixing" : "building";
 }
 

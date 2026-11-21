@@ -218,3 +218,26 @@ test("a tracker deadline releases the launch lock and a stalled mutation respons
   delete fixture.TEST_LAUNCH_FAULT;
   assert.equal((await cli("plan.launch", key)).data.stage, "develop"); assert.equal(writes().length, 4);
 });
+
+test("losing the entire journal after a confirmed split cannot start a second launch", async t => {
+  const { cli, env, path, requests } = await ready(t);
+  const fixture: NodeJS.ProcessEnv = env;
+  fixture.TEST_LAUNCH_FAULT = "lost-answer";
+  assert.ok((await cli("plan.launch", key)).error);
+  delete fixture.TEST_LAUNCH_FAULT;
+  const before = requests(), state = path("missions/DEMO-1.json"), saved = JSON.parse(readFileSync(state, "utf8"));
+  delete saved.launch; writeFileSync(state, JSON.stringify(saved));
+  for (let i = 0; i < 2; i++) assert.equal((await cli("plan.launch", key)).error?.message, "Les données de reprise du lancement sont endommagées.");
+  assert.deepEqual(requests(), before);
+});
+
+test("Pilot can correct a draft saved with invalid dependencies before this validation existed", async t => {
+  const { cli, path, requests, branch } = await ready(t);
+  const state = path("missions/DEMO-1.json"), saved = JSON.parse(readFileSync(state, "utf8"));
+  saved.plan.tickets[1].after = ["99"]; writeFileSync(state, JSON.stringify(saved));
+  const before = requests(), head = branch("rev-parse", "HEAD");
+  assert.match((await cli("plan.launch", key)).error?.message ?? "", /ticket précédent/);
+  assert.deepEqual(requests(), before); assert.equal(branch("rev-parse", "HEAD"), head);
+  const corrected = await cli("pilot.plan", { ...key, tickets, summary, testMinutes: 30, validationMinutes: 10, advice: "À deux." });
+  assert.deepEqual(corrected.data.plan.tickets, tickets); assert.equal((await cli("plan.launch", key)).data.stage, "develop");
+});

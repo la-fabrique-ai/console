@@ -67,6 +67,14 @@ export function commitSpec(repository: string, m: MissionDetail, date: string) {
   } catch { throw new CommandError("Impossible d’enregistrer la spec et les réponses sur la branche de la mission."); }
 }
 
+const splitFileError = "Impossible d’enregistrer le découpage sur la branche de la mission.";
+
+export function hasCommittedSplit(repository: string, key: string) {
+  try {
+    return Boolean(gitAt(worktree(repository, key), "ls-tree", "HEAD", "--", join("docs", "missions", key, "split.md")).trim());
+  } catch { throw new CommandError(splitFileError); }
+}
+
 export function commitSplit(repository: string, key: string, plan: Plan, date: string) {
   try {
     const split = header(key, date, "Split", "Pilot");
@@ -81,5 +89,5 @@ export function commitSplit(repository: string, key: string, plan: Plan, date: s
         "Parallel schedule: dev " + t.parallel.dev + ", step " + t.parallel.step);
     }
     commitDocuments(repository, key, [["split.md", split]], "Approve ticket plan for ");
-  } catch { throw new CommandError("Impossible d’enregistrer le découpage sur la branche de la mission."); }
+  } catch { throw new CommandError(splitFileError); }
 }

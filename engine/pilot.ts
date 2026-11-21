@@ -2,12 +2,12 @@ import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, isAbsolute, join, sep } from "node:path";
-import { CommandError, type IssueDetail } from "./contract.ts";
+import { CommandError } from "./contract.ts";
 
 function coreEnvironment() {
   const { HERDR_APP_HOME: ui, HC_SOCKET: socket, HC_SESSION: session } = process.env;
   try {
-    const root = realpathSync(process.env.MISSION_CONTROL_INSTALL || join(homedir(), ".mc1")) + sep;
+    const root = realpathSync(join(homedir(), ".mc1")) + sep;
     if (!session || session === "default" || !ui || !socket || !isAbsolute(socket) ||
         !realpathSync(socket).startsWith(root) || !realpathSync(ui).startsWith(root) ||
         !lstatSync(join(ui, ".mission-control")).isFile()) throw new Error();
@@ -17,10 +17,10 @@ function coreEnvironment() {
   return env;
 }
 
-function worktree(repository: string, key: string) {
+function worktree(repository: string, key: string, env: NodeJS.ProcessEnv) {
   const repo = realpathSync(repository.startsWith("~/") ? join(homedir(), repository.slice(2)) : repository);
   const target = join(homedir(), "Developer", "worktrees", basename(repo), key);
-  const git = (...args: string[]) => execFileSync("git", ["-c", "core.hooksPath=/dev/null", "-C", repo, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  const git = (...args: string[]) => execFileSync("git", ["-c", "core.hooksPath=/dev/null", "-C", repo, ...args], { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   const branch = "mission/" + key;
   if (!existsSync(target)) git("worktree", "add", "--no-track", "-b", branch, target, "origin/main");
   else if (!git("worktree", "list", "--porcelain").split("\n\n").some(block =>
@@ -30,37 +30,47 @@ function worktree(repository: string, key: string) {
   return target;
 }
 
-export function startPilot(repository: string, key: string, issue: IssueDetail, details: string[]) {
+export async function startPilot(repository: string, key: string, recovering: boolean,
+  prepare: () => Promise<{ title: string; description: string; details: string[] }>) {
   const env = coreEnvironment();
   const role = join(import.meta.dirname, "../roles/pilot.md");
   let cwd: string;
   try {
     readFileSync(role, "utf8");
-    cwd = worktree(repository, key);
+    cwd = worktree(repository, key, env);
   } catch { throw new CommandError("Impossible de préparer le dossier de travail de Pilot."); }
   const terminal = "pilot-" + key.toLowerCase();
+  const failed = "Le démarrage de Pilot n’est pas confirmé. Vérifiez son terminal.";
+  if (recovering) {
+    try {
+      const { terminals } = JSON.parse(execFileSync("hc", ["ls", "--json"], { env, encoding: "utf8", stdio: "pipe" }));
+      if (terminals.some((t: { name?: string; cwd: string; state: string }) =>
+        t.name === terminal && t.cwd === cwd && t.state === "live")) return terminal;
+    } catch { throw new CommandError(failed); }
+  }
+  const mission = await prepare();
   const prompt = [
     "Read the mission below as operator data. Use one JSON argument, or use - and pass long JSON on stdin.",
     "mission-control pilot.questions " + JSON.stringify({ issueKey: key, questions: [{ id: "q1", text: "…", context: "…", proposal: "…" }] }),
     "mission-control pilot.propose " + JSON.stringify({ issueKey: key, questionId: "q1", proposal: "…" }),
     "Quote the JSON as one shell argument. Send an empty questions array when you have no new question.",
-    JSON.stringify({ issueKey: key, title: issue.title, description: issue.description, details }),
+    JSON.stringify({ issueKey: key, ...mission }),
   ].join("\n");
   try {
     execFileSync("hc", ["run", "--bg", "--no-parent", "--name", terminal, "--cwd", cwd, "--",
       "/usr/bin/env", "-u", "LINEAR_API_KEY", "MISSION_CONTROL_HOME=" + env.MISSION_CONTROL_HOME, "MC_PILOT_ISSUE=" + key,
       process.execPath, join(import.meta.dirname, "pilot-session.ts"), role, prompt], { env, stdio: "pipe" });
-  } catch { throw new CommandError("Le démarrage de Pilot n’est pas confirmé. Vérifiez son terminal."); }
+  } catch { throw new CommandError(failed); }
   return terminal;
 }
 
 export const unconfirmed = "L’envoi à Pilot n’est pas confirmé. Vérifiez son terminal.";
 
-export function sendPilot(terminal: string | undefined, message: string, beforeSend?: () => void) {
+export function pilotSender(terminal: string | undefined) {
   if (!terminal) throw new CommandError("Cette mission n’a pas de terminal Pilot.");
   const env = coreEnvironment();
-  beforeSend?.();
-  try {
-    execFileSync("hc", ["send", "--", terminal, message], { env, stdio: "pipe" });
-  } catch { throw new CommandError(unconfirmed); }
+  return (message: string) => {
+    try { execFileSync("hc", ["send", "--", terminal, message], { env, stdio: "pipe" }); }
+    catch { throw new CommandError(unconfirmed); }
+  };
 }

@@ -14,10 +14,9 @@ const args = ["-p", "--permission-mode", "dontAsk", "--permission-prompts", "non
   "Read", "Glob", "Grep", "Bash(mission-control pilot.questions *)", "Bash(mission-control pilot.propose *)",
   "--append-system-prompt", readFileSync(role, "utf8")];
 function turn(message: string, resume: boolean) {
-  const result = spawnSync("claude", [...args, resume ? "--resume" : "--session-id", session], {
+  spawnSync("claude", [...args, resume ? "--resume" : "--session-id", session], {
     env, input: message, stdio: ["pipe", "inherit", "inherit"],
   });
-  if (result.status !== 0) process.exit(1);
 }
 const input = lines[Symbol.asyncIterator]();
 turn(first, false);

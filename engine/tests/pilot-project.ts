@@ -9,11 +9,11 @@ export function setup(t: TestContext) {
   const root = mkdtempSync(join(tmpdir(), "mc-prepare-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const path = (...p: string[]) => join(root, ...p);
-  for (const dir of ["roles", "ui", "run", "bin", "repo"]) mkdirSync(path(dir));
+  for (const dir of ["roles", ".mc1", ".mc1/ui", ".mc1/run", "bin", "repo"]) mkdirSync(path(dir));
   cpSync(join(import.meta.dirname, ".."), path("engine"), { recursive: true });
   writeFileSync(path("roles/pilot.md"), "Pilot role fixture");
-  writeFileSync(path("ui/.mission-control"), "");
-  writeFileSync(path("run/core.sock"), "stand-in socket");
+  writeFileSync(path(".mc1/ui/.mission-control"), "");
+  writeFileSync(path(".mc1/run/core.sock"), "stand-in socket");
   const git = (...args: string[]) => execFileSync("git", ["-C", path("repo"), ...args], { encoding: "utf8" }).trim();
   git("init", "-q", "-b", "main");
   git("-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-q", "--allow-empty", "-m", "Base");
@@ -22,11 +22,22 @@ export function setup(t: TestContext) {
   writeFileSync(path("settings.json"), JSON.stringify({ teamKey: "DEMO", allowedIssueKeys: ["DEMO-1"], repository: path("repo") }));
   writeFileSync(path("bin/hc"), `#!${process.execPath}
 const fs = require("node:fs");
-fs.appendFileSync(process.env.MISSION_CONTROL_HOME + "/calls", JSON.stringify(process.argv.slice(2)) + "\\n");
-if (fs.existsSync(process.env.MISSION_CONTROL_HOME + "/offline")) process.exit(1);
+if ("LINEAR_API_KEY" in process.env) process.exit(96);
+const home = process.env.MISSION_CONTROL_HOME, args = process.argv.slice(2);
+fs.appendFileSync(home + "/calls", JSON.stringify(process.argv.slice(2)) + "\\n");
+if (args[0] === "ls") console.log(fs.readFileSync(home + "/live", "utf8"));
+const callback = home + "/" + args[0] + ".callback";
+if (fs.existsSync(callback)) {
+  const [action, payload] = JSON.parse(fs.readFileSync(callback));
+  const call = (a, p) => require("node:child_process").execFileSync(process.execPath,
+    [home + "/engine/cli.ts", a, JSON.stringify(p)], { timeout: 2500, encoding: "utf8" });
+  fs.writeFileSync(callback + ".result", call(action, payload));
+  fs.writeFileSync(callback + ".screen", call(args[0] === "run" ? "missions.list" : "missions.show", {issueKey: payload.issueKey}));
+}
+if (args[0] !== "ls" && fs.existsSync(home + "/offline")) process.exit(1);
 `, { mode: 0o700 });
-  const env = { MISSION_CONTROL_HOME: root, MISSION_CONTROL_INSTALL: root, HC_SESSION: "mc1",
-    HERDR_APP_HOME: path("ui"), HC_SOCKET: path("run/core.sock"), PATH: path("bin") + ":/usr/bin:/bin" };
+  const env = { MISSION_CONTROL_HOME: root, HC_SESSION: "mc1",
+    HERDR_APP_HOME: path(".mc1/ui"), HC_SOCKET: path(".mc1/run/core.sock"), PATH: path("bin") + ":/usr/bin:/bin" };
   writeFileSync(path("home.mjs"), `import os from 'node:os'; import {syncBuiltinESMExports} from 'node:module';
 os.homedir = () => process.env.MISSION_CONTROL_HOME; syncBuiltinESMExports();`);
   const cliArgs = ["--import", path("home.mjs"), "--import", path("engine/tests/linear-fixture.ts"), path("engine/cli.ts")];

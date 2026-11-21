@@ -52,7 +52,8 @@ export default class MissionControl extends View {
   issueError = "";
   /** Why the operator's last gesture failed; shown in the composer. */
   requestError = "";
-  creating = false;
+  /** The issues whose request is being validated. */
+  creating = new Set<string>();
   /** The open mission as the engine knows it: Pilot's questions and the answers. */
   detail: MissionDetail | null = null;
   tab: "request" | "questions" = "questions";
@@ -63,7 +64,8 @@ export default class MissionControl extends View {
   inputs: Partial<Record<Field, InputState>> = {};
   /** Why the mission could not be read. */
   detailError = "";
-  sending = false;
+  /** The missions with a gesture on its way to the engine. */
+  sending = new Set<string>();
   sends = 0;
   /** The opening whose mission is being read: one reading at a time, so a slow one is never overtaken. */
   reading = 0;
@@ -135,7 +137,7 @@ export default class MissionControl extends View {
   /** Reads the open mission again. A reply that crossed an action of the operator is dropped. */
   follow(cx: Spawner) {
     const key = this.requested;
-    if (this.page !== "request" || !this.mission(key) || this.sending) return;
+    if (this.page !== "request" || !this.mission(key) || this.sending.has(key)) return;
     const turn = this.opens;
     const sends = this.sends;
     if (this.reading === turn) return;
@@ -152,6 +154,11 @@ export default class MissionControl extends View {
     });
   }
 
+  /** A gesture about the page on screen is on its way: its button and its field wait for the engine. */
+  busy(): boolean {
+    return this.sending.has(this.requested) || this.creating.has(this.requested);
+  }
+
   /** What is written belongs to the question on screen: it never follows the operator to another one. */
   clear() {
     for (const field of ["answer", "again", "tell"] as const) this.inputs[field]?.set_value("");
@@ -159,16 +166,17 @@ export default class MissionControl extends View {
 
   /** One gesture of the operator towards Pilot; the button is off until the engine answers. */
   send<A extends "questions.validate" | "questions.reply" | "pilot.tell">(action: A, payload: Payloads[A], cx: Context, field?: Field) {
-    if (this.sending) return;
+    const key = payload.issueKey;
+    if (this.sending.has(key)) return;
     const turn = this.opens;
     this.clear(); // what was written is on its way; it comes back to its field if the engine refuses it
-    this.sending = true;
+    this.sending.add(key);
     this.sends++;
     this.requestError = "";
     cx.notify();
     cx.spawn(async (cx) => {
       const reply = await call(action, payload);
-      this.sending = false;
+      this.sending.delete(key);
       if (turn === this.opens) {
         if ("data" in reply) {
           this.detail = reply.data as MissionDetail;
@@ -185,14 +193,14 @@ export default class MissionControl extends View {
 
   validate(cx: Context) {
     const issue = this.issue;
-    if (!issue || this.creating) return;
+    if (!issue || this.creating.has(issue.key)) return;
     const turn = this.opens;
-    this.creating = true;
+    this.creating.add(issue.key);
     this.requestError = "";
     cx.notify();
     cx.spawn(async (cx) => {
       const reply = await call("missions.create", { issueKey: issue.key, details: this.details });
-      this.creating = false;
+      this.creating.delete(issue.key);
       if ("data" in reply) this.missions = [...(this.missions ?? []).filter((mission) => mission.issueKey !== issue.key), reply.data];
       else if (turn === this.opens) this.requestError = reply.error.message;
       this.refresh(cx);
@@ -332,7 +340,7 @@ export default class MissionControl extends View {
     sendHint = "", send: ((text: string, cx: Context) => void) | null = null): NativeElement {
     const input = this.inputs[field];
     const text = send ? input?.value().trim() ?? "" : "";
-    const role = this.sending || this.creating ? "off" : text ? "send" : validate ? "validate" : "off";
+    const role = this.busy() ? "off" : text ? "send" : validate ? "validate" : "off";
     const button = h_flex().id("validate").flex_none().h(40).px(18).items_center().rounded(10).border_1().text_size(14.5).font_semibold()
       .border_color(role === "off" ? "#2A2F40" : role === "send" ? "#6B6CF5" : "#2FA37A")
       .bg(role === "off" ? "#262B3A" : role === "send" ? "#6B6CF5" : "#1F7A5C").text_color(role === "off" ? "#8C93A6" : "#ffffff")
@@ -342,7 +350,7 @@ export default class MissionControl extends View {
       .child(v_flex().rounded(14).border_1().border_color(text ? "#4A52A8" : "#3A4052").bg("#0F1219").overflow_hidden()
         .child(div().min_h(66).px(18).pt(16).pb(18).text_size(15).text_color("#E6E9F0")
           // No field while a gesture is on its way: nothing can be written that the answer would erase.
-          .child(input && send && !this.sending && !this.creating ? Input.new(input) : div().text_color("#6F7689").child(FIELDS[field])))
+          .child(input && send && !this.busy() ? Input.new(input) : div().text_color("#6F7689").child(FIELDS[field])))
         .child(h_flex().items_center().gap(12).pl(18).pr(10).py(10).border_t_1().border_color("#2A2F40").bg("#1B1F2B")
           .child(div().flex_1().min_w_0().truncate().text_size(13.5).text_color(this.requestError ? "#F2C14E" : "#8C93A6")
             .child(this.requestError || (text ? sendHint : hint)))
@@ -461,7 +469,7 @@ export default class MissionControl extends View {
     const rows = [
       ...questions.map((question, index) => this.line(this.badge(question, index), question.text, question.answer ?? "", this.tone(question), question === current)
         .id(`question-${question.id}`).cursor_pointer().on_click((_event, cx) => {
-          if (this.sending) return; // the gesture on its way belongs to the question on screen
+          if (this.busy()) return; // the gesture on its way belongs to the question on screen
           this.viewing = question.id;
           this.clear();
           cx.notify();

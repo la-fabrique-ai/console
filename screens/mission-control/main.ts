@@ -682,35 +682,44 @@ export default class MissionControl extends View {
     const on = !launched && this.ticket === ticket.id;
     const section = (label: string, lines: NativeElement[]) => v_flex().mt(8).pt(10).gap(3).border_t_1().border_color("#2A2F40").text_size(12.5).text_color("#A3AABB")
       .when(label, (el) => el.child(div().mb(1).text_size(10.5).font_semibold().text_color("#6F7689").child(label))).children(lines);
-    return v_flex().id(`ticket-${ticket.id}`).flex_none().w(compact ? 207 : 241).gap(6).px(compact ? 13 : 15).py(compact ? 12 : 14).rounded(10).border_1()
+    const card = v_flex().id(`ticket-${ticket.id}`).flex_none().w(compact ? 207 : 241).px(compact ? 13 : 15).py(compact ? 12 : 14).rounded(10).border_1()
       .border_color(on ? "#E6E9ED" : ticket.sensitive ? "#6E5BD6" : "#2A2F40").bg(ticket.sensitive ? "#221D3A" : "#1B1F2B")
       .when(!launched, (el) => el.cursor_pointer().on_click((_event, cx) => {
         this.ticket = on ? "" : ticket.id;
         cx.notify();
-      }))
-      .child(h_flex().min_h(20).items_center().gap(6).text_size(11).text_color("#8C93A6")
-        .child(div().font_family("JetBrains Mono").child(ticket.key ? `${ticket.id} · ${ticket.key}` : ticket.id))
-        .child(div().flex_1())
-        .when(ticket.after.length > 0, (el) => el.child(div().text_color("#6F7689").child(`après ${ticket.after.join(", ")}`)))
-        .when(compact, (el) => el.child(this.devBadge(ticket.parallel.dev, plan.team[ticket.parallel.dev - 1] ?? "claude"))))
-      .child(div().text_size(compact ? 14.5 : 15.5).font_semibold().text_color("#ffffff").child(ticket.title))
-      .child(div().text_size(compact ? 13 : 13.5).text_color(compact ? "#A3AABB" : "#C9CFDB").child(ticket.change))
-      .when(!compact, (el) => el.child(section("COMMENT", [div().child(ticket.how)])))
-      .child(section(compact ? "" : "COUVRE, DANS LA SPEC", ticket.covers.map((line) => h_flex().items_start().gap(6)
-        .child(div().flex_none().text_size(10).text_color("#3DD6B0").child("✓")).child(div().flex_1().min_w_0().child(line)))))
-      .child(h_flex().mt(8).min_h(20).items_center().gap(6)
-        .when(ticket.sensitive, (el) => el.child(h_flex().h(19).px(6).rounded(5).border_1().border_color("#6E5BD6").bg("#3A2F6B").items_center()
-          .text_size(11).font_semibold().text_color("#E3DAFF").child("Sensible")))
-        .child(div().text_size(12.5).text_color("#C9CFDB").child(`~${duration(ticket.minutes)}`)));
+      }));
+    const top = h_flex().flex_none().min_h(20).items_center().gap(6).text_size(11).text_color("#8C93A6")
+      .child(div().font_family("JetBrains Mono").child(ticket.key ? `${ticket.id} · ${ticket.key}` : ticket.id))
+      .child(div().flex_1())
+      .when(ticket.after.length > 0, (el) => el.child(div().text_color("#6F7689").child(`après ${ticket.after.join(", ")}`)))
+      .when(compact, (el) => el.child(this.devBadge(ticket.parallel.dev, plan.team[ticket.parallel.dev - 1] ?? "claude")));
+    const content = [
+      div().text_size(compact ? 14.5 : 15.5).font_semibold().text_color("#ffffff").child(ticket.title),
+      div().text_size(compact ? 13 : 13.5).text_color(compact ? "#A3AABB" : "#C9CFDB").child(ticket.change),
+      ...(compact ? [] : [section("COMMENT", [div().child(ticket.how)])]),
+      section(compact ? "" : "COUVRE, DANS LA SPEC", ticket.covers.map((line) => h_flex().items_start().gap(6)
+        .child(div().flex_none().text_size(10).text_color("#3DD6B0").child("✓")).child(div().flex_1().min_w_0().child(line)))),
+    ];
+    const foot = h_flex().flex_none().mt(8).min_h(20).items_center().gap(6)
+      .when(ticket.sensitive, (el) => el.child(h_flex().h(19).px(6).rounded(5).border_1().border_color("#6E5BD6").bg("#3A2F6B").items_center()
+        .text_size(11).font_semibold().text_color("#E3DAFF").child("Sensible")))
+      .child(div().text_size(12.5).text_color("#C9CFDB").child(`~${duration(ticket.minutes)}`));
+    // One dev: the card takes the height of the board, its text scrolls, its foot stays in view.
+    // Two devs: a short card in its dev's line, as tall as its text.
+    return compact ? card.gap(6).child(top).children(content).child(foot)
+      : card.h_full().gap(6).child(top)
+        .child(v_flex().id(`ticket-text-${ticket.id}`).flex_1().min_h_0().overflow_y_scrollbar().gap(6).children(content))
+        .child(foot);
   }
 
   /** Test and validation close the plan: drawn like tickets, with a dashed border. */
   closingCard(sign: string, title: string, text: string, time: string, compact: boolean): NativeElement {
-    return v_flex().flex_none().w(compact ? 207 : 241).gap(6).px(compact ? 13 : 15).py(compact ? 12 : 14).rounded(10).border_1().border_dashed().border_color("#3A4052").bg("#1B1F2B")
+    const card = v_flex().flex_none().w(compact ? 207 : 241).gap(6).px(compact ? 13 : 15).py(compact ? 12 : 14).rounded(10).border_1().border_dashed().border_color("#3A4052").bg("#1B1F2B")
       .child(div().text_size(11).text_color("#A9B4FF").child(sign))
       .child(div().text_size(compact ? 14.5 : 15.5).font_semibold().text_color("#ffffff").child(title))
-      .child(div().text_size(13).text_color("#A3AABB").child(text))
-      .child(div().mt(8).text_size(12.5).text_color("#C9CFDB").child(time));
+      .child(div().text_size(13).text_color("#A3AABB").child(text));
+    const foot = div().mt(8).text_size(12.5).text_color("#C9CFDB").child(time);
+    return compact ? card.child(foot) : card.h_full().child(div().flex_1()).child(foot); // as tall as the tickets beside it
   }
 
   planBody(detail: MissionDetail): NativeElement {
@@ -821,9 +830,9 @@ export default class MissionControl extends View {
         .children(steps.map((step) => v_flex().flex_none().w(207).gap(12).children(step.filter((ticket) => ticket.parallel.dev === dev).map((ticket) => this.ticketCard(ticket, plan, true)))));
     };
     const board = devs === 1
-      ? h_flex().id("plan-board").flex_1().min_h_0().overflow_x_scrollbar().items_start().gap(12)
+      ? h_flex().id("plan-board").flex_1().min_h_0().overflow_x_scrollbar().items_stretch().gap(12)
         .children([...tickets.map((ticket) => this.ticketCard(ticket, plan, false)), ...closings(false)])
-      : v_flex().id("plan-board").flex_1().min_h_0().overflow_x_scrollbar().gap(12)
+      : v_flex().id("plan-board").flex_1().min_h_0().overflow_scrollbar().gap(12)
         .child(h_flex().gap(12).child(div().flex_none().w(118)).children(steps.map((_step, index) => band(`ÉTAPE ${index + 1}`, 207))).child(band("TESTER ET VALIDER", 207)))
         .child(h_flex().items_start().gap(12)
           .child(v_flex().gap(12).child(lane(1)).child(lane(2)))

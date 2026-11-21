@@ -74,6 +74,8 @@ export async function startPilot(repository: string, key: string, recovering: bo
     "mission-control pilot.questions " + JSON.stringify({ issueKey: key, questions: [{ id: "q1", text: "…", context: "…", proposal: "…" }] }),
     "mission-control pilot.propose " + JSON.stringify({ issueKey: key, questionId: "q1", proposal: "…" }),
     "For spec.write or spec.change, return the complete version with mission-control pilot.spec, including note and sections (title, passages with text, source, and changed for revised passages).",
+    "On spec.validate, split the spec. Send mission-control pilot.ticket for each discovery with issueKey and ticket (id, title, change).",
+    "Finish with mission-control pilot.plan: issueKey, tickets (id, title, change, how, covers, after, minutes, sensitive, parallel with dev and step), testMinutes, validationMinutes, advice and a short spec summary in summary. Write for the project in its language.",
     "Quote the JSON as one shell argument. Send an empty questions array when you have no new question.",
     JSON.stringify({ issueKey: key, ...mission }),
   ].join("\n");

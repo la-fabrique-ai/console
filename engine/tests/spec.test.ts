@@ -213,10 +213,10 @@ test("answers freeze from the spec request, while late callbacks still settle qu
       ["pilot.questions", { ...key, questions: [{ ...question, id: "late" }] }],
     ] as const) {
       const tell = (await cli("pilot.tell", { ...key, text: "Une précision" })).data;
-      assert.equal(tell.pilotBusy, phase === "writing" ? "spec" : "questions");
+      assert.equal(tell.pilotBusy, phase === "writing" ? "spec" : phase === "validated" ? "split" : "questions");
       const latest = (await cli(action, args)).data;
       assert.deepEqual(latest.questions, initial);
-      assert.equal(latest.pilotBusy, phase === "writing" ? "spec" : undefined);
+      assert.equal(latest.pilotBusy, phase === "writing" ? "spec" : phase === "validated" ? "split" : undefined);
     }
   }
 });

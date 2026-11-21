@@ -1,6 +1,8 @@
 // Linear's public GraphQL API: https://linear.app/developers/filtering and /pagination.
 // Each process gets synthetic credentials and a local replacement for its HTTP boundary.
 import { randomUUID } from "node:crypto";
+import { appendFileSync } from "node:fs";
+import { join } from "node:path";
 import assert from "node:assert/strict";
 
 if (!process.env.TEST_NO_KEY) process.env.LINEAR_API_KEY = " " + randomUUID() + " ";
@@ -8,13 +10,15 @@ globalThis.fetch = async (url, init) => {
   assert.equal(String(url), "https://api.linear.app/graphql");
   assert.equal(init?.method, "POST");
   assert.ok(new Headers(init.headers).get("Authorization") === process.env.LINEAR_API_KEY?.trim());
+  const request = JSON.parse(String(init.body));
+  appendFileSync(join(process.env.MISSION_CONTROL_HOME!, "linear-requests"), JSON.stringify(request) + "\n");
   switch (process.env.TEST_LINEAR_FAILURE) {
     case "unauthorized": return new Response(null, { status: 401 });
     case "network": throw new TypeError("fetch failed");
     case "http": return new Response(null, { status: 503 });
     case "graphql": return Response.json({ errors: [{ message: "Internal diagnostic" }] });
   }
-  const { query, variables: { filter, after } } = JSON.parse(String(init.body));
+  const { query, variables: { filter, after } } = request;
   assert.match(query, /issues\s*\([^)]*filter:\s*\$filter/);
   assert.equal(filter.team.key.eq, "DEMO");
   const issues = [

@@ -50,6 +50,7 @@ export function specGesture(dir: string, key: string, gesture: SpecGesture) {
           saveMission(dir, m);
           commitSpec(gesture.repository, m, m.validationDate);
           m.spec!.validated = true;
+          m.pilotBusy = "split";
           delete m.validationDate;
         } };
       }

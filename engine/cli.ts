@@ -7,6 +7,7 @@ import { CommandError, type Action, type Payloads, type Reply, type Results } fr
 
 import { askQuestions, propose, deliver } from "./questions.ts";
 import { receiveSpec, specGesture } from "./spec.ts";
+import { chooseTeam, completePlan, foundTicket, incompletePlan } from "./plan.ts";
 import { startPilot } from "./pilot.ts";
 
 interface Settings { teamKey: string; allowedIssueKeys: string[]; repository: string }
@@ -32,11 +33,12 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
     failure = reading;
     const payload: Payloads[A] = JSON.parse(json === "-" ? readFileSync(0, "utf8") : json);
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new CommandError(failure);
-    if (process.env.MC_PILOT_ISSUE && (!(action === "pilot.questions" || action === "pilot.propose" || action === "pilot.spec") ||
+    if (process.env.MC_PILOT_ISSUE && (!(action === "pilot.questions" || action === "pilot.propose" || action === "pilot.spec" ||
+        action === "pilot.ticket" || action === "pilot.plan") ||
         !("issueKey" in payload) || payload.issueKey !== process.env.MC_PILOT_ISSUE)) {
       throw new Error("Invalid Pilot callback");
     }
-    if (action.startsWith("questions.") || action.startsWith("pilot.") || action.startsWith("spec.")) {
+    if (action.startsWith("plan.") || action.startsWith("questions.") || action.startsWith("pilot.") || action.startsWith("spec.")) {
       issueNumber("issueKey" in payload ? payload.issueKey : undefined, teamKey);
     }
     function update(key: string, change: (mission: SavedMission) => void) {
@@ -57,6 +59,10 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
       "spec.change": p => specGesture(dir, p.issueKey, { action: "spec.change", text: p.text }),
       "spec.validate": p => specGesture(dir, p.issueKey, { action: "spec.validate", repository }),
       "pilot.spec": p => update(p.issueKey, m => receiveSpec(m, p)),
+      "pilot.ticket": p => update(p.issueKey, m => foundTicket(m, p.ticket)),
+      "pilot.plan": p => update(p.issueKey, m => completePlan(m, p)),
+      "plan.team": p => update(p.issueKey, m => chooseTeam(m, p.team)),
+      "plan.launch": () => { throw incompletePlan(); },
       "missions.list": () => listMissions(dir),
       "issues.list": async () => {
         failure = "Impossible de lire les tickets dans Linear.";

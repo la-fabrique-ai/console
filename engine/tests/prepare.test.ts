@@ -80,6 +80,7 @@ fs.appendFileSync(env.MISSION_CONTROL_HOME + "/turns", JSON.stringify([argv.slic
     assert.deepEqual(flagValues("--tools"), ["Read,Glob,Grep,Bash"]);
     assert.deepEqual(flagValues("--allowedTools"), [
       "Read", "Glob", "Grep", "Bash(mission-control pilot.questions *)", "Bash(mission-control pilot.propose *)", "Bash(mission-control pilot.spec *)",
+      "Bash(mission-control pilot.ticket *)", "Bash(mission-control pilot.plan *)",
     ]);
   }
   assert.ok(first[0].includes("--restricted"));

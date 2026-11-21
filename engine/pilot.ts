@@ -27,8 +27,11 @@ export function worktree(repository: string, key: string, create = false) {
   const repo = realpathSync(repository.startsWith("~/") ? join(homedir(), repository.slice(2)) : repository);
   const target = join(homedir(), "Developer", "worktrees", basename(repo), key);
   const branch = "mission/" + key;
-  if (create && !existsSync(target)) gitAt(repo, "worktree", "add", "--no-track", "-b", branch, target, "origin/main");
-  else {
+  if (create && !existsSync(target)) {
+    try { gitAt(repo, "fetch", "--no-tags", "--no-recurse-submodules", "origin", "+refs/heads/main:refs/remotes/origin/main"); }
+    catch { throw new CommandError("Impossible de récupérer la branche principale du projet."); }
+    gitAt(repo, "worktree", "add", "--no-track", "-b", branch, target, "origin/main");
+  } else {
     const root = realpathSync(target);
     const common = gitAt(repo, "rev-parse", "--path-format=absolute", "--git-common-dir").trim();
     const gitDir = gitAt(target, "rev-parse", "--absolute-git-dir").trim();
@@ -48,7 +51,10 @@ export async function startPilot(repository: string, key: string, recovering: bo
   try {
     readFileSync(role, "utf8");
     cwd = worktree(repository, key, true);
-  } catch { throw new CommandError("Impossible de préparer le dossier de travail de Pilot."); }
+  } catch (error) {
+    if (error instanceof CommandError) throw error;
+    throw new CommandError("Impossible de préparer le dossier de travail de Pilot.");
+  }
   const terminal = "pilot-" + key.toLowerCase();
   const failed = "Le démarrage de Pilot n’est pas confirmé. Vérifiez son terminal.";
   if (recovering) {

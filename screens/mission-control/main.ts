@@ -4,13 +4,36 @@
 import { View, div, type Context, type NativeElement } from "gpui-kit";
 import { v_flex, h_flex, TextView, InputState, Input } from "gpui-base";
 import { exec, checking, props } from "herdr";
-import type { Action, IssueDetail, IssueSummary, Mission, MissionDetail, Payloads, Question, Reply, Stage } from "../../engine/contract.ts";
+import type { Action, IssueDetail, IssueSummary, Mission, MissionDetail, Payloads, Plan, PlanTicket, Question, Reply, Stage, Tool } from "../../engine/contract.ts";
 
 type Page = "issues" | "request" | "development";
 type Spawner = Pick<Context, "spawn">;
 type Field = "request" | "answer" | "again" | "tell" | "change";
-type Tab = "request" | "questions" | "spec";
-const TABS: Tab[] = ["request", "questions", "spec"];
+type Tab = "request" | "questions" | "spec" | "plan";
+const TABS: Tab[] = ["request", "questions", "spec", "plan"];
+const TOOLS: Record<Tool, string> = { claude: "Claude", codex: "Codex" };
+
+/** "45 min", "3 h", "3 h 10". */
+function duration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return hours === 0 ? `${rest} min` : rest === 0 ? `${hours} h` : `${hours} h ${String(rest).padStart(2, "0")}`;
+}
+
+/** The steps of a plan built by two devs: at each step, each dev builds its tickets while the other builds its own. */
+function stepsOf(tickets: PlanTicket[]): PlanTicket[][] {
+  const steps: PlanTicket[][] = [];
+  for (const ticket of tickets) (steps[ticket.parallel.step - 1] ??= []).push(ticket);
+  return Array.from(steps, (step) => step ?? []);
+}
+
+/** Minutes of development with this many devs: one after the other, or step by step with the slower dev setting the pace. */
+function development(tickets: PlanTicket[], devs: number): number {
+  const sum = (list: PlanTicket[]) => list.reduce((total, ticket) => total + ticket.minutes, 0);
+  if (devs === 1) return sum(tickets);
+  return stepsOf(tickets).reduce((total, step) =>
+    total + Math.max(sum(step.filter((ticket) => ticket.parallel.dev === 1)), sum(step.filter((ticket) => ticket.parallel.dev === 2))), 0);
+}
 type Tone = "todo" | "done" | "fixed";
 
 // A field keeps the placeholder it was created with: one field per placeholder.
@@ -61,6 +84,8 @@ export default class MissionControl extends View {
   detail: MissionDetail | null = null;
   /** The step the operator chose to look at; none: the one the preparation has reached. */
   tab: Tab | "" = "";
+  /** The ticket of the plan the operator is looking at; none: the estimate. */
+  ticket = "";
   /** How many times the operator chose a step: a gesture's answer never undoes a choice made meanwhile. */
   choices = 0;
   /** The question the operator chose to look at; none: the first one still open. */
@@ -127,6 +152,7 @@ export default class MissionControl extends View {
     this.detailError = "";
     this.tab = "";
     this.viewing = "";
+    this.ticket = "";
     this.details = [];
     for (const input of Object.values(this.inputs)) input.set_value("");
     cx.notify();
@@ -171,7 +197,7 @@ export default class MissionControl extends View {
   }
 
   /** One gesture of the operator towards Pilot; the button is off until the engine answers. */
-  send<A extends "questions.validate" | "questions.reply" | "pilot.tell" | "spec.write" | "spec.change" | "spec.validate">(action: A, payload: Payloads[A], cx: Context, field?: Field) {
+  send<A extends "questions.validate" | "questions.reply" | "pilot.tell" | "spec.write" | "spec.change" | "spec.validate" | "plan.team" | "plan.launch">(action: A, payload: Payloads[A], cx: Context, field?: Field) {
     const key = payload.issueKey;
     if (this.sending.has(key)) return;
     const turn = this.opens;
@@ -190,7 +216,7 @@ export default class MissionControl extends View {
           // A reply stays on its question, to see Pilot's new proposal; a validation moves on.
           this.viewing = action === "questions.reply" ? (payload as Payloads["questions.reply"]).questionId : "";
           // On to the step the preparation has reached, unless the operator chose another one meanwhile.
-          if (action === "spec.write" && this.choices === choices) this.tab = "";
+          if ((action === "spec.write" || action === "spec.validate") && this.choices === choices) this.tab = "";
         } else {
           this.requestError = reply.error.message;
           // A refused text comes back to its field only if the operator is still on its step.
@@ -320,9 +346,10 @@ export default class MissionControl extends View {
     return h_flex().items_center().gap(10).children(parts);
   }
 
-  /** The step the preparation has reached: 0 the request, 1 the questions, 2 the spec. */
+  /** The step the preparation has reached: 0 the request, 1 the questions, 2 the spec, 3 the plan. */
   reached(created: boolean): number {
-    return !created ? 0 : this.detail?.spec || this.detail?.pilotBusy === "spec" ? 2 : 1;
+    const detail = this.detail;
+    return !created ? 0 : detail?.plan || detail?.spec?.validated ? 3 : detail?.spec || detail?.pilotBusy === "spec" ? 2 : 1;
   }
 
   /** The four steps of the preparation. A step that was reached opens its page. */
@@ -332,17 +359,18 @@ export default class MissionControl extends View {
     const questions = this.detail?.questions ?? [];
     const answers = questions.filter((question) => question.answer !== undefined).length;
     const spec = this.detail?.spec;
+    const plan = this.detail?.plan;
     const smalls = [
       created ? "validée" : "",
       !questions.length ? "" : current > 1 ? (answers === 1 ? "1 réponse" : `${answers} réponses`) : `${answers} sur ${questions.length}`,
       !spec ? "" : spec.validated ? `validée · v${spec.version}` : "à relire",
-      "",
+      current < 3 ? "" : !plan?.tickets.length ? "en cours" : plan.tickets.length === 1 ? "1 ticket" : `${plan.tickets.length} tickets`,
     ];
     const parts: NativeElement[] = [];
     STEPS.forEach((name, index) => {
       if (index > 0) parts.push(div().text_size(13).text_color("#4A5066").child("›"));
       const on = index === shown;
-      const done = !on && (index < current || (index === 2 && spec?.validated === true));
+      const done = !on && index < current || (index === 3 && plan?.launched === true);
       const small = smalls[index];
       const pill = h_flex().id(`step-${index}`).h(30).items_center().gap(8).pl(5).pr(13).rounded(15).border_1()
         .border_color(on ? "#4A52A8" : "#2A2F40").bg(on ? "#1C2040" : CLEAR).text_size(13.5).text_color(on ? "#ffffff" : done ? "#C9CFDB" : "#8C93A6")
@@ -630,11 +658,209 @@ export default class MissionControl extends View {
         this.waiting("Pilot met la spec à jour", "Il vérifie ce que ça change ailleurs, puis réécrit ce qui doit l’être")] : [this.said(spec.note)]),
       document,
     ];
-    const composer = spec.validated ? this.composer("change", "la spec est dans le projet · le plan arrive avec la prochaine étape", "Spec validée", null)
+    const composer = spec.validated ? this.composer(null, "la spec est dans le projet · la suite est à l’étape Plan", "Spec validée", null)
       : pending ? this.composer("change", "Pilot réécrit ce qui change, le reste ne bouge pas.", "Pilot met la spec à jour…", null)
       : this.composer("change", "ou validez la spec · Pilot découpe ensuite en tickets", "✓  Valider la spec", (cx) => this.send("spec.validate", { issueKey: key }, cx),
         "Pilot met la spec à jour · vous validez ensuite", (text, cx) => this.send("spec.change", { issueKey: key, text }, cx, "change"));
     return page(content, composer);
+  }
+
+  // ---- the plan (mockups 17 to 21, 26) ---------------------------------------
+  devBadge(dev: number, tool: Tool): NativeElement {
+    const claude = tool === "claude";
+    return h_flex().flex_none().min_w(26).h(20).px(5).rounded(10).border_1().border_color(claude ? "#C9A27B" : "#7B8CFF").items_center().justify_center()
+      .text_size(11).font_bold().text_color(claude ? "#F0D6B8" : "#C9D0FF").child(`D${dev}`);
+  }
+
+  ticketCard(ticket: PlanTicket, plan: Plan, compact: boolean): NativeElement {
+    const on = this.ticket === ticket.id;
+    const section = (label: string, lines: NativeElement[]) => v_flex().mt(8).pt(10).gap(3).border_t_1().border_color("#2A2F40").text_size(12.5).text_color("#A3AABB")
+      .when(label, (el) => el.child(div().mb(1).text_size(10.5).font_semibold().text_color("#6F7689").child(label))).children(lines);
+    return v_flex().id(`ticket-${ticket.id}`).flex_none().w(compact ? 207 : 241).gap(6).px(compact ? 13 : 15).py(compact ? 12 : 14).rounded(10).border_1()
+      .border_color(on ? "#E6E9ED" : ticket.sensitive ? "#6E5BD6" : "#2A2F40").bg(ticket.sensitive ? "#221D3A" : "#1B1F2B")
+      .cursor_pointer().on_click((_event, cx) => {
+        this.ticket = on ? "" : ticket.id;
+        cx.notify();
+      })
+      .child(h_flex().min_h(20).items_center().gap(6).text_size(11).text_color("#8C93A6")
+        .child(div().font_family("JetBrains Mono").child(ticket.key ? `${ticket.id} · ${ticket.key}` : ticket.id))
+        .child(div().flex_1())
+        .when(ticket.after.length > 0, (el) => el.child(div().text_color("#6F7689").child(`après ${ticket.after.join(", ")}`)))
+        .when(compact, (el) => el.child(this.devBadge(ticket.parallel.dev, plan.team[ticket.parallel.dev - 1] ?? "claude"))))
+      .child(div().text_size(compact ? 14.5 : 15.5).font_semibold().text_color("#ffffff").child(ticket.title))
+      .child(div().text_size(compact ? 13 : 13.5).text_color(compact ? "#A3AABB" : "#C9CFDB").child(ticket.change))
+      .when(!compact, (el) => el.child(section("COMMENT", [div().child(ticket.how)])))
+      .child(section(compact ? "" : "COUVRE, DANS LA SPEC", ticket.covers.map((line) => h_flex().items_start().gap(6)
+        .child(div().flex_none().text_size(10).text_color("#3DD6B0").child("✓")).child(div().flex_1().min_w_0().child(line)))))
+      .child(h_flex().mt(8).min_h(20).items_center().gap(6)
+        .when(ticket.sensitive, (el) => el.child(h_flex().h(19).px(6).rounded(5).border_1().border_color("#6E5BD6").bg("#3A2F6B").items_center()
+          .text_size(11).font_semibold().text_color("#E3DAFF").child("Sensible")))
+        .child(div().text_size(12.5).text_color("#C9CFDB").child(`~${duration(ticket.minutes)}`)));
+  }
+
+  /** Test and validation close the plan: drawn like tickets, with a dashed border. */
+  closingCard(sign: string, title: string, text: string, time: string, compact: boolean): NativeElement {
+    return v_flex().flex_none().w(compact ? 207 : 241).gap(6).px(compact ? 13 : 15).py(compact ? 12 : 14).rounded(10).border_1().border_dashed().border_color("#3A4052").bg("#1B1F2B")
+      .child(div().text_size(11).text_color("#A9B4FF").child(sign))
+      .child(div().text_size(compact ? 14.5 : 15.5).font_semibold().text_color("#ffffff").child(title))
+      .child(div().text_size(13).text_color("#A3AABB").child(text))
+      .child(div().mt(8).text_size(12.5).text_color("#C9CFDB").child(time));
+  }
+
+  planBody(detail: MissionDetail): NativeElement {
+    const key = detail.issueKey;
+    const plan = detail.plan;
+    const tickets = plan?.tickets ?? [];
+    const body = (left: NativeElement[], right: NativeElement) => h_flex().flex_1().min_h_0().gap(14).items_stretch()
+      .child(v_flex().flex_1().min_w_0().h_full().gap(14).children(left)).child(right);
+
+    if (!plan || tickets.length === 0) {
+      // Pilot is splitting: the tickets show as it finds them (mockup 17).
+      const found = plan?.found ?? [];
+      const count = found.length === 0 ? "" : found.length === 1 ? " · 1 ticket trouvé" : ` · ${found.length} tickets trouvés`;
+      const card = (label: string, title: string, text: string, foot: string, ghost = false) => {
+        const el = v_flex().flex_1().min_w_0().gap(8).p(14).rounded(10).border_1().border_color("#2A2F40").bg(ghost ? CLEAR : "#1B1F2B")
+          .child(div().font_family("JetBrains Mono").text_size(11).text_color("#8C93A6").child(label))
+          .when(title, (el) => el.child(div().text_size(15).font_semibold().text_color("#ffffff").child(title)))
+          .when(text, (el) => el.child(div().text_size(13).text_color("#A3AABB").child(text)))
+          .child(div().mt(8).text_size(12.5).text_color("#C9CFDB").child(foot));
+        return ghost ? el.border_dashed() : el;
+      };
+      return h_flex().flex_1().min_h_0().gap(14).items_stretch()
+        .child(this.conversation("plan", [
+          ...this.heading("LE PLAN", "Pilot découpe la spec en tickets", "Rien à valider pour l’instant : le plan s’affiche dès qu’il est complet."),
+          this.waiting(`Pilot découpe${count}`),
+          h_flex().mt(16).gap(12).items_stretch().children([
+            ...found.map((ticket) => card(`TICKET ${ticket.id}`, ticket.title, ticket.change, "trouvé · pas encore estimé")),
+            card(`TICKET ${found.length + 1}`, "", "", "Pilot cherche encore", true),
+          ]),
+        ], this.composer("tell", "vous pouvez quitter cette page, Pilot continue", "Pilot prépare le plan…", null, "Pilot en tient compte pour le plan",
+          (text, cx) => this.send("pilot.tell", { issueKey: key, text }, cx, "tell"))))
+        .child(this.column("EN CE MOMENT", "plan-now", [
+          div().px(10).text_size(20).font_semibold().text_color("#ffffff").child("Pilot découpe la spec"),
+          div().px(10).mt(6).mb(8).text_size(13.5).text_color("#8C93A6").child("Vous pouvez quitter cette page."),
+          this.label("CE QU’IL FAIT"),
+          this.line("✓", "Lit la spec validée", detail.spec ? `version ${detail.spec.version}` : "", "done"),
+          this.line("●", "Découpe en tickets", found.length ? `${found.length === 1 ? "1 ticket trouvé" : `${found.length} tickets trouvés`}, il continue` : ""),
+          this.line("○", "Range les tickets et les estime"),
+          this.line("○", "Vérifie que chaque point de la spec est couvert"),
+        ]));
+    }
+
+    const devs = plan.team.length;
+    const closing = plan.testMinutes + plan.validationMinutes;
+    const total = (count: number) => development(tickets, count) + closing;
+    const team = (count: number) => (count === 1 ? "1 dev" : "2 devs en parallèle");
+    const launched = plan.launched === true;
+    const launching = !launched && this.busy();
+    const setTeam = (next: Tool[], cx: Context) => this.send("plan.team", { issueKey: key, team: next }, cx);
+    const other = (tool: Tool): Tool => (tool === "claude" ? "codex" : "claude");
+    const frozen = launched || launching;
+
+    const banner = h_flex().h(76).flex_none().items_center().gap(16).px(22).rounded(12).border_1()
+      .border_color(frozen ? "#3A4AB8" : "#2E8F6C").bg(frozen ? "#151A38" : "#132823")
+      .child(h_flex().flex_none().w(38).h(38).rounded_full().items_center().justify_center().bg(frozen ? "#1F2756" : "#1C3A31")
+        .text_color(frozen ? "#A9B4FF" : "#5DE3B8").font_bold().child(launching ? "…" : "✓"))
+      .child(v_flex().flex_1().min_w_0()
+        .child(div().text_size(20).font_semibold().text_color("#ffffff").child(
+          launching ? "Création des tickets dans le tracker…"
+            : launched ? `C’est parti : ${tickets.length === 1 ? "1 ticket créé" : `${tickets.length} tickets créés`} dans le tracker`
+            : tickets.length === 1 ? "Le plan est prêt : 1 ticket, pas de découpage nécessaire" : `Le plan est prêt : ${tickets.length} tickets`))
+        .child(div().mt(4).text_size(14).text_color(frozen ? "#A9B1D6" : "#A9C9BE").truncate().child(
+          launching ? "Le plan est figé · rien d’autre à faire"
+            : launched ? "Le plan est figé · le développement arrive avec la prochaine étape"
+            : `Environ ${duration(total(devs))} avec ${team(devs)}, test et validation compris`
+              + (tickets.length > 1 ? ` · ${duration(total(devs === 1 ? 2 : 1))} avec ${team(devs === 1 ? 2 : 1)}` : ""))))
+      .when(!frozen, (el) => el.child(h_flex().id("launch").flex_none().h(46).px(22).items_center().rounded(10).border_1().border_color("#2E8F6C").bg("#163028")
+        .text_size(15).font_semibold().text_color("#5DE3B8").cursor_pointer().hover((style) => style.bg("#1C3A31"))
+        .on_click((_event, cx) => this.send("plan.launch", { issueKey: key }, cx))
+        .child(devs === 1 ? "Approuver et lancer le dev" : "Approuver et lancer les devs")));
+
+    const chip = (dev: number, tool: Tool) => {
+      const el = h_flex().id(`dev-${dev}`).h(30).pl(5).pr(10).gap(7).items_center().rounded(9).border_1().border_color("#2A2F40").bg("#161923").text_size(13)
+        .child(this.devBadge(dev, tool)).child(TOOLS[tool]);
+      return frozen ? el : el.cursor_pointer().hover((style) => style.border_color("#7B8CFF"))
+        .on_click((_event, cx) => setTeam(plan.team.map((current, index) => (index === dev - 1 ? other(current) : current)), cx));
+    };
+    const teamRow = h_flex().h(32).flex_none().items_center().gap(8)
+      .child(div().mr(4).text_size(17).font_semibold().child("Plan"))
+      .children(plan.team.map((tool, index) => chip(index + 1, tool)))
+      .when(!frozen && devs === 2, (el) => el.child(h_flex().id("remove-dev").w(26).h(30).items_center().justify_center().rounded(8).border_1().border_color("#2A2F40")
+        .text_size(11).text_color("#6F7689").cursor_pointer().on_click((_event, cx) => setTeam(plan.team.slice(0, 1), cx)).child("✕")))
+      .when(!frozen && devs === 1 && tickets.length > 1, (el) => el.child(h_flex().id("add-dev").h(30).px(12).items_center().rounded(9).border_1().border_dashed()
+        .border_color("#4A5066").text_size(13).text_color("#A9B4FF").cursor_pointer()
+        .on_click((_event, cx) => setTeam([plan.team[0] ?? "claude", other(plan.team[0] ?? "claude")], cx)).child("+ Ajouter un dev")))
+      .when(devs === 1 && tickets.length === 1, (el) => el.child(div().text_size(13).text_color("#8C93A6").child("Un seul ticket : un dev suffit")))
+      .child(div().flex_1())
+      .child(h_flex().id("estimate").h(30).px(11).gap(7).items_center().rounded(9).border_1().border_color(this.ticket ? "#2A2F40" : "#7B8CFF").bg("#161923")
+        .text_size(13).text_color("#C9CFDB").cursor_pointer().on_click((_event, cx) => {
+          this.ticket = "";
+          cx.notify();
+        })
+        .child(div().font_family("JetBrains Mono").text_size(14).font_medium().text_color("#ffffff").child(`≈ ${duration(total(devs))}`)).child("›"));
+
+    const closings = (compact: boolean) => [
+      this.closingCard("▶", "Test", "Un agent joue chaque parcours de la spec.", `~${duration(plan.testMinutes)}`, compact),
+      this.closingCard("✓", "Validation", "Vous vérifiez ce que la mission a livré.", `~${duration(plan.validationMinutes)} de votre temps`, compact),
+    ];
+    const band = (text: string, width: number) => div().flex_none().w(width).pb(4).border_b_2().border_color("#2F3547").text_size(11.5).font_semibold().text_color("#A3AABB").child(text);
+    const steps = stepsOf(tickets);
+    const lane = (dev: 1 | 2) => {
+      const mine = tickets.filter((ticket) => ticket.parallel.dev === dev);
+      return h_flex().items_stretch().gap(12)
+        .child(v_flex().flex_none().w(118).gap(3).pt(12).text_size(13.5).font_semibold().child(`Dev ${dev}`)
+          .child(div().text_size(12).font_normal().text_color("#8C93A6").child(TOOLS[plan.team[dev - 1] ?? "claude"]))
+          .child(div().text_size(12).font_normal().text_color("#8C93A6").child(`${mine.length === 1 ? "1 ticket" : `${mine.length} tickets`} · ${duration(mine.reduce((sum, ticket) => sum + ticket.minutes, 0))}`)))
+        .children(steps.map((step) => v_flex().flex_none().w(207).gap(12).children(step.filter((ticket) => ticket.parallel.dev === dev).map((ticket) => this.ticketCard(ticket, plan, true)))));
+    };
+    const board = devs === 1
+      ? h_flex().id("plan-board").flex_1().min_h_0().overflow_x_scrollbar().items_start().gap(12)
+        .children([...tickets.map((ticket) => this.ticketCard(ticket, plan, false)), ...closings(false)])
+      : v_flex().id("plan-board").flex_1().min_h_0().overflow_x_scrollbar().gap(12)
+        .child(h_flex().gap(12).child(div().flex_none().w(118)).children(steps.map((_step, index) => band(`ÉTAPE ${index + 1}`, 207))).child(band("TESTER ET VALIDER", 207)))
+        .child(h_flex().items_start().gap(12)
+          .child(v_flex().gap(12).child(lane(1)).child(lane(2)))
+          .child(v_flex().flex_none().w(207).gap(12).children(closings(true))));
+
+    const chosen = tickets.find((ticket) => ticket.id === this.ticket);
+    const text = (value: string) => div().px(10).py(4).text_size(14).text_color("#E6E9F0").child(value);
+    const right = launched ? this.column("LANCEMENT", "plan-side", [
+      div().px(10).text_size(20).font_semibold().text_color("#ffffff").child("C’est parti"),
+      div().px(10).mt(6).mb(8).text_size(13.5).text_color("#8C93A6").child("Le plan est figé. L’équipe et le dev de chaque ticket ne changent plus sans une nouvelle approbation."),
+      this.label("CE QUI VIENT DE SE PASSER"),
+      this.line("✓", "Plan approuvé et figé", "", "done"),
+      this.line("✓", `${tickets.length === 1 ? "1 ticket créé" : `${tickets.length} tickets créés`} dans le tracker`,
+        `${tickets.map((ticket) => ticket.key ?? "").filter(Boolean).join(", ")} · rattachés à ${key}`, "done"),
+      this.line("○", "Le Lead prend la mission", "avec la prochaine étape"),
+    ]) : chosen ? this.column(`TICKET ${tickets.indexOf(chosen) + 1} SUR ${tickets.length}`, "plan-side", [
+      div().px(10).text_size(20).font_semibold().text_color("#ffffff").child(chosen.title),
+      div().px(10).mt(6).text_size(13.5).text_color("#8C93A6").child(`~${duration(chosen.minutes)}${chosen.sensitive ? " · sensible : relu deux fois" : ""}`),
+      this.label("CE QUE ÇA CHANGE"), text(chosen.change),
+      this.label("COMMENT"), text(chosen.how),
+      this.label("COUVRE, DANS LA SPEC"), ...chosen.covers.map((line) => this.line("✓", line, "", "done")),
+      ...(chosen.after.length ? [this.label("ATTEND"), ...chosen.after.map((id) => this.line("→", `Le ticket ${id}`, tickets.find((ticket) => ticket.id === id)?.title ?? ""))] : []),
+      this.label("FAIT PAR"),
+      this.line(`D${devs === 1 ? 1 : chosen.parallel.dev}`, `Dev ${devs === 1 ? 1 : chosen.parallel.dev} · ${TOOLS[plan.team[devs === 1 ? 0 : chosen.parallel.dev - 1] ?? "claude"]}`),
+    ]) : this.column("ESTIMATION", "plan-side", [
+      h_flex().px(10).items_end().gap(12)
+        .child(div().font_family("JetBrains Mono").text_size(34).font_medium().text_color("#ffffff").child(`≈ ${duration(total(devs))}`))
+        .child(div().pb(6).text_size(13.5).text_color("#8C93A6").child(`avec ${team(devs)} · test et validation compris`)),
+      this.label("DÉTAIL"),
+      this.line("D", `Développement · ${duration(development(tickets, devs))}`,
+        devs === 1 ? (tickets.length === 1 ? "1 ticket" : `${tickets.length} tickets, l’un après l’autre`) : `${steps.length === 1 ? "1 étape" : `${steps.length} étapes`}, un ticket par dev en même temps`),
+      this.line("▶", `Test · ${duration(plan.testMinutes)}`, "automatique"),
+      this.line("✓", `Validation · ${duration(plan.validationMinutes)}`, "de votre temps"),
+      ...(tickets.length > 1 ? [
+        this.label("UN 2ᵉ DEV FERAIT-IL GAGNER DU TEMPS ?"),
+        this.line(devs === 1 ? "✓" : " ", `1 dev · ${duration(total(1))}`, TOOLS[plan.team[0] ?? "claude"], devs === 1 ? "done" : "todo")
+          .id("team-1").cursor_pointer().on_click((_event, cx) => { if (devs !== 1) setTeam(plan.team.slice(0, 1), cx); }),
+        this.line(devs === 2 ? "✓" : " ", `2 devs · ${duration(total(2))}`, "les tickets d’une même étape se font en même temps", devs === 2 ? "done" : "todo")
+          .id("team-2").cursor_pointer().on_click((_event, cx) => { if (devs !== 2) setTeam([plan.team[0] ?? "claude", other(plan.team[0] ?? "claude")], cx); }),
+      ] : []),
+      ...(plan.advice ? [this.label("CONSEIL"), text(plan.advice)] : []),
+    ]);
+
+    return body([banner, v_flex().flex_1().min_h_0().gap(16).px(24).pt(20).pb(18).rounded(12).border_1().border_color("#2A2F40").bg("#1B1F2B").child(teamRow).child(board)], right);
   }
 
   missionPage(): NativeElement[] {
@@ -650,7 +876,7 @@ export default class MissionControl extends View {
     if (created && tab !== "request") {
       // The questions and the spec are local: they never wait for the tracker.
       return [header, this.steps(true), !this.detail ? note(this.detailError || "Chargement…", this.detailError ? "#F2C14E" : "#8C93A6")
-        : tab === "spec" ? this.specBody(this.detail) : this.questionsBody(this.detail)];
+        : tab === "plan" ? this.planBody(this.detail) : tab === "spec" ? this.specBody(this.detail) : this.questionsBody(this.detail)];
     }
     if (!issue) return [header, ...(created ? [this.steps(true)] : []), note(this.issueError || "Chargement…", this.issueError ? "#F2C14E" : "#8C93A6")];
     return [header, this.steps(created), this.requestBody(issue, created)];

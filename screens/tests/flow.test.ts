@@ -88,6 +88,19 @@ test("a validated request becomes a mission, and the operator answers Pilot's qu
   click("validate");
   now();
   assert.ok(!screen.fields.has("Ajoutez une précision…"), "no detail can be written once the request is on its way");
+  // Another issue opened meanwhile keeps its own field.
+  click("nav-issues");
+  now();
+  click("issue-DEMO-2");
+  for (let wait = 0; wait < 100 && !screen.texts.includes("Second issue"); wait++) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    now();
+  }
+  assert.ok(screen.fields.has("Ajoutez une précision…"), "the wait of one request does not freeze another page");
+  click("nav-issues");
+  now();
+  click("issue-DEMO-1");
+  now();
   created();
   texts = await shown();
   assert.ok(texts.includes("Pilot prépare ses questions"), "Pilot starts by itself");

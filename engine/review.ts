@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { agentFor, caller, refused, startAgent, type Agent } from "./agents.ts";
@@ -15,7 +17,11 @@ export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
     const m = loadDetail(dir,p.issueKey), dev = caller(m,"dev.done",p.ticketId);
     const d = m.development!, run = d.tickets.find(t => t.id === p.ticketId)!;
     const last = run.steps.at(-1)!, ticket = m.plan!.tickets.find(t => t.id === p.ticketId)!;
-    if (last.kind === "review" && !last.endedAt && run.steps.at(-2)?.summary === p.summary) return visible(m);
+    if (last.kind === "review" && !last.endedAt && run.steps.at(-2)?.summary === p.summary) {
+      const reviewer = m.agents!.reviewer!;
+      if (reviewer.starting) startAgent(dir, m, reviewer, true, ticket, run.steps.at(-2)!.commit, p.summary);
+      return visible(m);
+    }
     if (last.endedAt || last.kind === "review" || !p.summary?.trim() || d.requests.some(r => r.ticketId === p.ticketId && !r.answer)) throw refused();
     const mission = worktree(repository,m.issueKey), cwd = worktree(repository,ticket.key!,false,run.branch);
     const missionBranch = "mission/" + m.issueKey;
@@ -39,15 +45,26 @@ export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
     } catch { throw remoteError(); }
     const tool = dev.tool === "claude" ? "codex" : "claude";
     const review = agentFor(m,"reviewer",tool,"",ticket.id);
+    review.base = base;
     review.cwd = join(dirname(cwd),review.terminal);
     gitAt(mission,"worktree","add","--detach",review.cwd,commit);
     Object.assign(last,{ endedAt: new Date().toISOString(), summary, commit });
     run.steps.push({ kind: "review", tool, startedAt: new Date().toISOString() });
     m.agents!.reviewer = review; delete m.publication;
     saveMission(dir,m);
-    startAgent(m,review,ticket,commit,base,summary);
+    startAgent(dir, m, review, false, ticket, commit, summary);
     return visible(m);
   });
+}
+
+function finishNotice(dir: string, m: ReturnType<typeof loadDetail>) {
+  if (!m.notice) return visible(m);
+  const { terminal, deliveryId, event } = m.notice;
+  const receipt = join(dir, "..", "receipts", terminal, deliveryId);
+  if (!existsSync(receipt)) notifyAgent({ terminal }, { ...event, deliveryId });
+  delete m.notice;
+  saveMission(dir, m);
+  return visible(m);
 }
 
 export function verdict(dir: string, repository: string, p: Payloads["review.verdict"]) {
@@ -59,7 +76,7 @@ export function verdict(dir: string, repository: string, p: Payloads["review.ver
         (p.accepted ? p.remarks.length !== 0 : !p.remarks.length)) throw refused();
     if (previous.endedAt) {
       if (previous.accepted !== p.accepted || JSON.stringify(previous.remarks) !== JSON.stringify(p.remarks)) throw refused();
-      return visible(m);
+      return finishNotice(dir, m);
     }
     if (m.development!.requests.some(r => r.ticketId === p.ticketId && !r.answer)) throw refused();
     const sha = run.steps.at(-2)!.commit!;
@@ -72,8 +89,11 @@ export function verdict(dir: string, repository: string, p: Payloads["review.ver
     Object.assign(previous, { endedAt: new Date().toISOString(), accepted: p.accepted, remarks: p.remarks });
     const dev = m.agents!.dev!;
     if (!p.accepted) run.steps.push({ kind: "fix", tool: dev.tool, startedAt: new Date().toISOString() } satisfies TicketStep);
-    saveMission(dir,m);
-    notifyAgent(p.accepted ? m.agents!.lead! : dev, { action: "review.verdict", ...p, commit: sha });
-    return visible(m);
+    m.notice = {
+      deliveryId: randomUUID(), terminal: (p.accepted ? m.agents!.lead! : dev).terminal,
+      event: { action: "review.verdict", issueKey: m.issueKey, ticketId: run.id, accepted: p.accepted, remarks: p.remarks, commit: sha },
+    };
+    saveMission(dir, m);
+    return finishNotice(dir, m);
   });
 }

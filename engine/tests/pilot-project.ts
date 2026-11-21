@@ -34,6 +34,20 @@ if (args[0] === "run" && !args.includes("pilot-demo-1") && !fs.existsSync(home +
   inventory.terminals.push({ name: args[args.indexOf("--name") + 1], cwd: args[args.indexOf("--cwd") + 1], state: "live" });
   fs.writeFileSync(home + "/live", JSON.stringify(inventory));
 }
+if (args[0] === "run" && fs.existsSync(home + "/lose-start")) {
+  fs.unlinkSync(home + "/lose-start"); process.exit(74);
+}
+if (args[0] === "send" && !fs.existsSync(home + "/offline")) {
+  const msg = JSON.parse(args[3]);
+  if (msg.deliveryId) {
+    const dir = home + "/receipts/" + args[2]; fs.mkdirSync(dir,{recursive:true});
+    const receipt = dir + "/" + msg.deliveryId;
+    if (!fs.existsSync(receipt)) {
+      fs.writeFileSync(receipt,""); fs.appendFileSync(home + "/delivered",JSON.stringify(args) + "\\n");
+    }
+    if (fs.existsSync(home + "/lose-send")) { fs.unlinkSync(home + "/lose-send"); process.exit(74); }
+  }
+}
 const callback = home + "/" + args[0] + ".callback";
 if (fs.existsSync(callback)) {
   const [action, payload] = JSON.parse(fs.readFileSync(callback));

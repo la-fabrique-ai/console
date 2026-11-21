@@ -7,7 +7,7 @@ import { loadDetail, saveMission, visible, withMission, type SavedMission } from
 import { coreEnvironment, gitAt, worktree } from "./pilot.ts";
 
 export interface Agent {
-  id: string; role: "lead" | "dev" | "reviewer"; tool: Tool; terminal: string; cwd: string; ticketId?: string;
+  id: string; role: "lead" | "dev" | "reviewer"; tool: Tool; terminal: string; cwd: string; ticketId?: string; starting?: boolean; base?: string;
 }
 export const refused = () => new CommandError("Cette action n’est pas autorisée pour cet agent.");
 const unavailable = () => new CommandError("Le démarrage de l’agent n’est pas confirmé. Vérifiez son terminal.");
@@ -29,10 +29,15 @@ function live(agent: Agent) {
 
 export function agentFor(m: SavedMission, role: Agent["role"], tool: Tool, cwd: string, ticketId?: string): Agent {
   const id = randomUUID();
-  return { id, role, tool, cwd, ticketId, terminal: [role, m.issueKey.toLowerCase(), randomUUID().slice(0, 12)].join("-") };
+  return { id, role, tool, cwd, ticketId, starting: true, terminal: [role, m.issueKey.toLowerCase(), randomUUID().slice(0, 12)].join("-") };
 }
 
-export function startAgent(m: SavedMission, agent: Agent, ticket?: PlanTicket, commit?: string, base?: string, summary?: string) {
+export function startAgent(dir: string, m: SavedMission, agent: Agent, recovering: boolean, ticket?: PlanTicket, commit?: string, summary?: string) {
+  if (recovering && live(agent)) {
+    delete agent.starting;
+    saveMission(dir, m);
+    return;
+  }
   const roleFile = join(import.meta.dirname, "../roles", agent.role + ".md");
   const docs = "docs/missions/" + m.issueKey + "/";
   const guidance = {
@@ -43,11 +48,15 @@ export function startAgent(m: SavedMission, agent: Agent, ticket?: PlanTicket, c
   try {
     const prompt = [readFileSync(roleFile, "utf8"), guidance[agent.role],
       "Use the command tool to run mission-control ACTION -: pass action and json (the complete JSON string for standard input). Use shell for project commands and commit for a dev commit. Reviewers can run tests in a private TMPDIR copy. Include issueKey in every call. For request.ask include text, context, choices and your ticketId if assigned.",
-      JSON.stringify({ issueKey: m.issueKey, ticket, commit, base, summary })].join("\n");
+      JSON.stringify({ issueKey: m.issueKey, ticket, commit, base: agent.base, summary })].join("\n");
+    const core = coreEnvironment();
     execFileSync("hc", ["run", "--bg", "--no-parent", "--name", agent.terminal, "--cwd", agent.cwd, "--",
       "/usr/bin/env", "-u", "LINEAR_API_KEY", "MISSION_CONTROL_HOME=" + process.env.MISSION_CONTROL_HOME,
+      "HC_SOCKET=" + core.HC_SOCKET, "HC_SESSION=" + core.HC_SESSION, "HERDR_APP_HOME=" + core.HERDR_APP_HOME,
       process.execPath, join(import.meta.dirname, "agent-session.ts"), m.issueKey, agent.terminal, agent.tool, prompt],
-      { env: coreEnvironment(), timeout: 15_000, stdio: "pipe" });
+      { env: core, timeout: 15_000, stdio: "pipe" });
+    delete agent.starting;
+    saveMission(dir, m);
   } catch { throw unavailable(); }
 }
 
@@ -55,6 +64,12 @@ export function startDevelopment(dir: string, repository: string, key: string) {
   return withMission(dir, key, () => {
     const m = loadDetail(dir, key);
     if (!m.plan?.launched || m.stage !== "develop") throw new CommandError("Validez le plan avant de démarrer le Lead.");
+    if (m.agents?.lead?.starting) {
+      startAgent(dir, m, m.agents.lead, true);
+      m.development ??= { tickets: [], requests: [] };
+      saveMission(dir, m);
+      return visible(m);
+    }
     if (m.agents?.lead && live(m.agents.lead)) {
       m.development ??= { tickets: [], requests: [] };
       saveMission(dir, m);
@@ -63,7 +78,7 @@ export function startDevelopment(dir: string, repository: string, key: string) {
     const agent = agentFor(m, "lead", "claude", worktree(repository, key));
     (m.agents ??= {}).lead = agent;
     saveMission(dir, m);
-    startAgent(m, agent);
+    startAgent(dir, m, agent, false);
     m.development ??= { tickets: [], requests: [] };
     saveMission(dir, m);
     return visible(m);
@@ -75,6 +90,10 @@ export function build(dir: string, repository: string, p: Payloads["lead.build"]
     const m = loadDetail(dir, p.issueKey);
     caller(m, "lead.build", p.ticketId);
     const d = m.development, ticket = m.plan?.tickets.find(t => t.id === p.ticketId);
+    if (ticket && m.agents?.dev?.starting && m.agents.dev.ticketId === ticket.id) {
+      startAgent(dir, m, m.agents.dev, true, ticket);
+      return visible(m);
+    }
     const accepted = (id: string) => d?.tickets.find(r => r.id === id)?.steps.at(-1)?.accepted === true;
     if (!m.plan?.launched || !d || !ticket?.key || !/^[A-Z0-9]+-[1-9]\d*$/.test(ticket.key) || ticket.key === m.issueKey ||
         d.requests.some(r => r.ticketId === ticket.id && !r.answer) || d.tickets.some(r => r.id === ticket.id || !accepted(r.id)) || !ticket.after.every(accepted)) {
@@ -82,14 +101,15 @@ export function build(dir: string, repository: string, p: Payloads["lead.build"]
     }
     const mission = worktree(repository, m.issueKey), branch = "ticket/" + ticket.key;
     const cwd = join(dirname(mission), ticket.key);
-    gitAt(mission, "worktree", "add", "--no-track", "-b", branch, cwd, "HEAD");
+    try { gitAt(mission, "worktree", "add", "--no-track", "-b", branch, cwd, "HEAD"); }
+    catch { throw new CommandError("Impossible de préparer le dossier de travail du dev."); }
     const tool = m.plan.team.length === 1 ? m.plan.team[0] : m.plan.team[ticket.parallel.dev - 1];
     const agent = agentFor(m, "dev", tool, cwd, ticket.id);
     m.agents!.dev = agent;
     delete m.agents!.reviewer;
     d.tickets.push({ id: ticket.id, branch, steps: [{ kind: "build", tool, startedAt: new Date().toISOString() }] });
     saveMission(dir, m);
-    startAgent(m, agent, ticket);
+    startAgent(dir, m, agent, false, ticket);
     return visible(m);
   });
 }

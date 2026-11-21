@@ -32,3 +32,30 @@ test("an older mission starts one Lead and replaces a lost terminal, then starts
   assert.ok((await action("develop.start", {}, state().agents.dev.id)).error);
   assert.equal(existsSync(path("linear-requests")), false);
 });
+
+test("a failed dev launch resumes the same build and adopts a live terminal after a lost start reply", async t => {
+  const p = development(t);
+  await p.action("develop.start");
+  const lead = p.state().agents.lead;
+  const build = () => p.action("lead.build", { ticketId:"1" },lead.id);
+  writeFileSync(p.path("offline"),"refused");
+  assert.ok((await build()).error);
+  const dev = p.state().agents.dev;
+  const { unlinkSync } = await import("node:fs");
+  unlinkSync(p.path("offline"));
+  writeFileSync(p.path("lose-start"),"after launch");
+  assert.ok((await build()).error);
+  const after = p.calls().filter(c => c[0] === "run").length;
+  assert.equal((await build()).data?.development.tickets.length,1);
+  assert.equal(p.state().agents.dev.terminal,dev.terminal);
+  assert.equal(p.calls().filter(c => c[0] === "run").length,after);
+  assert.ok((await build()).error);
+});
+
+test("the dev worktree has its own actionable failure", async t => {
+  const p = development(t);
+  await p.action("develop.start");
+  p.git("branch","ticket/DEMO-10","HEAD");
+  const r = await p.action("lead.build",{ticketId:"1"},p.state().agents.lead.id);
+  assert.equal(r.error.message,"Impossible de préparer le dossier de travail du dev.");
+});

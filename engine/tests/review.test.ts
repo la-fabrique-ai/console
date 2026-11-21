@@ -74,3 +74,35 @@ test("every remote reply can be lost: the same two callbacks publish only the pi
     assert.equal(p.calls().filter(a => a[0] === "send").length,1);
   }
 });
+
+test("the same dev handoff finishes an unconfirmed reviewer start, without another checkout or PR", async t => {
+  const p = await project(t); p.commit();
+  writeFileSync(p.path("offline"),"before launch");
+  assert.ok((await p.done()).error);
+  const agent = p.state().agents.reviewer;
+  const { unlinkSync } = await import("node:fs"); unlinkSync(p.path("offline"));
+  writeFileSync(p.path("lose-start"),"lost after launch");
+  assert.ok((await p.done()).error);
+  const before = p.calls().filter(c => c[0] === "run").length;
+  assert.equal((await p.done()).data?.development.tickets[0].steps.at(-1).kind,"review");
+  assert.equal(p.state().agents.reviewer.terminal,agent.terminal);
+  assert.equal(p.state().agents.reviewer.cwd,agent.cwd);
+  assert.equal(p.calls().filter(c => c[0] === "run").length,before);
+  assert.equal(p.log().filter(a => a.includes("create")).length,2);
+});
+
+for (const accepted of [true,false]) test("an interrupted verdict reaches the original recipient once: " + accepted, async t => {
+  const p = await project(t); p.commit(); await p.done();
+  const recipient = p.state().agents[accepted ? "lead" : "dev"];
+  writeFileSync(p.path("offline"),"before send");
+  assert.ok((await p.verdict(accepted)).error);
+  const { unlinkSync } = await import("node:fs"); unlinkSync(p.path("offline"));
+  writeFileSync(p.path("lose-send"),"lost after receipt");
+  assert.ok((await p.verdict(accepted)).error);
+  assert.ok((await p.verdict(accepted)).data);
+  assert.ok((await p.verdict(accepted)).data);
+  const sends = readFileSync(p.path("delivered"),"utf8").trim().split("\n").map(l => JSON.parse(l));
+  assert.equal(sends.length,1); assert.equal(sends[0][2],recipient.terminal);
+  assert.deepEqual(JSON.parse(sends[0][3]).remarks,accepted ? [] : ["Corriger le résultat."]);
+  assert.equal(p.log().filter(c => c.includes("repos/demo/repo/pulls/2/merge")).length,accepted ? 1 : 0);
+});

@@ -16,11 +16,13 @@ console.log(JSON.stringify({type:"thread.started",thread_id:${JSON.stringify(ses
 `, { mode: 0o700 });
   const run = spawnSync(process.execPath, [p.path("engine/agent-session.ts"), "DEMO-1", "terminal-one", tool, "Role and ticket"], {
     cwd: p.path("repo"), env: { ...p.env, GH_TOKEN: "fixture", LINEAR_API_KEY: "fixture", MC_AGENT_ID: "fixture" },
-    input: '{"text":"Une réponse"}\n', encoding: "utf8",
+    input: (JSON.stringify({ text:"Une réponse", deliveryId:session }) + "\n").repeat(2), encoding: "utf8",
   });
   assert.equal(run.status, 0, run.stderr);
-  const [first, next] = readFileSync(p.path("turns"), "utf8").trim().split("\n").map(l => JSON.parse(l));
-  assert.equal(first[1], "Role and ticket"); assert.equal(next[1], '{"text":"Une réponse"}');
+  const turns = readFileSync(p.path("turns"), "utf8").trim().split("\n").map(l => JSON.parse(l));
+  assert.equal(turns.length, 2);
+  const [first, next] = turns;
+  assert.equal(first[1], "Role and ticket"); assert.equal(JSON.parse(next[1]).text, "Une réponse");
   if (tool === "codex") {
     assert.ok(first[0].includes("--json")); assert.ok(first[0].includes("--ignore-rules"));
     assert.ok(next[0].includes("resume")); assert.ok(next[0].includes(session)); assert.ok(!next[0].includes("--last"));

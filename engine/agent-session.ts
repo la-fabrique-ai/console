@@ -1,7 +1,7 @@
 // A terminal owns one conversation. Only the engine's scoped tools run in the project.
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -45,5 +45,17 @@ async function turn(message: string, resume: boolean) {
 
 try {
   await turn(first, false);
-  for await (const message of { [Symbol.asyncIterator]: () => lines }) await turn(message, true);
+  for await (const message of { [Symbol.asyncIterator]: () => lines }) {
+    const event = JSON.parse(message);
+    if (typeof event.deliveryId === "string" && /^[0-9a-f-]{36}$/.test(event.deliveryId)) {
+      const receipts = join(host.MISSION_CONTROL_HOME, "receipts", terminal);
+      mkdirSync(receipts, { recursive: true });
+      try { writeFileSync(join(receipts, event.deliveryId), "", { flag: "wx" }); }
+      catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "EEXIST") continue;
+        throw err;
+      }
+    }
+    await turn(message, true);
+  }
 } finally { rmSync(cwd, { recursive: true, force: true }); }

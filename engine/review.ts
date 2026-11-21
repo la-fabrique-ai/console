@@ -10,43 +10,58 @@ import { gitAt, worktree } from "./pilot.ts";
 
 export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
   return withMission(dir, p.issueKey, () => {
-    const m = loadDetail(dir,p.issueKey), dev = caller(m,"dev.done",p.ticketId);
-    const d = m.development!, run = d.tickets.find(t => t.id === p.ticketId)!;
-    const last = run.steps.at(-1)!, ticket = m.plan!.tickets.find(t => t.id === p.ticketId)!;
+    const m = loadDetail(dir, p.issueKey);
+    const dev = caller(m, "dev.done", p.ticketId);
+    const development = m.development!;
+    const run = development.tickets.find(t => t.id === p.ticketId)!;
+    const ticket = m.plan!.tickets.find(t => t.id === p.ticketId)!;
+    const last = run.steps.at(-1)!;
+
     if (last.kind === "review" && !last.endedAt) {
       const reviewer = m.agents!.reviewer!;
-      if (reviewer.starting) startAgent(dir, m, reviewer, true, ticket, run.steps.at(-2)!.commit, run.steps.at(-2)!.summary);
+      if (reviewer.starting) {
+        const handoff = run.steps.at(-2)!;
+        startAgent(dir, m, reviewer, true, ticket, handoff.commit, handoff.summary);
+      }
       return visible(m);
     }
-    if (last.endedAt || last.kind === "review" || !p.summary?.trim() || d.requests.some(r => r.ticketId === p.ticketId && !r.answer)) throw refused();
-    const mission = worktree(repository,m.issueKey), cwd = worktree(repository,ticket.key!,false,run.branch);
+    const waitingForAnswer = development.requests.some(r => r.ticketId === p.ticketId && !r.answer);
+    if (last.endedAt || last.kind === "review" || !p.summary?.trim() || waitingForAnswer) throw refused();
+
+    const mission = worktree(repository, m.issueKey);
+    const cwd = worktree(repository, ticket.key!, false, run.branch);
     const missionBranch = "mission/" + m.issueKey;
     if (!m.publication) {
-      const commit = gitAt(cwd,"rev-parse","HEAD").trim(), base = gitAt(mission,"rev-parse","HEAD").trim();
+      const commit = gitAt(cwd, "rev-parse", "HEAD").trim();
+      const base = gitAt(mission, "rev-parse", "HEAD").trim();
       const previous = run.steps.findLast(s => s.commit)?.commit ?? base;
-      if (gitAt(cwd,"status","--porcelain","--untracked-files=all","--ignore-submodules=none").trim() || commit === previous ||
-          gitAt(cwd,"merge-base",commit,previous).trim() !== previous) {
+      const dirty = gitAt(cwd, "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=none").trim();
+      if (dirty || commit === previous || gitAt(cwd, "merge-base", commit, previous).trim() !== previous) {
         throw new CommandError("Commitez vos modifications sur la branche du ticket avant de demander une revue.");
       }
       m.publication = { commit, base, summary: p.summary };
-      saveMission(dir,m);
+      saveMission(dir, m);
     }
+
     const { commit, base, summary } = m.publication;
     try {
       const remote = github(mission);
-      remote.publish(missionBranch,base); remote.publish(run.branch,commit);
-      d.pr = remote.draft(missionBranch,"main",base,m.title);
-      run.pr = remote.draft(run.branch,missionBranch,commit,ticket.title);
+      remote.publish(missionBranch, base);
+      remote.publish(run.branch, commit);
+      development.pr = remote.draft(missionBranch, "main", base, m.title);
+      run.pr = remote.draft(run.branch, missionBranch, commit, ticket.title);
     } catch { throw remoteError(); }
+
     const tool = dev.tool === "claude" ? "codex" : "claude";
-    const review = agentFor(m,"reviewer",tool,"",ticket.id);
+    const review = agentFor(m, "reviewer", tool, "", ticket.id);
     review.base = base;
-    review.cwd = join(dirname(cwd),review.terminal);
-    gitAt(mission,"worktree","add","--detach",review.cwd,commit);
-    Object.assign(last,{ endedAt: new Date().toISOString(), summary, commit });
+    review.cwd = join(dirname(cwd), review.terminal);
+    gitAt(mission, "worktree", "add", "--detach", review.cwd, commit);
+    Object.assign(last, { endedAt: new Date().toISOString(), summary, commit });
     run.steps.push({ kind: "review", tool, startedAt: new Date().toISOString() });
-    m.agents!.reviewer = review; delete m.publication;
-    saveMission(dir,m);
+    m.agents!.reviewer = review;
+    delete m.publication;
+    saveMission(dir, m);
     startAgent(dir, m, review, false, ticket, commit, summary);
     return visible(m);
   });

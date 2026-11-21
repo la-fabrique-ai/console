@@ -18,8 +18,13 @@ const unavailable = () => terminalFailure("Le démarrage de l’agent n’est pa
 
 export function caller(m: SavedMission, action: Action, ticketId?: string) {
   const agent = Object.values(m.agents ?? {}).find(a => a.id === process.env.MC_AGENT_ID);
-  if (!agent || (agent.role !== "lead" && agent.ticketId !== ticketId && !(action === "request.ask" && ticketId === undefined)) ||
-      !(action === "request.ask" || action === { lead: "lead.build", dev: "dev.done", reviewer: "review.verdict" }[agent.role])) throw refused();
+  if (!agent) throw refused();
+  const roleAction = { lead: "lead.build", dev: "dev.done", reviewer: "review.verdict" }[agent.role];
+  if (action !== "request.ask" && action !== roleAction) throw refused();
+
+  const assignedTicket = agent.role === "lead" || agent.ticketId === ticketId;
+  const askingWithoutTicket = action === "request.ask" && ticketId === undefined;
+  if (!assignedTicket && !askingWithoutTicket) throw refused();
   return agent;
 }
 
@@ -111,17 +116,24 @@ export function build(dir: string, repository: string, p: Payloads["lead.build"]
   return withMission(dir, p.issueKey, () => {
     const m = loadDetail(dir, p.issueKey);
     caller(m, "lead.build", p.ticketId);
-    const d = m.development, ticket = m.plan?.tickets.find(t => t.id === p.ticketId);
+    const development = m.development;
+    const ticket = m.plan?.tickets.find(t => t.id === p.ticketId);
     if (ticket && m.agents?.dev?.starting && m.agents.dev.ticketId === ticket.id) {
       startAgent(dir, m, m.agents.dev, true, ticket);
       return visible(m);
     }
-    const accepted = (id: string) => d?.tickets.find(r => r.id === id)?.steps.at(-1)?.accepted === true;
-    if (!m.plan?.launched || !d || !ticket?.key || !/^[A-Z0-9]+-[1-9]\d*$/.test(ticket.key) || ticket.key === m.issueKey ||
-        d.requests.some(r => r.ticketId === ticket.id && !r.answer) || d.tickets.some(r => r.id === ticket.id || !accepted(r.id)) || !ticket.after.every(accepted)) {
-      throw new CommandError("Ce ticket ne peut pas encore démarrer.");
-    }
-    const mission = worktree(repository, m.issueKey), branch = "ticket/" + ticket.key;
+    const cannotStart = "Ce ticket ne peut pas encore démarrer.";
+    if (!m.plan?.launched || !development || !ticket?.key) throw new CommandError(cannotStart);
+    if (!/^[A-Z0-9]+-[1-9]\d*$/.test(ticket.key) || ticket.key === m.issueKey) throw new CommandError(cannotStart);
+
+    const waitingForAnswer = development.requests.some(r => r.ticketId === ticket.id && !r.answer);
+    const alreadyStarted = development.tickets.some(r => r.id === ticket.id);
+    const devOccupied = development.tickets.some(r => r.steps.at(-1)?.accepted !== true);
+    const ready = ticket.after.every(id => development.tickets.some(r => r.id === id && r.steps.at(-1)?.accepted));
+    if (waitingForAnswer || alreadyStarted || devOccupied || !ready) throw new CommandError(cannotStart);
+
+    const mission = worktree(repository, m.issueKey);
+    const branch = "ticket/" + ticket.key;
     const cwd = join(dirname(mission), ticket.key);
     try { gitAt(mission, "worktree", "add", "--no-track", "-b", branch, cwd, "HEAD"); }
     catch { throw new CommandError("Impossible de préparer le dossier de travail du dev."); }
@@ -129,7 +141,7 @@ export function build(dir: string, repository: string, p: Payloads["lead.build"]
     const agent = agentFor(m, "dev", tool, cwd, ticket.id);
     m.agents!.dev = agent;
     delete m.agents!.reviewer;
-    d.tickets.push({ id: ticket.id, branch, steps: [{ kind: "build", tool, startedAt: new Date().toISOString() }] });
+    development.tickets.push({ id: ticket.id, branch, steps: [{ kind: "build", tool, startedAt: new Date().toISOString() }] });
     saveMission(dir, m);
     startAgent(dir, m, agent, false, ticket);
     return visible(m);

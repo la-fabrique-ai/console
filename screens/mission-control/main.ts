@@ -1,12 +1,23 @@
-// The Mission Control window: issues, the request page of one issue, and the
-// list of missions. Drawn after docs/mockups/prepare-flow (states 01 and 02).
+// The Mission Control window: issues, the page of one mission (the request,
+// then Pilot's questions) and the list of missions. Drawn after
+// docs/mockups/prepare-flow (states 01, 02, 08 to 13, 23 and 24).
 import { View, div, type Context, type NativeElement } from "gpui-kit";
-import { v_flex, h_flex, TextView } from "gpui-base";
+import { v_flex, h_flex, TextView, InputState, Input } from "gpui-base";
 import { exec, checking, props } from "herdr";
-import type { Action, IssueDetail, IssueSummary, Mission, Payloads, Reply, Stage } from "../../engine/contract.ts";
+import type { Action, IssueDetail, IssueSummary, Mission, MissionDetail, Payloads, Question, Reply, Stage } from "../../engine/contract.ts";
 
 type Page = "issues" | "request" | "development";
 type Spawner = Pick<Context, "spawn">;
+type Field = "request" | "answer" | "again" | "tell";
+type Tone = "todo" | "done" | "fixed";
+
+// A field keeps the placeholder it was created with: one field per placeholder.
+const FIELDS: Record<Field, string> = {
+  request: "Ajoutez une précision…",
+  answer: "Écrivez une autre réponse…",
+  again: "Écrivez encore, Pilot ajuste sa réponse…",
+  tell: "Autre chose à dire à Pilot ?",
+};
 
 const PROJECT = "Jiroo";
 const STAGES: [Stage, string][] = [["prepare", "Préparer"], ["develop", "Développer"], ["test", "Tester"], ["validate", "Valider"]];
@@ -39,9 +50,26 @@ export default class MissionControl extends View {
   issue: IssueDetail | null = null;
   requestError = "";
   creating = false;
+  /** The open mission as the engine knows it: Pilot's questions and the answers. */
+  detail: MissionDetail | null = null;
+  tab: "request" | "questions" = "questions";
+  /** The question the operator chose to look at; none: the first one still open. */
+  viewing = "";
+  /** What the operator adds to the issue before validating the request. */
+  details: string[] = [];
+  inputs: Partial<Record<Field, InputState>> = {};
+  sending = false;
+  sends = 0;
 
-  init(_props: unknown, cx: Spawner) {
-    if (!checking()) this.refresh(cx);
+  init(_props: unknown, cx: Spawner & Pick<Context, "timer">) {
+    if (checking()) return;
+    for (const field of Object.keys(FIELDS) as Field[]) {
+      const input = InputState.new({ placeholder: FIELDS[field] });
+      input.on("change", (_event, cx) => cx.notify()); // the button changes role with the field
+      this.inputs[field] = input;
+    }
+    cx.timer.every(3000, (cx) => this.follow(cx)); // Pilot answers in its own time
+    this.refresh(cx);
   }
 
   refresh(cx: Spawner) {
@@ -79,12 +107,55 @@ export default class MissionControl extends View {
     this.requested = key;
     this.issue = null;
     this.requestError = "";
+    this.detail = null;
+    this.tab = "questions";
+    this.viewing = "";
+    this.details = [];
+    for (const input of Object.values(this.inputs)) input.set_value("");
     cx.notify();
+    this.follow(cx);
     cx.spawn(async (cx) => {
       const reply = await call("issues.show", { key });
       if (turn !== this.opens) return; // the operator opened a page again meanwhile
       if ("data" in reply) this.issue = reply.data;
       else this.requestError = reply.error.message;
+      cx.notify();
+    });
+  }
+
+  /** Reads the open mission again. A reply that crossed an action of the operator is dropped. */
+  follow(cx: Spawner) {
+    const key = this.requested;
+    if (this.page !== "request" || !this.mission(key) || this.sending) return;
+    const turn = this.opens;
+    const sends = this.sends;
+    cx.spawn(async (cx) => {
+      const reply = await call("missions.show", { issueKey: key });
+      if (turn !== this.opens || sends !== this.sends || !("data" in reply)) return;
+      if (JSON.stringify(reply.data) === JSON.stringify(this.detail)) return;
+      this.detail = reply.data;
+      cx.notify();
+    });
+  }
+
+  /** One gesture of the operator towards Pilot; the button is off until the engine answers. */
+  send<A extends "questions.validate" | "questions.reply" | "pilot.tell">(action: A, payload: Payloads[A], field: Field | null, cx: Context) {
+    if (this.sending) return;
+    const turn = this.opens;
+    this.sending = true;
+    this.sends++;
+    this.requestError = "";
+    cx.notify();
+    cx.spawn(async (cx) => {
+      const reply = await call(action, payload);
+      this.sending = false;
+      if (turn === this.opens) {
+        if ("data" in reply) {
+          this.detail = reply.data as MissionDetail;
+          this.viewing = "";
+          if (field) this.inputs[field]?.set_value("");
+        } else this.requestError = reply.error.message;
+      }
       cx.notify();
     });
   }
@@ -97,11 +168,12 @@ export default class MissionControl extends View {
     this.requestError = "";
     cx.notify();
     cx.spawn(async (cx) => {
-      const reply = await call("missions.create", { issueKey: issue.key });
+      const reply = await call("missions.create", { issueKey: issue.key, details: this.details });
       this.creating = false;
       if ("data" in reply) this.missions = [...(this.missions ?? []).filter((mission) => mission.issueKey !== issue.key), reply.data];
       else if (turn === this.opens) this.requestError = reply.error.message;
       this.refresh(cx);
+      this.follow(cx);
       cx.notify();
     });
   }
@@ -130,7 +202,7 @@ export default class MissionControl extends View {
         .child(mission.issueKey).child(stageName(mission.stage))));
   }
 
-  // Drawn and inert in slice 1: Pilot arrives with slice 2.
+  // Drawn and inert: Pilot is reached from the page of its mission.
   pilotTab(): NativeElement {
     return h_flex().h(44).flex_none().bg("#0F1218").border_b_1().border_color("#2A2F40")
       .child(h_flex().items_center().gap(8).px(18).border_r_1().border_color("#2A2F40").text_size(12.5).text_color("#C9CFDB").opacity(0.55)
@@ -177,7 +249,7 @@ export default class MissionControl extends View {
 
   // ---- issues (mockup 01) and missions ------------------------------------
   issuesPage(): NativeElement[] {
-    // Drawn and inert in slice 1: creating a ticket arrives with slice 2.
+    // Drawn and inert: a new main ticket is a write to the tracker that decision 0005 does not allow yet.
     const newTicket = h_flex().h(40).px(20).items_center().rounded(10).bg("#6B6CF5").text_size(14.5).font_semibold().text_color("#ffffff").opacity(0.4).child("Nouveau ticket");
     return [
       this.header(PROJECT, h_flex().child(`${this.issues?.length ?? 0} issues · ${this.missions?.length ?? 0} missions en cours`)),
@@ -194,7 +266,7 @@ export default class MissionControl extends View {
     ];
   }
 
-  // ---- request (mockup 02) -------------------------------------------------
+  // ---- the page of a mission: its frame ------------------------------------
   stages(key: string, current: Stage): NativeElement {
     const parts: NativeElement[] = [div().child(`${PROJECT} · ${key}`)];
     STAGES.forEach(([stage, label], index) => {
@@ -207,90 +279,239 @@ export default class MissionControl extends View {
     return h_flex().items_center().gap(10).children(parts);
   }
 
-  steps(created: boolean): NativeElement {
+  /** The four steps of the preparation. Once the request is validated, the first two open their page. */
+  steps(created: boolean, answered: string): NativeElement {
+    const current = !created ? 0 : 1;
+    const shown = created && this.tab === "request" ? 0 : current;
     const parts: NativeElement[] = [];
     STEPS.forEach((name, index) => {
       if (index > 0) parts.push(div().text_size(13).text_color("#4A5066").child("›"));
-      const done = index === 0 && created;
-      const on = index === 0 && !created;
-      parts.push(h_flex().h(30).items_center().gap(8).pl(5).pr(13).rounded(15).border_1()
-        .border_color(on ? "#4A52A8" : "#2A2F40").bg(on ? "#1C2040" : CLEAR).text_size(13.5).text_color(on ? "#ffffff" : "#8C93A6")
+      const done = index < current;
+      const on = index === shown;
+      const small = index === 0 && created ? "validée" : index === 1 ? answered : "";
+      const pill = h_flex().id(`step-${index}`).h(30).items_center().gap(8).pl(5).pr(13).rounded(15).border_1()
+        .border_color(on ? "#4A52A8" : "#2A2F40").bg(on ? "#1C2040" : CLEAR).text_size(13.5).text_color(on ? "#ffffff" : done ? "#C9CFDB" : "#8C93A6")
         .child(h_flex().w(20).h(20).rounded_full().items_center().justify_center().text_size(11).font_semibold()
-          .bg(done ? "#1F7A5C" : on ? "#7B8CFF" : "#262B3A").text_color(done ? "#ffffff" : on ? "#12151D" : "#C9CFDB").child(done ? "✓" : String(index + 1)))
+          .bg(done ? "#163028" : on ? "#7B8CFF" : "#262B3A").text_color(done ? "#5DE3B8" : on ? "#12151D" : "#C9CFDB").child(done ? "✓" : String(index + 1)))
         .child(name)
-        .when(done, (el) => el.child(div().text_size(12.5).text_color("#6F7689").child("validée"))));
+        .when(small, (el) => el.child(div().text_size(12.5).text_color(on ? "#A9B4FF" : "#6F7689").child(small)));
+      parts.push(created && index < 2 ? pill.cursor_pointer().on_click((_event, cx) => {
+        this.tab = index === 0 ? "request" : "questions";
+        cx.notify();
+      }) : pill);
     });
     return h_flex().h(30).flex_none().items_center().gap(8).children(parts);
   }
 
-  // One block, one button (mockup README, "Le composeur"). The field is drawn
-  // and inert in slice 1: adding a detail arrives with Pilot, in slice 2.
-  composer(created: boolean): NativeElement {
-    const off = created || this.creating;
+  // One block, one button (mockup README, "Le composeur"): the button validates
+  // while the field is empty and sends what is written once it is not.
+  composer(field: Field, hint: string, label: string, validate: ((cx: Context) => void) | null,
+    sendHint = "", send: ((text: string, cx: Context) => void) | null = null): NativeElement {
+    const input = this.inputs[field];
+    const text = send ? input?.value().trim() ?? "" : "";
+    const role = this.sending || this.creating ? "off" : text ? "send" : validate ? "validate" : "off";
     const button = h_flex().id("validate").flex_none().h(40).px(18).items_center().rounded(10).border_1().text_size(14.5).font_semibold()
-      .border_color(off ? "#2A2F40" : "#2FA37A").bg(off ? "#262B3A" : "#1F7A5C").text_color(off ? "#8C93A6" : "#ffffff")
-      .when(!off, (el) => el.cursor_pointer().hover((style) => style.bg("#248A68")).on_click((_event, cx) => this.validate(cx)))
-      .child(created ? "Mission créée" : "✓  Valider la demande");
-    const hint = this.requestError || (created ? "La mission est dans Development · étape Préparer" : "ou validez la demande · la mission est créée");
+      .border_color(role === "off" ? "#2A2F40" : role === "send" ? "#6B6CF5" : "#2FA37A")
+      .bg(role === "off" ? "#262B3A" : role === "send" ? "#6B6CF5" : "#1F7A5C").text_color(role === "off" ? "#8C93A6" : "#ffffff")
+      .when(role !== "off", (el) => el.cursor_pointer().on_click((_event, cx) => (role === "send" ? send!(text, cx) : validate!(cx))))
+      .child(role === "send" ? "Envoyer à Pilot  ↑" : label);
     return div().flex_none().px(36).pt(18).pb(22).border_t_1().border_color("#2A2F40")
-      .child(v_flex().rounded(14).border_1().border_color("#3A4052").bg("#0F1219").overflow_hidden()
-        .child(div().min_h(66).px(18).pt(16).pb(18).text_size(15).text_color("#6F7689").child("Ajoutez une précision…"))
+      .child(v_flex().rounded(14).border_1().border_color(text ? "#4A52A8" : "#3A4052").bg("#0F1219").overflow_hidden()
+        .child(div().min_h(66).px(18).pt(16).pb(18).text_size(15).text_color("#E6E9F0")
+          .child(input && send ? Input.new(input) : div().text_color("#6F7689").child(FIELDS[field])))
         .child(h_flex().items_center().gap(12).pl(18).pr(10).py(10).border_t_1().border_color("#2A2F40").bg("#1B1F2B")
-          .child(div().flex_1().min_w_0().truncate().text_size(13.5).text_color(this.requestError ? "#F2C14E" : "#8C93A6").child(hint))
+          .child(div().flex_1().min_w_0().truncate().text_size(13.5).text_color(this.requestError ? "#F2C14E" : "#8C93A6")
+            .child(this.requestError || (text ? sendHint : hint)))
           .child(button)));
   }
 
-  brief(issue: IssueDetail): NativeElement {
-    const label = (text: string) => div().mt(20).mb(8).text_size(11.5).font_semibold().text_color("#8C93A6").child(text);
-    const line = (badge: string, text: string, small = "") => h_flex().items_start().gap(11).py(7).text_size(14).text_color("#E6E9F0")
-      .child(h_flex().flex_none().min_w(22).h(22).px(4).rounded(6).bg("#262B3A").items_center().justify_center().text_size(11).font_bold().text_color("#C9CFDB").child(badge))
-      .child(v_flex().flex_1().min_w_0().child(text).when(small, (el) => el.child(div().mt(2).text_size(13).text_color("#8C93A6").child(small))));
-    return v_flex().w(440).flex_none().h_full().min_h_0().rounded(12).border_1().border_color("#3A4052").bg("#1D2130")
-      .child(h_flex().h(52).flex_none().items_center().px(18).border_b_1().border_color("#2A2F40")
-        .child(div().text_size(12).font_semibold().text_color("#A3AABB").child("LA DEMANDE EN BREF")))
-      .child(v_flex().id("brief").flex_1().min_h_0().overflow_y_scrollbar().px(20).pt(16).pb(18)
-        .child(div().text_size(20).font_semibold().text_color("#ffffff").child(issue.key))
-        .child(div().mt(6).text_size(13.5).text_color("#8C93A6").child("L’issue telle qu’elle est dans le tracker."))
-        .child(label("RANGEMENT"))
-        .child(line("P", `Projet · ${PROJECT}`))
-        .child(label("ENSUITE"))
-        .child(line("2", "Les questions de Pilot", "une par page, avec une réponse proposée"))
-        .child(line("3", "La spec", "écrite par Pilot, relue par vous"))
-        .child(line("4", "Le plan", "les tickets, l’équipe, l’estimation")));
+  /** The main card: what the step shows, then the composer. */
+  conversation(id: string, content: NativeElement[], composer: NativeElement): NativeElement {
+    return this.card().h_full()
+      .child(v_flex().id(id).flex_1().min_h_0().overflow_y_scrollbar().px(36).pt(30).pb(22).child(v_flex().max_w(880).children(content)))
+      .child(composer);
   }
 
-  requestPage(): NativeElement[] {
-    const issue = this.issue;
-    if (!issue) {
-      // Loading, or the issue could not be read: a mission still shows its title and stage.
-      const mission = this.mission(this.requested);
-      return [
-        mission ? this.header(mission.title, this.stages(mission.issueKey, mission.stage)) : this.header(PROJECT, h_flex().child("La demande")),
-        this.card().px(24).py(22).child(this.note(this.requestError || "Chargement…", this.requestError ? "#F2C14E" : "#8C93A6")),
-      ];
-    }
-    // The local list of missions knows first: it is updated the moment one is created.
-    const stage = this.mission(issue.key)?.stage ?? issue.missionStage;
-    const created = stage !== undefined;
-    const chip = (text: string) => h_flex().h(26).px(9).items_center().rounded(6).border_1().border_color("#363C50").text_size(12.5).text_color("#C9CFDB").child(text);
+  heading(label: string, title: string, lead = ""): NativeElement[] {
     return [
-      this.header(issue.title, this.stages(issue.key, stage ?? "prepare")),
-      this.steps(created),
-      h_flex().flex_1().min_h_0().gap(14).items_stretch()
-        .child(this.card().h_full()
-          .child(v_flex().id("request").flex_1().min_h_0().overflow_y_scrollbar().px(36).pt(30).pb(22)
-            .child(v_flex().max_w(880)
-              .child(div().text_size(12).font_semibold().text_color("#A9B4FF").child(`${issue.key} · LA DEMANDE`))
-              .child(div().mt(6).text_size(26).font_semibold().text_color("#ffffff").child(issue.title))
-              .child(h_flex().mt(12).gap(6).child(chip(issue.status)).child(chip(PROJECT)))
-              .child(div().mt(12).text_size(15.5).text_color("#D6DAE6").child(TextView.markdown("description", issue.description)))))
-          .child(this.composer(created)))
-        .child(this.brief(issue)),
+      div().text_size(12).font_semibold().text_color("#A9B4FF").child(label),
+      div().mt(6).text_size(26).font_semibold().text_color("#ffffff").child(title),
+      ...(lead ? [div().mt(10).text_size(15.5).text_color("#C9CFDB").child(lead)] : []),
     ];
   }
 
+  /** The right column, 440 px wide on every step. */
+  column(title: string, id: string, children: NativeElement[]): NativeElement {
+    return v_flex().w(440).flex_none().h_full().min_h_0().rounded(12).border_1().border_color("#3A4052").bg("#1D2130")
+      .child(h_flex().h(52).flex_none().items_center().px(18).border_b_1().border_color("#2A2F40")
+        .child(div().text_size(12).font_semibold().text_color("#A3AABB").child(title)))
+      .child(v_flex().id(id).flex_1().min_h_0().overflow_y_scrollbar().px(10).pt(16).pb(18).children(children));
+  }
+
+  label(text: string): NativeElement {
+    return div().mt(20).mb(8).px(10).text_size(11.5).font_semibold().text_color("#8C93A6").child(text);
+  }
+
+  line(badge: string, text: string, small = "", tone: Tone = "todo", on = false): NativeElement {
+    const [bg, fg] = tone === "done" ? ["#163028", "#5DE3B8"] as const : tone === "fixed" ? ["#3A2E12", "#F2C14E"] as const : ["#262B3A", "#C9CFDB"] as const;
+    return h_flex().items_start().gap(11).px(10).py(7).rounded(9).border_1().border_color(on ? "#4A52A8" : CLEAR).bg(on ? "#1C2040" : CLEAR)
+      .text_size(14).text_color("#E6E9F0")
+      .when(badge, (el) => el.child(h_flex().flex_none().min_w(22).h(22).px(4).rounded(6).bg(bg).items_center().justify_center().text_size(11).font_bold().text_color(fg).child(badge)))
+      .child(v_flex().flex_1().min_w_0().child(text).when(small, (el) => el.child(div().mt(2).text_size(13).text_color("#8C93A6").child(small))));
+  }
+
+  // ---- the request (mockup 02) ---------------------------------------------
+  bubble(text: string): NativeElement {
+    return h_flex().mt(14).justify_end().child(v_flex().max_w(686).px(14).py(10).rounded(12).border_1().border_color("#4A52A8").bg("#262B5E")
+      .text_size(14.5).text_color("#E6E9F0")
+      .child(div().mb(3).text_size(11.5).font_semibold().text_color("#A9B4FF").child("VOUS")).child(text));
+  }
+
+  requestBody(issue: IssueDetail, created: boolean): NativeElement {
+    const chip = (text: string) => h_flex().h(26).px(9).items_center().rounded(6).border_1().border_color("#363C50").text_size(12.5).text_color("#C9CFDB").child(text);
+    const details = this.detail?.details ?? this.details;
+    const composer = created
+      ? this.composer("request", "Pilot a votre demande · la suite est à l’étape Questions", "Demande validée", null)
+      : this.composer("request", "ou validez la demande · Pilot prépare ensuite ses questions", "✓  Valider la demande", (cx) => this.validate(cx),
+        "la précision s’ajoute à votre demande · vous validez ensuite", (text, cx) => {
+          this.details = [...this.details, text];
+          this.inputs.request?.set_value("");
+          cx.notify();
+        });
+    return h_flex().flex_1().min_h_0().gap(14).items_stretch()
+      .child(this.conversation("request", [
+        div().text_size(12).font_semibold().text_color("#A9B4FF").child(`${issue.key} · LA DEMANDE`),
+        div().mt(6).text_size(26).font_semibold().text_color("#ffffff").child(issue.title),
+        h_flex().mt(12).gap(6).child(chip(issue.status)).child(chip(PROJECT)),
+        div().mt(12).text_size(15.5).text_color("#D6DAE6").child(TextView.markdown("description", issue.description)),
+        ...details.map((detail) => this.bubble(detail)),
+      ], composer))
+      .child(this.column("LA DEMANDE EN BREF", "brief", [
+        div().px(10).text_size(20).font_semibold().text_color("#ffffff").child(issue.key),
+        div().px(10).mt(6).text_size(13.5).text_color("#8C93A6").child("L’issue telle qu’elle est dans le tracker."),
+        this.label("RANGEMENT"),
+        this.line("P", `Projet · ${PROJECT}`),
+        ...(details.length ? [this.label("VOS PRÉCISIONS"), ...details.map((detail, index) => this.line(String(index + 1), detail))] : []),
+        this.label("ENSUITE"),
+        this.line("2", "Les questions de Pilot", "une par page, avec une réponse proposée"),
+        this.line("3", "La spec", "écrite par Pilot, relue par vous"),
+        this.line("4", "Le plan", "les tickets, l’équipe, l’estimation"),
+      ]));
+  }
+
+  // ---- Pilot's questions (mockups 08 to 13, 23, 24) -------------------------
+  proposal(label: string, text: string, kind: "current" | "first" | "kept"): NativeElement {
+    const first = kind === "first";
+    return v_flex().mt(20).px(first ? 16 : 18).py(first ? 14 : 16).rounded(12).border_1().border_color(kind === "kept" ? "#2E6B56" : "#2A2F40").bg("#161923")
+      .child(div().mb(4).text_size(12).font_semibold().text_color(first ? "#8C93A6" : "#5DE3B8").child(label))
+      .child(first ? div().text_size(15).text_color("#A3AABB").child(text) : div().text_size(17).font_semibold().text_color("#ffffff").child(text));
+  }
+
+  waiting(text: string, small = ""): NativeElement {
+    return h_flex().items_center().gap(14).mt(20).px(16).py(14).rounded(12).border_1().border_color("#3A4AB8").bg("#151A38")
+      .child(div().flex_none().w(20).text_size(16).text_color("#A9B4FF").frames(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"], 90))
+      .child(v_flex().child(div().text_size(15.5).font_semibold().text_color("#ffffff").child(text))
+        .when(small, (el) => el.child(div().mt(2).text_size(13.5).text_color("#A9B1D6").child(small))));
+  }
+
+  tone(question: Question): Tone {
+    return question.answer === undefined ? "todo" : question.replies.length ? "fixed" : "done";
+  }
+
+  badge(question: Question, index: number): string {
+    return question.answer === undefined ? String(index + 1) : question.replies.length ? "✎" : "✓";
+  }
+
+  questionsBody(detail: MissionDetail): NativeElement {
+    const key = detail.issueKey;
+    const questions = detail.questions;
+    const total = questions.length;
+    const done = questions.filter((question) => question.answer !== undefined).length;
+    const current = questions.find((question) => question.id === this.viewing) ?? questions.find((question) => question.answer === undefined);
+    const tell = (text: string, cx: Context) => this.send("pilot.tell", { issueKey: key, text }, "tell", cx);
+    const side = (counter: string, lead: string, rows: NativeElement[]) => this.column("LES QUESTIONS DE PILOT", "questions-list", [
+      div().px(10).text_size(20).font_semibold().text_color("#ffffff").child(counter),
+      div().px(10).mt(6).mb(8).text_size(13.5).text_color("#8C93A6").child(lead),
+      ...rows,
+    ]);
+    const rows = [
+      ...questions.map((question, index) => this.line(this.badge(question, index), question.text, question.answer ?? "", this.tone(question), question === current)
+        .id(`question-${question.id}`).cursor_pointer().on_click((_event, cx) => {
+          this.viewing = question.id;
+          this.inputs.answer?.set_value("");
+          this.inputs.again?.set_value("");
+          cx.notify();
+        })),
+      this.label("À SAVOIR"),
+      this.line("", "Pilot peut ajouter une question selon vos réponses."),
+    ];
+    const page = (content: NativeElement[], composer: NativeElement, column: NativeElement) =>
+      h_flex().flex_1().min_h_0().gap(14).items_stretch().child(this.conversation("questions", content, composer)).child(column);
+
+    if (total === 0) {
+      return page([
+        ...this.heading("LES QUESTIONS", "Pilot prépare ses questions", "Il vous les posera une par une, avec une réponse proposée à chaque fois."),
+        this.waiting("Pilot lit votre demande et le projet"),
+      ], this.composer("tell", "vous pouvez quitter cette page, Pilot continue", "Pilot prépare ses questions…", null, "Pilot en tient compte dans ses questions", tell),
+      side("En préparation", "Pilot lit la demande et le projet.", [this.line("…", "Première question", "en préparation"), this.line("…", "Les suivantes")]));
+    }
+    if (!current) {
+      return page([
+        ...this.heading("LES QUESTIONS", total === 1 ? "La question a une réponse" : `Les ${total} questions ont une réponse`,
+          "Relisez-les si vous voulez : un clic sur une question, à droite, la rouvre."),
+        v_flex().mt(18).children(questions.map((question, index) => this.line(this.badge(question, index), question.text, question.answer, this.tone(question)))),
+      ], this.composer("tell", "vos réponses sont validées · la spec arrive avec la prochaine étape", "✓  Écrire la spec", null, "Pilot en tient compte pour la spec", tell),
+      side(`${total} réponses sur ${total}`, "Une question par page. Un clic pour revenir sur une réponse.", rows));
+    }
+
+    const next = questions.find((question) => question !== current && question.answer === undefined);
+    const after = next ? `question ${questions.indexOf(next) + 1} ensuite` : "c’était la dernière question";
+    const revised = current.replies.length > 0;
+    const pending = current.answer === undefined && current.proposals.length <= current.replies.length;
+    const last = current.proposals[current.proposals.length - 1] ?? "";
+    const content = this.heading(`QUESTION ${questions.indexOf(current) + 1} SUR ${total}`, current.text, current.context);
+    if (current.answer !== undefined) {
+      content.push(this.proposal(revised ? "VOTRE RÉPONSE · VALIDÉE, APRÈS VOTRE CORRECTION" : "VOTRE RÉPONSE · VALIDÉE", current.answer, "kept"));
+    } else if (revised) {
+      content.push(this.proposal("PREMIÈRE RÉPONSE PROPOSÉE PAR PILOT", current.proposals[0] ?? "", "first"), ...current.replies.map((reply) => this.bubble(reply)),
+        pending ? this.waiting("Pilot met sa réponse à jour") : this.proposal("PILOT · SUGGESTION MISE À JOUR", last, "current"));
+    } else content.push(this.proposal("PILOT · RÉPONSE PROPOSÉE", last, "current"));
+
+    const reply = (text: string, cx: Context) => this.send("questions.reply", { issueKey: key, questionId: current.id, text }, revised ? "again" : "answer", cx);
+    const validate = (cx: Context) => this.send("questions.validate", { issueKey: key, questionId: current.id }, null, cx);
+    const sendHint = "Pilot met sa réponse à jour · vous validez ensuite";
+    const composer = current.answer !== undefined
+      ? this.composer("answer", `ou gardez votre réponse · ${next ? "retour aux questions" : "retour au récapitulatif"}`, "✓  Garder cette réponse", (cx) => {
+        this.viewing = "";
+        cx.notify();
+      }, sendHint, reply)
+      : pending ? this.composer("again", "Pilot reformule votre réponse", "Pilot met sa réponse à jour…", null)
+      : revised ? this.composer("again", `ou validez la suggestion mise à jour · ${after}`, "✓  Valider la suggestion mise à jour", validate, sendHint, reply)
+      : this.composer("answer", `ou validez la réponse de Pilot · ${after}`, "✓  Valider cette réponse", validate, sendHint, reply);
+    return page(content, composer, side(`${done} sur ${total}`, "Une question par page. Un clic pour revenir sur une réponse.", rows));
+  }
+
+  missionPage(): NativeElement[] {
+    const key = this.requested;
+    const issue = this.issue;
+    const mission = this.mission(key);
+    const stage = mission?.stage ?? issue?.missionStage;
+    const created = stage !== undefined;
+    const title = issue?.title ?? mission?.title;
+    const header = title ? this.header(title, this.stages(key, stage ?? "prepare")) : this.header(PROJECT, h_flex().child("La demande"));
+    const note = (text: string, color: `#${string}` = "#8C93A6") => this.card().px(24).py(22).child(this.note(text, color));
+    const questions = this.detail?.questions ?? [];
+    const answered = questions.length ? `${questions.filter((question) => question.answer !== undefined).length} sur ${questions.length}` : "";
+    if (created && this.tab === "questions") {
+      // The questions are local: they never wait for the tracker.
+      return [header, this.steps(true, answered), this.detail ? this.questionsBody(this.detail) : note("Chargement…")];
+    }
+    if (!issue) return [header, ...(created ? [this.steps(true, answered)] : []), note(this.requestError || "Chargement…", this.requestError ? "#F2C14E" : "#8C93A6")];
+    return [header, this.steps(created, answered), this.requestBody(issue, created)];
+  }
+
   render(): NativeElement {
-    const page = this.page === "issues" ? this.issuesPage() : this.page === "request" ? this.requestPage() : this.developmentPage();
+    const page = this.page === "issues" ? this.issuesPage() : this.page === "request" ? this.missionPage() : this.developmentPage();
     return h_flex().id("mission-control").size_full().bg("#12151D").text_color("#E6E9F0").text_size(14)
       .child(this.sidebar())
       .child(v_flex().flex_1().min_w_0().h_full()

@@ -63,6 +63,7 @@ test("refuses a mission outside the operator's list before contacting Linear", t
 for (const [failure, message] of [
   ["unauthorized", "Linear refuse l’accès avec cette clé."],
   ["network", "Impossible de joindre Linear."],
+  ["http", "Linear a rejeté la requête de lecture des tickets."],
   ["graphql", "Linear a rejeté la requête de lecture des tickets."],
 ]) {
   test(`reports the Linear ${failure} failure on screen`, t => {

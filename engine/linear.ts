@@ -23,7 +23,7 @@ async function queryIssues<I>(teamKey: string, criteria: object, fields: string)
     }).catch(() => { throw new CommandError("Impossible de joindre Linear."); });
     if (response.status === 401 || response.status === 403) throw new CommandError("Linear refuse l’accès avec cette clé.");
     const rejected = "Linear a rejeté la requête de lecture des tickets.";
-    if (!response.ok) throw new CommandError(response.status === 400 ? rejected : "Linear n’a pas pu répondre à la demande.");
+    if (!response.ok) throw new CommandError(rejected);
     const body: { data: { issues: Page<I> }; errors?: unknown[] } = await response.json();
     if (body.errors?.length) throw new CommandError(rejected);
     const page = body.data.issues;

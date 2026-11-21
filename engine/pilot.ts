@@ -20,15 +20,19 @@ function coreEnvironment() {
 export function gitAt(cwd: string, ...args: string[]) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== "LINEAR_API_KEY" && !name.startsWith("GIT_")));
   return execFileSync("git", ["-c", "core.hooksPath=/dev/null", "-C", cwd, ...args],
-    { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    { env: { ...env, GIT_TERMINAL_PROMPT: "0" }, timeout: args[0] === "commit" ? 30_000 : undefined,
+      encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
 export function worktree(repository: string, key: string, create = false) {
   const repo = realpathSync(repository.startsWith("~/") ? join(homedir(), repository.slice(2)) : repository);
   const target = join(homedir(), "Developer", "worktrees", basename(repo), key);
   const branch = "mission/" + key;
-  if (create && !existsSync(target)) gitAt(repo, "worktree", "add", "--no-track", "-b", branch, target, "origin/main");
-  else {
+  if (create && !existsSync(target)) {
+    try { gitAt(repo, "fetch", "--no-tags", "--no-recurse-submodules", "origin", "+refs/heads/main:refs/remotes/origin/main"); }
+    catch { throw new CommandError("Impossible de récupérer la branche principale du projet."); }
+    gitAt(repo, "worktree", "add", "--no-track", "-b", branch, target, "origin/main");
+  } else {
     const root = realpathSync(target);
     const common = gitAt(repo, "rev-parse", "--path-format=absolute", "--git-common-dir").trim();
     const gitDir = gitAt(target, "rev-parse", "--absolute-git-dir").trim();
@@ -48,7 +52,10 @@ export async function startPilot(repository: string, key: string, recovering: bo
   try {
     readFileSync(role, "utf8");
     cwd = worktree(repository, key, true);
-  } catch { throw new CommandError("Impossible de préparer le dossier de travail de Pilot."); }
+  } catch (error) {
+    if (error instanceof CommandError) throw error;
+    throw new CommandError("Impossible de préparer le dossier de travail de Pilot.");
+  }
   const terminal = "pilot-" + key.toLowerCase();
   const failed = "Le démarrage de Pilot n’est pas confirmé. Vérifiez son terminal.";
   if (recovering) {
@@ -68,6 +75,8 @@ export async function startPilot(repository: string, key: string, recovering: bo
     "mission-control pilot.questions " + JSON.stringify({ issueKey: key, questions: [{ id: "q1", text: "…", context: "…", proposal: "…" }] }),
     "mission-control pilot.propose " + JSON.stringify({ issueKey: key, questionId: "q1", proposal: "…" }),
     "For spec.write or spec.change, return the complete version with mission-control pilot.spec, including note and sections (title, passages with text, source, and changed for revised passages).",
+    "On spec.validate, split the spec. Send mission-control pilot.ticket for each discovery with issueKey and ticket (id, title, change).",
+    "Finish with mission-control pilot.plan: issueKey, tickets (id, title, change, how, covers, after, minutes, sensitive, parallel with dev and step), testMinutes, validationMinutes, advice and a short spec summary in summary. Write for the project in its language.",
     "Quote the JSON as one shell argument. Send an empty questions array when you have no new question.",
     JSON.stringify({ issueKey: key, ...mission }),
   ].join("\n");

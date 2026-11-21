@@ -13,11 +13,12 @@ export function sendGesture(dir: string, key: string, prepare: (mission: SavedMi
   return withMission(dir, key + ".operator", async () => {
     const attempt = await withMission(dir, key, () => {
       const m = loadDetail(dir, key);
+      if (m.launch || m.plan?.launched) return;
       const gesture = prepare(m);
       if (!gesture) return;
       const message = JSON.stringify(gesture.event);
       if (gesture.event.action !== "pilot.tell" && m.delivery?.[message] === false) throw new CommandError(unconfirmed);
-      const send = gesture.beforeNotify ? (line: string) => pilotSender(m.pilotTerminal)(line) : pilotSender(m.pilotTerminal);
+      const send = pilotSender(m.pilotTerminal);
       gesture.beforeNotify?.();
       (m.delivery ??= {})[message] = false;
       saveMission(dir, m);

@@ -7,6 +7,7 @@ import { CommandError, type Action, type Payloads, type Reply, type Results } fr
 
 import { askQuestions, propose, deliver } from "./questions.ts";
 import { receiveSpec, specGesture } from "./spec.ts";
+import { chooseTeam, completePlan, foundTicket, launchPlan } from "./plan.ts";
 import { startPilot } from "./pilot.ts";
 
 interface Settings { teamKey: string; allowedIssueKeys: string[]; repository: string }
@@ -14,9 +15,10 @@ type Handlers = { [A in Action]: (payload: Payloads[A]) => Results[A] | Promise<
 
 function issueNumber(key: unknown, teamKey: string): number {
   const parts = typeof key === "string" && /^([A-Z0-9]+)-([1-9][0-9]*)$/.exec(key);
-  if (!parts || parts[1] !== teamKey || !Number.isSafeInteger(Number(parts[2]))) {
+  if (!parts || !Number.isSafeInteger(Number(parts[2]))) {
     throw new Error("Invalid issue key");
   }
+  if (parts[1] !== teamKey) throw new CommandError("Ce ticket n’appartient pas à l’équipe configurée.");
   return Number(parts[2]);
 }
 
@@ -32,16 +34,18 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
     failure = reading;
     const payload: Payloads[A] = JSON.parse(json === "-" ? readFileSync(0, "utf8") : json);
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new CommandError(failure);
-    if (process.env.MC_PILOT_ISSUE && (!(action === "pilot.questions" || action === "pilot.propose" || action === "pilot.spec") ||
+    if (process.env.MC_PILOT_ISSUE && (!(action === "pilot.questions" || action === "pilot.propose" || action === "pilot.spec" ||
+        action === "pilot.ticket" || action === "pilot.plan") ||
         !("issueKey" in payload) || payload.issueKey !== process.env.MC_PILOT_ISSUE)) {
       throw new Error("Invalid Pilot callback");
     }
-    if (action.startsWith("questions.") || action.startsWith("pilot.") || action.startsWith("spec.")) {
+    if (action.startsWith("plan.") || action.startsWith("questions.") || action.startsWith("pilot.") || action.startsWith("spec.")) {
       issueNumber("issueKey" in payload ? payload.issueKey : undefined, teamKey);
     }
     function update(key: string, change: (mission: SavedMission) => void) {
       return withMission(dir, key, () => {
         const mission = loadDetail(dir, key, true);
+        if (mission.launch || mission.plan?.launched) return visible(mission);
         change(mission);
         saveMission(dir, mission);
         return visible(mission);
@@ -57,6 +61,13 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
       "spec.change": p => specGesture(dir, p.issueKey, { action: "spec.change", text: p.text }),
       "spec.validate": p => specGesture(dir, p.issueKey, { action: "spec.validate", repository }),
       "pilot.spec": p => update(p.issueKey, m => receiveSpec(m, p)),
+      "pilot.ticket": p => update(p.issueKey, m => foundTicket(m, p.ticket)),
+      "pilot.plan": p => update(p.issueKey, m => completePlan(m, p)),
+      "plan.team": p => update(p.issueKey, m => chooseTeam(m, p.team)),
+      "plan.launch": p => {
+        if (!allowedIssueKeys.includes(p.issueKey)) throw new CommandError("Ce ticket ne figure pas dans la liste autorisée.", "issue_not_allowed");
+        return launchPlan(dir, p.issueKey, teamKey, repository);
+      },
       "missions.list": () => listMissions(dir),
       "issues.list": async () => {
         failure = "Impossible de lire les tickets dans Linear.";

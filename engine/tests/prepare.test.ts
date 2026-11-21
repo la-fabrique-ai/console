@@ -80,6 +80,7 @@ fs.appendFileSync(env.MISSION_CONTROL_HOME + "/turns", JSON.stringify([argv.slic
     assert.deepEqual(flagValues("--tools"), ["Read,Glob,Grep,Bash"]);
     assert.deepEqual(flagValues("--allowedTools"), [
       "Read", "Glob", "Grep", "Bash(mission-control pilot.questions *)", "Bash(mission-control pilot.propose *)", "Bash(mission-control pilot.spec *)",
+      "Bash(mission-control pilot.ticket *)", "Bash(mission-control pilot.plan *)",
     ]);
   }
   assert.ok(first[0].includes("--restricted"));
@@ -196,4 +197,23 @@ test("a retry launches again only after inventory shows no live Pilot for this w
   ] }));
   assert.ok((await cli("missions.create", key)).data);
   assert.deepEqual(calls().map(([action]) => action), ["run", "ls", "run"]);
+});
+
+test("only a new mission fetches the current origin/main before branching", async t => {
+  const { cli, path, git } = setup(t);
+  const stale = git("rev-parse", "origin/main");
+  git("-C", path("origin"), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgSign=false",
+    "commit", "-q", "--allow-empty", "-m", "Remote update");
+  const current = git("-C", path("origin"), "rev-parse", "main");
+  assert.notEqual(stale, current);
+  git("remote", "set-url", "origin", path("missing"));
+  assert.equal((await cli("missions.create", key)).error?.message, "Impossible de récupérer la branche principale du projet.");
+  assert.equal(git("branch", "--list", "mission/*"), "");
+  assert.deepEqual((await cli("missions.list")).data, []);
+  git("remote", "set-url", "origin", path("origin"));
+  assert.ok((await cli("missions.create", key)).data);
+  assert.equal(git("rev-parse", "mission/DEMO-1"), current);
+  git("remote", "set-url", "origin", path("missing"));
+  assert.ok((await cli("missions.create", key)).data);
+  assert.equal(git("rev-parse", "mission/DEMO-1"), current);
 });

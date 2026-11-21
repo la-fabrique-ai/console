@@ -7,17 +7,32 @@ interface Page<I> { nodes: I[]; pageInfo: { hasNextPage: boolean; endCursor: str
 const readRejected = "Linear a rejeté la requête de lecture des tickets.";
 const writeUnconfirmed = "Linear n’a pas confirmé l’écriture. Relancez le plan pour vérifier les tickets et le commentaire.";
 
+const parentReadFailed = "Impossible de lire le ticket principal dans Linear.";
+const childReadFailed = "Impossible de vérifier le sous-ticket dans Linear.";
+const writeRefused = "Linear a refusé l’écriture.";
+
+class IssueNotFound extends CommandError {
+  constructor() { super("Ticket introuvable dans Linear."); }
+}
+
 async function request<T>(query: string, variables: object, message: string): Promise<T> {
   const key = process.env.LINEAR_API_KEY?.trim();
   if (!key) throw new CommandError("La clé d’accès à Linear est absente.", "linear_key_missing");
   const response = await fetch("https://api.linear.app/graphql", {
-    method: "POST", headers: { "Content-Type": "application/json", Authorization: key },
+    signal: AbortSignal.timeout(30_000), method: "POST", headers: { "Content-Type": "application/json", Authorization: key },
     body: JSON.stringify({ query, variables }),
   }).catch(() => { throw new CommandError(message === writeUnconfirmed ? message : "Impossible de joindre Linear."); });
   if (response.status === 401 || response.status === 403) throw new CommandError("Linear refuse l’accès avec cette clé.");
-  if (!response.ok) throw new CommandError(message);
   const body = await response.json().catch(() => null);
-  if (!body?.data || body.errors?.length) throw new CommandError(message);
+  const errors = body?.errors;
+  if ((response.ok || response.status === 400 || response.status === 404) && errors?.length === 1 &&
+      errors[0]?.path?.[0] === "issue" && errors[0].message === "Entity not found: Issue") throw new IssueNotFound();
+  if (!response.ok || !body?.data || errors?.length) {
+    const definite = (response.status >= 400 && response.status < 500 && response.status !== 408) ||
+      (Array.isArray(errors) && errors.some(e => ["invalid input", "forbidden", "ratelimited"].includes(e?.extensions?.type) ||
+        ["BAD_USER_INPUT", "GRAPHQL_VALIDATION_FAILED", "FORBIDDEN", "RATELIMITED"].includes(e?.extensions?.code)));
+    throw new CommandError(message === writeUnconfirmed && definite ? writeRefused : message);
+  }
   return body.data;
 }
 
@@ -67,27 +82,48 @@ async function members<I>(parent: string, field: "children" | "comments"): Promi
   const nodes: I[] = [];
   let after: string | null = null;
   do {
-    const data: { issue: Record<string, Page<I>> } = await request(query, { parent, after }, readRejected);
-    const page: Page<I> = data.issue[field];
+    const data: { issue?: Record<string, Page<I>> } = await request(query, { parent, after }, parentReadFailed);
+    const page: Page<I> | undefined = data.issue?.[field];
+    if (!Array.isArray(page?.nodes) || typeof page.pageInfo?.hasNextPage !== "boolean") throw new CommandError(parentReadFailed);
     nodes.push(...page.nodes);
-    if (page.pageInfo.hasNextPage === false) break;
-    if (!page.pageInfo.endCursor || page.pageInfo.endCursor === after) throw new CommandError(readRejected);
-    after = page.pageInfo.endCursor;
+    after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
   } while (after);
   return nodes;
 }
 
-export async function launchInventory(key: string, teamKey: string) {
-  const { issue } = await request<{ issue: { id: string; identifier: string; team: { id: string; key: string } } }>(
-    "query LaunchParent($key: String!) { issue(id: $key) { id identifier team { id key } } }", { key }, readRejected);
-  if (!issue?.id || !issue.team?.id || issue.identifier !== key || issue.team.key !== teamKey) {
-    throw new CommandError("Ticket introuvable dans Linear.");
+async function findChild(id: string) {
+  try {
+    const { issue } = await request<{ issue: Child }>(
+      "query LaunchChild($id: String!) { issue(id: $id) { id identifier } }", { id }, childReadFailed);
+    if (issue?.id !== id || !issue.identifier) throw new CommandError(childReadFailed);
+    return issue.identifier;
+  } catch (error) {
+    if (error instanceof IssueNotFound) return undefined;
+    throw error;
+  }
+}
+
+export async function launchInventory(key: string, teamKey: string, savedIds: string[]) {
+  type MainIssue = Child & { team: { id: string; key: string }; archivedAt: string | null; trashed: boolean | null; state: { type: string } };
+  const { issue } = await request<{ issue: MainIssue }>(
+    "query LaunchParent($key: String!) { issue(id: $key) { id identifier team { id key } archivedAt trashed state { type } } }",
+    { key }, parentReadFailed);
+  if (!issue?.id || !issue.identifier || !issue.team?.id || !issue.team.key || !issue.state?.type ||
+      issue.archivedAt === undefined || issue.trashed === undefined) throw new CommandError(parentReadFailed);
+  if (issue.identifier !== key || issue.team.key !== teamKey) throw new IssueNotFound();
+  if (issue.archivedAt || issue.trashed || ["canceled", "completed", "duplicate"].includes(issue.state.type)) {
+    throw new CommandError("Le ticket principal n’est plus ouvert dans Linear.");
   }
   const children = await members<Child>(issue.id, "children");
   const comments = await members<{ id: string }>(issue.id, "comments");
-  if (children.some(c => !c.id || !c.identifier) || comments.some(c => !c.id)) throw new CommandError(readRejected);
-  return { id: issue.id, teamId: issue.team.id, children: new Map(children.map(c => [c.id, c.identifier])),
-    comments: new Set(comments.map(c => c.id)) };
+  if (children.some(c => !c?.id || !c.identifier) || comments.some(c => !c?.id)) throw new CommandError(parentReadFailed);
+  const keys = new Map(children.map(c => [c.id, c.identifier]));
+  for (const id of savedIds) {
+    if (keys.has(id)) continue;
+    const found = await findChild(id);
+    if (found) keys.set(id, found);
+  }
+  return { id: issue.id, teamId: issue.team.id, children: keys, comments: new Set(comments.map(c => c.id)) };
 }
 
 export async function createSubTicket(parent: Parent, id: string, title: string, description: string) {
@@ -95,6 +131,7 @@ export async function createSubTicket(parent: Parent, id: string, title: string,
     `mutation CreateSubTicket($input: IssueCreateInput!) {
       issueCreate(input: $input) { success issue { id identifier } }
     }`, { input: { id, teamId: parent.teamId, parentId: parent.id, title, description } }, writeUnconfirmed);
+  if (issueCreate?.success === false) throw new CommandError(writeRefused);
   if (!issueCreate?.success || issueCreate.issue?.id !== id || !issueCreate.issue.identifier) throw new CommandError(writeUnconfirmed);
   return issueCreate.issue.identifier;
 }
@@ -104,5 +141,6 @@ export async function addComment(issueId: string, id: string, body: string) {
     `mutation AddComment($input: CommentCreateInput!) {
       commentCreate(input: $input) { success comment { id } }
     }`, { input: { id, issueId, body } }, writeUnconfirmed);
+  if (commentCreate?.success === false) throw new CommandError(writeRefused);
   if (!commentCreate?.success || commentCreate.comment?.id !== id) throw new CommandError(writeUnconfirmed);
 }

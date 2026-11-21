@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { setup } from "./pilot-project.ts";
 
@@ -216,4 +216,23 @@ test("only a new mission fetches the current origin/main before branching", asyn
   git("remote", "set-url", "origin", path("missing"));
   assert.ok((await cli("missions.create", key)).data);
   assert.equal(git("rev-parse", "mission/DEMO-1"), current);
+});
+
+test("a fetch waiting for its remote times out before branching and can be retried", async t => {
+  const { cli, path, git } = setup(t);
+  appendFileSync(path("home.mjs"), `
+import cp from 'node:child_process'; import fs from 'node:fs';
+const run = cp.execFileSync;
+cp.execFileSync = (command, args, options) => {
+  if (command !== "git" || !args.includes("fetch") || !(options.timeout > 0)) return run(command, args, options);
+  try { return run(command, args, { ...options, timeout: Math.min(options.timeout, 300) }); }
+  catch (error) { fs.writeFileSync(process.env.MISSION_CONTROL_HOME + "/fetch-failure", String(error.code)); throw error; }
+};
+syncBuiltinESMExports();`);
+  writeFileSync(path("bin/git"), '#!/bin/sh\nfor arg do if [ "$arg" = fetch ]; then exec sleep 1; fi; done\nexec /usr/bin/git "$@"\n', { mode: 0o700 });
+  assert.equal((await cli("missions.create", key)).error?.message, "Impossible de récupérer la branche principale du projet.");
+  assert.equal(readFileSync(path("fetch-failure"), "utf8"), "ETIMEDOUT");
+  assert.equal(git("branch", "--list", "mission/*"), "");
+  unlinkSync(path("bin/git"));
+  assert.ok((await cli("missions.create", key)).data);
 });

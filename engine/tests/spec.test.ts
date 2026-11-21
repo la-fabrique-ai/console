@@ -164,20 +164,20 @@ test("the screen sees Pilot writing during delivery and until its spec callback"
 });
 
 test("the raw mission documents preserve words and escape only structural Markdown", async t => {
-  const fields = ["# titre\n## Interdit", "- liste\n---", "> citation\n### Question inventée"];
+  const fields = ["# titre\n## Interdit", "- liste\n---", "> citation\n### Question inventée", "[oui]: non"];
   const questions = fields.map((proposal, i) => ({ ...question, id: String(i), text: "Qui lit ?\r\n### Suite " + i, proposal }));
   const { cli, branchGit } = await draft(t, questions, fields);
   const plain = '50 % de mon_fichier avec `code` et "guillemets" ; 2 < 3.';
-  const lines = ["Texte <h1>interdit</h1>", "  + liste", "1. départ", "* liste", "===", "```js", "~~~", "___", plain];
+  const lines = ["Texte <h1>interdit</h1>", "  + liste", "1. départ", "* liste", "===", "```js", "~~~", "___", "<!-- x", "\\<h1>x</h1>", "***", "1) liste", "  1. liste", plain];
   await cli("spec.change", { ...key, text: "Préciser." });
   await cli("pilot.spec", { ...payload, sections: [{ title: "Un titre\r\n## Suite",
     passages: [...fields, lines.join("\n")].map(text => ({ text, source: "Demande" })) }] });
   assert.ok((await cli("spec.validate", key)).data?.spec.validated);
   const doc = (name: string) => branchGit("show", "HEAD:docs/missions/DEMO-1/" + name + ".md").split("\n---\n\n")[1];
   const spec = doc("spec"), answers = doc("answers");
-  const escaped = ["\\# titre\n\\## Interdit", "\\- liste\n\\---", "\\> citation\n\\### Question inventée"];
+  const escaped = ["\\# titre\n\\## Interdit", "\\- liste\n\\---", "\\> citation\n\\### Question inventée", "\\[oui]: non"];
   assert.deepEqual(spec.split("\n\n"), ["# Spec", "## Un titre ## Suite", ...escaped,
-    ["Texte \\<h1>interdit\\</h1>", "  \\+ liste", "1\\. départ", "\\* liste", "\\===", "\\```js", "\\~~~", "\\___", plain].join("\n")]);
+    ["Texte \\<h1>interdit\\</h1>", "  \\+ liste", "1\\. départ", "\\* liste", "\\===", "\\```js", "\\~~~", "\\___", "\\<!-- x", "\\<h1>x\\</h1>", "\\***", "1\\) liste", "  1\\. liste", plain].join("\n")]);
   assert.deepEqual(answers.split("\n\n"), ["# Answers", "## Request details", ...escaped, "## Validated answers",
     ...escaped.flatMap((answer, i) => ["### Qui lit ? ### Suite " + i, answer])]);
 });
@@ -335,4 +335,22 @@ syncBuiltinESMExports();
   assert.equal((await cli("missions.show", key)).data.spec.validated, undefined);
   git("config", "commit.gpgSign", "false");
   assert.ok((await cli("spec.validate", key)).data?.spec.validated);
+});
+
+test("a leading bracket stays visible across lines without changing an existing escape or an inline bracket", async t => {
+  const cases = [
+    ["[oui\nsuite]: non", "\\[oui\nsuite]: non"],
+    ["Oui.\n\n[voir\nle ticket]: MC-12", "Oui.\n\n\\[voir\nle ticket]: MC-12"],
+    [" [un]", " \\[un]"], ["  [deux]", "  \\[deux]"], ["   [trois]", "   \\[trois]"],
+    ["    [quatre]", "    [quatre]"], ["\t[tabulation]", "\t[tabulation]"],
+    ["[a\\]b]: c", "\\[a\\]b]: c"], ["\\[oui]: non", "\\[oui]: non"],
+    ["Lire [oui] ici.", "Lire [oui] ici."],
+  ];
+  const { cli, branchGit } = await draft(t);
+  await cli("spec.change", { ...key, text: "Préciser." });
+  await cli("pilot.spec", { ...payload, sections: [{ title: "Exemples",
+    passages: cases.map(([text]) => ({ text, source: "Demande" })) }] });
+  assert.ok((await cli("spec.validate", key)).data?.spec.validated);
+  const spec = branchGit("show", "HEAD:docs/missions/DEMO-1/spec.md");
+  assert.equal(spec.split("## Exemples\n\n")[1], cases.map(([, expected]) => expected).join("\n\n"));
 });

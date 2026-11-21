@@ -20,7 +20,7 @@ function coreEnvironment() {
 export function gitAt(cwd: string, ...args: string[]) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== "LINEAR_API_KEY" && !name.startsWith("GIT_")));
   return execFileSync("git", ["-c", "core.hooksPath=/dev/null", "-C", cwd, ...args],
-    { env: { ...env, GIT_TERMINAL_PROMPT: "0" }, timeout: args[0] === "commit" ? 30_000 : undefined,
+    { env: { ...env, GIT_TERMINAL_PROMPT: "0" }, timeout: ["commit", "fetch"].includes(args[0]) ? 30_000 : undefined,
       encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 

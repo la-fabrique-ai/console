@@ -20,7 +20,9 @@ test("Pilot streams a local draft after validation and the operator can choose o
   const old = (await cli("missions.show", key)).data;
   assert.ok(old.spec); assert.equal(old.plan, undefined);
   assert.equal((await cli("missions.list")).data[0].stage, "prepare");
-  await cli("pilot.plan", complete);
+  for (const [action, data] of [["pilot.ticket", { ...key, ticket: first }], ["pilot.plan", complete]] as const) {
+    assert.match((await cli(action, data)).error?.message ?? "", /spec.*validée/);
+  }
   assert.equal((await cli("missions.show", key)).data.plan, undefined);
   writeFileSync(path("send.callback"), JSON.stringify(["pilot.ticket", { ...key, ticket: first }]));
   const splitting = (await cli("spec.validate", key)).data;
@@ -44,6 +46,17 @@ test("Pilot streams a local draft after validation and the operator can choose o
   const team = ["codex", "codex"];
   assert.deepEqual((await cli("plan.team", { ...key, team })).data.plan.team, team);
   pilot.MC_PILOT_ISSUE = key.issueKey;
+  const later = { ...ticket, ...second, after: ["1"], parallel: { dev: 2, step: 2 } };
+  for (const [invalid, reason] of [
+    [[ticket, { ...later, id: "1" }], /numérot/], [[{ ...ticket, id: "2" }], /numérot/],
+    [[{ ...ticket, after: ["2"] }, later], /précédent/], [[ticket, { ...later, after: ["9"] }], /précédent/],
+    [[ticket, { ...later, parallel: { dev: 2, step: 1 } }], /étape/],
+    [[{ ...ticket, parallel: { dev: 1, step: 3 } }, later], /étape/],
+    [[{ ...ticket, minutes: 0 }], /minutes/], [[{ ...ticket, minutes: 1.5 }], /minutes/],
+  ] as const) {
+    const refused = await cli("pilot.plan", { ...complete, tickets: invalid });
+    assert.match(refused.error?.message ?? "", reason);
+  }
   const long = { ...ticket, how: "Indexation. ".repeat(15000) };
   const full = [long, { ...ticket, ...second }];
   const done = (await cli("pilot.plan", { ...complete, tickets: full.map(t => ({ ...t, key: "FAKE-1" })) }, true)).data;

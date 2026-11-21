@@ -1,7 +1,7 @@
 import { CommandError, type Payloads, type Plan, type PlanTicket, type Tool } from "./contract.ts";
 import { randomUUID } from "node:crypto";
 import { loadDetail, saveMission, visible, withMission, type SavedMission } from "./missions.ts";
-import { commitSplit, localDate } from "./spec-files.ts";
+import { commitSplit, hasCommittedSplit, localDate, markdownText, singleLine } from "./spec-files.ts";
 import { addComment, createSubTicket, launchInventory } from "./linear.ts";
 import { clearQuestionReceipts, text } from "./questions.ts";
 
@@ -14,28 +14,53 @@ function preview({ id, title, change }: Plan["found"][number]) {
 }
 
 export function foundTicket(m: SavedMission, ticket: Plan["found"][number]) {
-  if (!m.spec?.validated || m.plan?.tickets.length) return;
+  if (!m.spec?.validated) throw new CommandError("La spec doit être validée avant de transmettre le découpage.");
+  if (m.plan?.tickets.length) return;
   const plan = draft(m);
   if (!plan.found.some(entry => entry.id === ticket.id)) plan.found.push(preview(ticket));
 }
 
 function count(n: number, minimum = 0) {
-  if (!Number.isSafeInteger(n) || n < minimum) throw new Error("Invalid plan estimate");
+  if (!Number.isSafeInteger(n) || n < minimum) throw new CommandError("Les estimations et les étapes doivent être des nombres entiers valides.");
   return n;
 }
 
 function planTicket(t: PlanTicket): PlanTicket {
-  if (typeof t.sensitive !== "boolean" || ![1, 2].includes(t.parallel.dev)) throw new Error("Invalid plan ticket");
+  if (typeof t.sensitive !== "boolean" || ![1, 2].includes(t.parallel?.dev)) throw new CommandError("Précisez le niveau de risque et le développeur de chaque ticket.");
+  if (!Array.isArray(t.covers) || ![t.title, t.change, t.how, ...t.covers].every(v => typeof v === "string" && v.trim())) {
+    throw new CommandError("Vérifiez le titre, le changement, la méthode et les points couverts de chaque ticket.");
+  }
+  if (!Number.isSafeInteger(t.minutes) || t.minutes < 1) throw new CommandError("La durée de chaque ticket doit être un nombre entier positif de minutes.");
   return { ...preview(t), how: text(t.how), covers: t.covers.map(text), after: t.after.map(text),
-    minutes: count(t.minutes), sensitive: t.sensitive, parallel: { dev: t.parallel.dev, step: count(t.parallel.step, 1) } };
+    minutes: t.minutes, sensitive: t.sensitive, parallel: { dev: t.parallel.dev, step: count(t.parallel.step, 1) } };
+}
+
+function checkedTickets(input: PlanTicket[]) {
+  if (!Array.isArray(input) || !input.length) throw new CommandError("Le plan doit contenir au moins un ticket.");
+  const steps = new Map<string, number>();
+  return input.map((t, i) => {
+    if (t?.id !== String(i + 1)) throw new CommandError("Les tickets doivent être numérotés dans l’ordre à partir de 1.");
+    if (!Array.isArray(t.after) || t.after.some(id => !steps.has(id))) throw new CommandError("Chaque dépendance doit désigner un ticket précédent.");
+    const ticket = planTicket(t);
+    if (ticket.after.some(id => ticket.parallel.step <= steps.get(id)!)) {
+      throw new CommandError("Placez chaque ticket à une étape postérieure à celles de ses dépendances.");
+    }
+    steps.set(ticket.id, ticket.parallel.step);
+    return ticket;
+  });
 }
 
 export function completePlan(m: SavedMission, p: Payloads["pilot.plan"]) {
-  if (!m.spec?.validated || m.plan?.tickets.length) return;
-  const tickets = p.tickets.map(planTicket);
-  if (!tickets.length || new Set(tickets.map(t => t.id)).size !== tickets.length) throw new Error("Invalid plan tickets");
-  m.plan = { ...draft(m), tickets, testMinutes: count(p.testMinutes), validationMinutes: count(p.validationMinutes), advice: text(p.advice) };
-  m.planSummary = text(p.summary);
+  if (!m.spec?.validated) throw new CommandError("La spec doit être validée avant de transmettre le découpage.");
+  if (m.plan?.tickets.length) {
+    // An older draft may predate the dependency checks; Pilot can correct it until launch.
+    try { checkedTickets(m.plan.tickets); return; }
+    catch (error) { if (!(error instanceof CommandError)) throw error; }
+  }
+  const tickets = checkedTickets(p.tickets);
+  if (![p.advice, p.summary].every(v => typeof v === "string" && v.trim())) throw new CommandError("Le plan doit inclure un conseil et un résumé.");
+  m.plan = { ...draft(m), tickets, testMinutes: count(p.testMinutes), validationMinutes: count(p.validationMinutes), advice: p.advice };
+  m.planSummary = p.summary;
   clearQuestionReceipts(m);
   delete m.pilotBusy;
 }
@@ -46,13 +71,19 @@ export function chooseTeam(m: SavedMission, team: Tool[]) {
   m.plan.team = team;
 }
 
-function description(t: PlanTicket) {
-  const blocks = [t.change, t.how];
-  if (t.covers.length) blocks.push(t.covers.map(point => "- " + point).join("\n"));
-  if (t.after.length) blocks.push("← " + t.after.join(", "));
-  blocks.push(t.minutes + " min" + (t.sensitive ? " · high-risk" : ""));
+function description(t: PlanTicket, prior: Map<string, PlanTicket>) {
+  const blocks = ["**Ce que ça change**\n" + markdownText(t.change), "**Comment**\n" + markdownText(t.how)];
+  if (t.covers.length) blocks.push("**Couvre, dans la spec**\n" + t.covers.map(point => "- " + markdownText(point)).join("\n"));
+  if (t.after.length) blocks.push("**Attend**\n" + t.after.map(id => {
+    const dependency = prior.get(id)!;
+    return "- " + dependency.key + " — " + markdownText(singleLine(dependency.title));
+  }).join("\n"));
+  blocks.push("**Taille** : environ " + t.minutes + " min" +
+    (t.sensitive ? "\n**Sensible** : approche relue avant le code, deux revues" : ""));
   return blocks.join("\n\n");
 }
+
+const damagedLaunch = "Les données de reprise du lancement sont endommagées.";
 
 export function launchPlan(dir: string, key: string, teamKey: string, repository: string) {
   return withMission(dir, key + ".operator", () => withMission(dir, key, async () => {
@@ -60,18 +91,31 @@ export function launchPlan(dir: string, key: string, teamKey: string, repository
     const plan = m.plan;
     if (plan?.launched) return visible(m);
     if (!m.spec?.validated || !plan?.tickets.length || !m.planSummary) throw new CommandError("Le découpage des tickets n’est pas terminé.");
+    plan.tickets = checkedTickets(plan.tickets);
     // Remember the approved draft and every remote identity before the first side effect.
-    if (!m.launch) {
+    const resuming = Object.hasOwn(m, "launch");
+    if (!resuming) {
+      if (hasCommittedSplit(repository, key)) throw new CommandError(damagedLaunch);
       m.launch = { date: localDate(), children: plan.tickets.map(() => randomUUID()), comment: randomUUID() };
       saveMission(dir, m);
     }
-    commitSplit(repository, key, plan, m.launch.date);
-    const parent = await launchInventory(key, teamKey);
-    for (const [index, ticket] of plan.tickets.entries()) {
-      const id = m.launch.children[index];
-      ticket.key = parent.children.get(id) ?? await createSubTicket(parent, id, ticket.title, description(ticket));
+    const journal = m.launch;
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    if (!journal || typeof journal.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(journal.date) ||
+        !Array.isArray(journal.children) || journal.children.length !== plan.tickets.length ||
+        ![...journal.children, journal.comment].every(id => typeof id === "string" && uuid.test(id)) ||
+        new Set([...journal.children, journal.comment]).size !== plan.tickets.length + 1) {
+      throw new CommandError(damagedLaunch);
     }
-    if (!parent.comments.has(m.launch.comment)) await addComment(parent.id, m.launch.comment, m.planSummary);
+    commitSplit(repository, key, plan, journal.date);
+    const parent = await launchInventory(key, teamKey, resuming ? journal.children : []);
+    const prior = new Map<string, PlanTicket>();
+    for (const [index, ticket] of plan.tickets.entries()) {
+      const id = journal.children[index];
+      ticket.key = parent.children.get(id) ?? await createSubTicket(parent, id, singleLine(ticket.title), description(ticket, prior));
+      prior.set(ticket.id, ticket);
+    }
+    if (!parent.comments.has(journal.comment)) await addComment(parent.id, journal.comment, m.planSummary);
     plan.launched = true;
     m.stage = "develop";
     delete m.pilotBusy;

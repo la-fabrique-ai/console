@@ -381,7 +381,7 @@ export default class MissionControl extends View {
 
   /** The main card: what the step shows, then the composer. */
   conversation(id: string, content: NativeElement[], composer: NativeElement): NativeElement {
-    return this.card().h_full()
+    return this.card().h_full().min_w_0() // long passages never push the right column out of the window
       .child(v_flex().id(id).flex_1().min_h_0().overflow_y_scrollbar().px(36).pt(30).pb(22).child(v_flex().max_w(880).children(content)))
       .child(composer);
   }

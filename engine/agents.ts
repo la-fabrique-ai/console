@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { CommandError, type Action, type Payloads, type PlanTicket, type Tool } from "./contract.ts";
 import { loadDetail, saveMission, visible, withMission, type SavedMission } from "./missions.ts";
@@ -17,6 +17,14 @@ export function caller(m: SavedMission, action: Action, ticketId?: string) {
   if (!agent || (agent.role !== "lead" && agent.ticketId !== ticketId && !(action === "request.ask" && ticketId === undefined)) ||
       !(action === "request.ask" || action === { lead: "lead.build", dev: "dev.done", reviewer: "review.verdict" }[agent.role])) throw refused();
   return agent;
+}
+
+export function sendOnce(dir: string, terminal: string, deliveryId: string, event: object) {
+  if (existsSync(join(dir, "..", "receipts", terminal, deliveryId))) return;
+  try {
+    execFileSync("hc", ["send", "--", terminal, JSON.stringify({ ...event, deliveryId })],
+      { env: coreEnvironment(), timeout: 15_000, stdio: "pipe" });
+  } catch { throw new CommandError("L’envoi à l’agent n’est pas confirmé. Vérifiez son terminal."); }
 }
 
 function live(agent: Agent) {

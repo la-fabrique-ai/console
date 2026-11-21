@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { caller, refused } from "./agents.ts";
+import { caller, refused, sendOnce } from "./agents.ts";
 import { CommandError, type Payloads } from "./contract.ts";
 import { withMission, loadDetail, saveMission, visible } from "./missions.ts";
-import { notifyAgent } from "./review.ts";
 
 export function ask(dir: string, p: Payloads["request.ask"]) {
   return withMission(dir, p.issueKey, () => {
@@ -30,9 +29,13 @@ export function answer(dir: string, p: Payloads["requests.answer"]) {
     if (typeof p.text !== "string" || !p.text.trim()) throw new CommandError("Saisissez votre réponse avant de l’envoyer.");
     const terminal = m.recipients?.[request.id];
     if (!terminal) throw refused();
-    request.answer = p.text;
-    saveMission(dir,m);
-    notifyAgent({ terminal }, { action: "requests.answer", requestId: request.id, text: p.text });
+    const pending = m.pendingAnswers ??= {};
+    const text = pending[request.id] ??= p.text;
+    saveMission(dir, m);
+    sendOnce(dir, terminal, request.id, { action: "requests.answer", requestId: request.id, text });
+    request.answer = text;
+    delete pending[request.id];
+    saveMission(dir, m);
     return visible(m);
   });
 }

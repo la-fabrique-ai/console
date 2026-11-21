@@ -1,17 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
-import { agentFor, caller, refused, startAgent, type Agent } from "./agents.ts";
+import { agentFor, caller, refused, startAgent, sendOnce } from "./agents.ts";
 import { CommandError, type Payloads, type TicketStep } from "./contract.ts";
 import { github, remoteError } from "./github.ts";
 import { loadDetail, saveMission, visible, withMission } from "./missions.ts";
-import { coreEnvironment, gitAt, worktree } from "./pilot.ts";
+import { gitAt, worktree } from "./pilot.ts";
 
-export function notifyAgent(agent: Pick<Agent, "terminal">, message: object) {
-  try { execFileSync("hc", ["send","--",agent.terminal,JSON.stringify(message)], { env: coreEnvironment(), timeout: 15_000, stdio: "pipe" }); }
-  catch { throw new CommandError("L’envoi à l’agent n’est pas confirmé. Vérifiez son terminal."); }
-}
 export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
   return withMission(dir, p.issueKey, () => {
     const m = loadDetail(dir,p.issueKey), dev = caller(m,"dev.done",p.ticketId);
@@ -60,8 +55,7 @@ export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
 function finishNotice(dir: string, m: ReturnType<typeof loadDetail>) {
   if (!m.notice) return visible(m);
   const { terminal, deliveryId, event } = m.notice;
-  const receipt = join(dir, "..", "receipts", terminal, deliveryId);
-  if (!existsSync(receipt)) notifyAgent({ terminal }, { ...event, deliveryId });
+  sendOnce(dir, terminal, deliveryId, event);
   delete m.notice;
   saveMission(dir, m);
   return visible(m);

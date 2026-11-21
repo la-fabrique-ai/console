@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { development } from "./develop-project.ts";
 
@@ -26,6 +26,14 @@ test("a request remembers the terminal that asked; concurrent answers use the fi
   writeFileSync(p.path("live"),JSON.stringify({ terminals: [] })); await p.action("develop.start");
   writeFileSync(p.path("offline"),"lost receipt");
   assert.ok((await p.action("requests.answer",{ requestId,text:"Oui" })).error);
-  assert.ok((await p.action("requests.answer",{ requestId,text:"Oui" })).data);
-  assert.equal(sends().length,2); assert.equal(sends()[1][2],lead.terminal);
+  assert.equal((await p.action("missions.show")).data.development.requests[1].answer,undefined);
+  unlinkSync(p.path("offline"));
+  writeFileSync(p.path("lose-send"),"after receipt");
+  assert.ok((await p.action("requests.answer",{ requestId,text:"Autre réponse" })).error);
+  const confirmed = await p.action("requests.answer",{ requestId,text:"Oui" });
+  assert.equal(confirmed.data.development.requests[1].answer,"Oui");
+  assert.equal(sends().length,3); assert.equal(sends()[2][2],lead.terminal);
+  const delivered = readFileSync(p.path("delivered"),"utf8").trim().split("\n").map(l => JSON.parse(l));
+  assert.equal(delivered.length,2);
+  assert.equal(JSON.parse(delivered[1][3]).text,"Oui");
 });

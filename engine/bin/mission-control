@@ -1,0 +1,2 @@
+#!/bin/sh
+exec "$MC_PILOT_NODE" "$(dirname "$0")/../cli.ts" "$@"

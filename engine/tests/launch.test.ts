@@ -243,3 +243,22 @@ test("losing the entire journal after a confirmed split cannot start a second la
   for (let i = 0; i < 2; i++) assert.equal((await cli("plan.launch", key)).error?.message, "Les données de reprise du lancement sont endommagées.");
   assert.deepEqual(requests(), before);
 });
+
+test("a repeated cursor stops each launch read, releases its locks and permits a retry", async t => {
+  const { cli, env, requests, writes } = await ready(t);
+  const fixture: NodeJS.ProcessEnv = env;
+  for (const [fault, message, query] of [
+    ["repeat-children", "Impossible de lire le ticket principal dans Linear.", "children("],
+    ["repeat-comments", "Impossible de lire le ticket principal dans Linear.", "comments("],
+    ["repeat-lookup", "Impossible de vérifier le sous-ticket dans Linear.", "query LaunchChildren("],
+  ]) {
+    const before = requests().length;
+    fixture.TEST_LAUNCH_FAULT = fault;
+    assert.equal((await cli("plan.launch", key)).error?.message, message, fault);
+    const pages = requests().slice(before).filter(r => r.query.includes(query));
+    assert.deepEqual(pages.map(r => r.variables.after), fault === "repeat-lookup" ? [null, "1", "2"] : [null, "1"]);
+    assert.equal(writes().length, 0);
+  }
+  delete fixture.TEST_LAUNCH_FAULT;
+  assert.equal((await cli("plan.launch", key)).data.stage, "develop"); assert.equal(writes().length, 4);
+});

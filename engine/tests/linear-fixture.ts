@@ -49,7 +49,6 @@ globalThis.fetch = async (url, init) => {
     { number: 2, title: "Second issue", type: "triage" },
     { number: 3, title: "Closed", type: "completed" },
     { number: 4, title: "Canceled", type: "canceled" },
-    { number: 5, title: "Duplicate", type: "canceled" },
   ].filter(i => !filter.state?.type.nin.includes(i.type) && (!filter.number || filter.number.eq === i.number));
   const index = Number(after ?? 0);
   const nodes = issues.slice(index, index + 1).map(i => ({
@@ -63,6 +62,13 @@ globalThis.fetch = async (url, init) => {
 
 interface Child { id: string; identifier: string; location?: string }
 interface Tracker { children: Child[]; comments: { id: string }[] }
+
+// End the fixture if the engine asks again after the repeated cursor, so a regression fails promptly.
+let cursorPage = 0;
+function repeatingPage(cursors: string[]) {
+  const endCursor = cursors[cursorPage++] ?? null;
+  return { nodes: [], pageInfo: { hasNextPage: endCursor !== null, endCursor } };
+}
 
 function launchRequest(query: string, variables: { parent?: string; key?: string; ids?: string[]; after?: string; input?: Record<string, string> }) {
   const home = process.env.MISSION_CONTROL_HOME!;
@@ -85,6 +91,7 @@ function launchRequest(query: string, variables: { parent?: string; key?: string
     assert.equal(variables.parent, "parent");
     const field = query.includes("children(") ? "children" : "comments";
     assert.ok(query.includes(field + "(first: 50, after: $after, includeArchived: true)"));
+    if (fault === "repeat-" + field) return Response.json({ data: { issue: { [field]: repeatingPage(["1", "1"]) } } });
     const start = Number(variables.after ?? 0);
     if (fault === "bad-inventory") return Response.json({ data: { issue: null } });
     const entries = field === "children" ? tracker.children.filter(c => !c.location) : tracker.comments;
@@ -95,6 +102,7 @@ function launchRequest(query: string, variables: { parent?: string; key?: string
   if (query.includes("query LaunchChildren(")) {
     assert.match(query, /filter: \{ id: \{ in: \$ids \} \}/);
     assert.match(query, /after: \$after/);
+    if (fault === "repeat-lookup") return Response.json({ data: { issues: repeatingPage(["1", "2", "1"]) } });
     const matches = tracker.children.filter(c => variables.ids!.includes(c.id) &&
       (query.includes("includeArchived: true") || (c.location !== "archived" && c.location !== "trashed")));
     const page = Number(variables.after ?? 0);

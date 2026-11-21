@@ -92,7 +92,8 @@ export function launchPlan(dir: string, key: string, teamKey: string, repository
     if (plan?.launched) return visible(m);
     if (!m.spec?.validated || !plan?.tickets.length || !m.planSummary) throw new CommandError("Le découpage des tickets n’est pas terminé.");
     plan.tickets = checkedTickets(plan.tickets);
-    // Remember the approved draft and every remote identity before the first side effect.
+    // Persist each UUID before the first side effect. If Linear cannot show an existing ticket,
+    // preventing a duplicate on retry relies on Linear rejecting its already-used UUID.
     const resuming = Object.hasOwn(m, "launch");
     if (!resuming) {
       if (hasCommittedSplit(repository, key)) throw new CommandError(damagedLaunch);

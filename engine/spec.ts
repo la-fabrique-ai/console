@@ -2,19 +2,15 @@ import { CommandError, type Payloads } from "./contract.ts";
 import { saveMission, type SavedMission } from "./missions.ts";
 import { commitSpec } from "./spec-files.ts";
 import { unconfirmed } from "./pilot.ts";
+import { text } from "./questions.ts";
 import { sendGesture } from "./gesture.ts";
-
-function text(value: string) {
-  if (typeof value !== "string" || !value.trim()) throw new Error("Empty spec text");
-  return value;
-}
 
 export function receiveSpec(m: SavedMission, { note, sections }: Payloads["pilot.spec"]) {
   const receipt = Object.keys(m.delivery ?? {}).find(key => {
     const { action } = JSON.parse(key);
     return action === "spec.write" || action === "spec.change";
   });
-  if (!receipt || m.spec?.validated) return;
+  if (!receipt) return;
   const requests = [...(m.spec?.requests ?? [])];
   const event = JSON.parse(receipt);
   if (event.action === "spec.change" && !m.delivery![receipt]) requests.push(event.text);
@@ -49,7 +45,8 @@ export function specGesture(dir: string, key: string, gesture: SpecGesture) {
       if (action === "spec.validate") {
         return { event: { action }, beforeNotify() {
           // A retry after the commit and before the state write must render identical files.
-          m.validationDate ??= new Date().toISOString().slice(0, 10);
+          const day = new Date();
+          m.validationDate ??= [day.getFullYear(), day.getMonth() + 1, day.getDate()].map(n => String(n).padStart(2, "0")).join("-");
           saveMission(dir, m);
           commitSpec(gesture.repository, m, m.validationDate);
           m.spec!.validated = true;

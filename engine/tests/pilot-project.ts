@@ -16,6 +16,7 @@ export function setup(t: TestContext) {
   writeFileSync(path(".mc1/run/core.sock"), "stand-in socket");
   const git = (...args: string[]) => execFileSync("git", ["-C", path("repo"), ...args], { encoding: "utf8" }).trim();
   git("init", "-q", "-b", "main");
+  git("config", "commit.gpgSign", "false"); // The fixture never uses the operator’s signing key.
   git("-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-q", "--allow-empty", "-m", "Base");
   git("update-ref", "refs/remotes/origin/main", "HEAD");
   writeFileSync(path("repo/dirty"), "operator work");

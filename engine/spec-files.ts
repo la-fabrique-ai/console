@@ -4,6 +4,12 @@ import { join } from "node:path";
 import { CommandError, type MissionDetail } from "./contract.ts";
 import { gitAt, worktree } from "./pilot.ts";
 
+// Keep each field on one Markdown source line. Character references render as literal text.
+function markdownText(value: string) {
+  return value.replace(/\r\n?|\n|^[^\p{L}]|[\\`*_\[\]#<>&~|$%]/gu, char =>
+    char === "\n" || char.startsWith("\r") ? "<br>" : "&#" + char.codePointAt(0) + ";");
+}
+
 export function commitSpec(repository: string, m: MissionDetail, date: string) {
   try {
     const cwd = worktree(repository, m.issueKey);
@@ -18,10 +24,11 @@ export function commitSpec(repository: string, m: MissionDetail, date: string) {
     const header = (title: string, author: string) =>
       ["---", "title: " + m.issueKey + " — " + title, "status: validated", "date: " + date, "author: " + author, "---", "", "# " + title];
     const spec = header("Spec", "Pilot");
-    for (const section of m.spec!.sections) spec.push("", "## " + section.title, "", section.passages.map(p => p.text).join("\n\n"));
+    for (const section of m.spec!.sections) spec.push("", "## " + markdownText(section.title), "", section.passages.map(p => markdownText(p.text)).join("\n\n"));
     const answers = header("Answers", "Operator");
-    answers.push("", "## Request details", "", m.details.join("\n\n"), "", "## Validated answers");
-    for (const q of m.questions) answers.push("", "### " + q.text, "", q.answer!);
+    if (m.details.length) answers.push("", "## Request details", "", m.details.map(markdownText).join("\n\n"));
+    answers.push("", "## Validated answers");
+    for (const q of m.questions) answers.push("", "### " + markdownText(q.text), "", markdownText(q.answer!));
     const docs = [["spec.md", spec.join("\n")], ["answers.md", answers.join("\n")]];
     for (const [name, content] of docs) {
       const file = join(directory, name);
@@ -33,7 +40,7 @@ export function commitSpec(repository: string, m: MissionDetail, date: string) {
     const paths = docs.map(([name]) => join("docs", "missions", m.issueKey, name));
     gitAt(cwd, "add", "--", ...paths);
     if (gitAt(cwd, "diff", "--cached", "--name-only", "HEAD", "--", ...paths).trim()) {
-      gitAt(cwd, "-c", "commit.gpgSign=false", "commit", "--only", "-m", "Validate spec and answers for " + m.issueKey, "--", ...paths);
+      gitAt(cwd, "commit", "--only", "-m", "Validate spec and answers for " + m.issueKey, "--", ...paths);
     }
   } catch { throw new CommandError("Impossible d’enregistrer la spec et les réponses sur la branche de la mission."); }
 }

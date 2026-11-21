@@ -20,7 +20,7 @@ function coreEnvironment() {
 export function gitAt(cwd: string, ...args: string[]) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== "LINEAR_API_KEY" && !name.startsWith("GIT_")));
   return execFileSync("git", ["-c", "core.hooksPath=/dev/null", "-C", cwd, ...args],
-    { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    { env: { ...env, GIT_TERMINAL_PROMPT: "0" }, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
 export function worktree(repository: string, key: string, create = false) {

@@ -10,7 +10,11 @@ export interface Agent {
   id: string; role: "lead" | "dev" | "reviewer"; tool: Tool; terminal: string; cwd: string; ticketId?: string; starting?: boolean; base?: string;
 }
 export const refused = () => new CommandError("Cette action n’est pas autorisée pour cet agent.");
-const unavailable = () => new CommandError("Le démarrage de l’agent n’est pas confirmé. Vérifiez son terminal.");
+export const retryAgentAction = "Répétez votre appel. Si l’échec persiste, utilisez request.ask pour demander à l’opérateur de vérifier.";
+function terminalFailure(message: string) {
+  return new CommandError(message + " " + (process.env.MC_AGENT_ID ? retryAgentAction : "Vérifiez son terminal."));
+}
+const unavailable = () => terminalFailure("Le démarrage de l’agent n’est pas confirmé.");
 
 export function caller(m: SavedMission, action: Action, ticketId?: string) {
   const agent = Object.values(m.agents ?? {}).find(a => a.id === process.env.MC_AGENT_ID);
@@ -24,7 +28,7 @@ export function sendOnce(dir: string, terminal: string, deliveryId: string, even
   try {
     execFileSync("hc", ["send", "--", terminal, JSON.stringify({ ...event, deliveryId })],
       { env: coreEnvironment(), timeout: 15_000, stdio: "pipe" });
-  } catch { throw new CommandError("L’envoi à l’agent n’est pas confirmé. Vérifiez son terminal."); }
+  } catch { throw terminalFailure("L’envoi à l’agent n’est pas confirmé."); }
 }
 
 function live(agent: Agent) {

@@ -1,8 +1,9 @@
 import { execFileSync } from "node:child_process";
+import { retryAgentAction } from "./agents.ts";
 import { gitAt } from "./pilot.ts";
 import { CommandError } from "./contract.ts";
 
-export const remoteError = () => new CommandError("GitHub n’a pas confirmé l’opération. Relancez la même action.");
+export const remoteError = () => new CommandError("GitHub n’a pas confirmé l’opération. " + retryAgentAction);
 interface Pull {
   number: number; url: string; headRefName: string; baseRefName: string; headRefOid: string;
   isDraft: boolean; isCrossRepository: boolean; state: string; mergeCommit?: { oid: string };
@@ -44,7 +45,7 @@ export function github(cwd: string) {
       let pr = ticketPull();
       if (pr.state === "OPEN") {
         const autoDelete = gh("api", "repos/" + repo, "--jq", ".delete_branch_on_merge");
-        if (autoDelete === "true") throw new CommandError("GitHub supprimerait la branche du ticket après la fusion. Vérifiez les réglages du dépôt.");
+        if (autoDelete === "true") return false;
         if (autoDelete !== "false") throw remoteError();
         if (pr.isDraft) gh("pr","ready",String(number));
         pr = ticketPull();
@@ -57,6 +58,7 @@ export function github(cwd: string) {
       if (gitAt(cwd,"rev-parse",pr.mergeCommit.oid + "^2").trim() !== sha) throw remoteError();
       gitAt(cwd, "merge-base", "--is-ancestor", pr.mergeCommit.oid, "FETCH_HEAD");
       gitAt(cwd, "merge", "--ff-only", pr.mergeCommit.oid);
+      return true;
     },
   };
 }

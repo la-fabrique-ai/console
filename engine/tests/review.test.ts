@@ -174,8 +174,20 @@ test("the merge checks the target immediately before and verifies the merge on t
 test("automatic branch deletion blocks the merge with a specific explanation", async t => {
   const p = await project(t); p.commit(); await p.done();
   writeFileSync(p.path("auto-delete"),"true");
-  assert.equal((await p.verdict(true)).error?.message,"GitHub supprimerait la branche du ticket après la fusion. Vérifiez les réglages du dépôt.");
+  const reply = await p.verdict(true);
+  assert.match(reply.error?.message, /réponse.*review\.verdict/i);
+  const detail = (await p.action("missions.show")).data;
+  const [request] = detail.development.requests;
+  assert.equal(request.from, "reviewer");
+  assert.equal(request.ticketId, "1");
+  assert.match(request.text, /suppression automatique.*GitHub/i);
+  await p.verdict(true);
+  assert.equal((await p.action("missions.show")).data.development.requests.length, 1);
   assert.ok(!p.log().some(c => c.includes("ready") || c.includes("repos/demo/repo/pulls/2/merge")));
+  await p.action("requests.answer", { requestId: request.id, text: "Réglage corrigé." });
+  const { unlinkSync } = await import("node:fs");
+  unlinkSync(p.path("auto-delete"));
+  assert.ok((await p.verdict(true)).data.development.tickets[0].steps.at(-1).accepted);
 });
 
 test("reworded retries finish the same handoff and verdict with the original text", async t => {
@@ -183,9 +195,9 @@ test("reworded retries finish the same handoff and verdict with the original tex
   const sha = p.commit();
   const handoff = (summary: string) => p.action("dev.done", { ticketId: "1", summary }, p.dev);
   writeFileSync(p.path("fail-at"), "1");
-  assert.ok((await handoff("Premier résumé")).error);
+  assert.match((await handoff("Premier résumé")).error?.message, /request\.ask/);
   writeFileSync(p.path("offline"), "reviewer has not started");
-  assert.ok((await handoff("Deuxième résumé")).error);
+  assert.match((await handoff("Deuxième résumé")).error?.message, /request\.ask/);
   const { unlinkSync } = await import("node:fs");
   unlinkSync(p.path("offline"));
   const resumed = await handoff("Troisième résumé");
@@ -197,7 +209,7 @@ test("reworded retries finish the same handoff and verdict with the original tex
   const reject = (remark: string) => p.action("review.verdict",
     { ticketId: "1", accepted: false, remarks: [remark] }, reviewer.id);
   writeFileSync(p.path("offline"), "before send");
-  assert.ok((await reject("Première remarque")).error);
+  assert.match((await reject("Première remarque")).error?.message, /request\.ask/);
   unlinkSync(p.path("offline"));
   const fixed = await reject("Autres mots");
   const steps = fixed.data?.development.tickets[0].steps;

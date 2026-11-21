@@ -5,6 +5,7 @@ import { agentFor, caller, refused, startAgent, sendOnce } from "./agents.ts";
 import { CommandError, type Payloads, type TicketStep } from "./contract.ts";
 import { github, remoteError } from "./github.ts";
 import { loadDetail, saveMission, visible, withMission } from "./missions.ts";
+import { recordRequest } from "./requests.ts";
 import { gitAt, worktree } from "./pilot.ts";
 
 export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
@@ -71,12 +72,24 @@ export function verdict(dir: string, repository: string, p: Payloads["review.ver
       if (previous.accepted !== p.accepted) throw refused();
       return finishNotice(dir, m);
     }
-    if (m.development!.requests.some(r => r.ticketId === p.ticketId && !r.answer)) throw refused();
+    const waitForAnswer = "Attendez la réponse de l’opérateur, puis rappelez review.verdict.";
+    if (m.development!.requests.some(r => r.ticketId === p.ticketId && !r.answer)) throw new CommandError(waitForAnswer);
     const sha = run.steps.at(-2)!.commit!;
     if (p.accepted) {
       m.merging = true; saveMission(dir,m);
-      try { github(worktree(repository,m.issueKey)).merge(run.branch,"mission/" + m.issueKey,sha,run.pr!.number); }
+      let merged: boolean;
+      try { merged = github(worktree(repository, m.issueKey)).merge(run.branch, "mission/" + m.issueKey, sha, run.pr!.number); }
       catch (err) { throw err instanceof CommandError ? err : remoteError(); }
+      if (!merged) {
+        recordRequest(m, agent, {
+          ticketId: run.id,
+          text: "Pouvez-vous désactiver la suppression automatique des branches dans les réglages du dépôt GitHub ?",
+          context: "La branche du ticket doit être conservée après la fusion.",
+          choices: ["Le réglage est corrigé. Reprenez la fusion."],
+        });
+        saveMission(dir, m);
+        throw new CommandError(waitForAnswer);
+      }
     } else if (m.merging) throw refused();
     if (existsSync(agent.cwd) && !gitAt(agent.cwd, "status", "--porcelain", "--untracked-files=all").trim()) {
       gitAt(worktree(repository, m.issueKey), "worktree", "remove", agent.cwd);

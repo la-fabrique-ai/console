@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { caller, refused, sendOnce } from "./agents.ts";
-import { CommandError, type Payloads } from "./contract.ts";
-import { withMission, loadDetail, saveMission, visible } from "./missions.ts";
+import { caller, refused, sendOnce, type Agent } from "./agents.ts";
+import { CommandError, type Payloads, type Request } from "./contract.ts";
+import { withMission, loadDetail, saveMission, visible, type SavedMission } from "./missions.ts";
+
+export function recordRequest(m: SavedMission, agent: Agent, fields: Pick<Request, "ticketId" | "text" | "context" | "choices">) {
+  const id = randomUUID();
+  m.development!.requests.push({ id, from: agent.role, ...fields });
+  (m.recipients ??= {})[id] = agent.terminal;
+}
 
 export function ask(dir: string, p: Payloads["request.ask"]) {
   return withMission(dir, p.issueKey, () => {
@@ -10,9 +16,7 @@ export function ask(dir: string, p: Payloads["request.ask"]) {
     if (!m.development || (ticketId !== undefined && !m.plan?.tickets.some(t => t.id === ticketId)) ||
         typeof p.text !== "string" || !p.text.trim() || typeof p.context !== "string" || !p.context.trim() ||
         !Array.isArray(p.choices) || !p.choices.every(s => typeof s === "string" && s.trim())) throw refused();
-    const id = randomUUID();
-    m.development.requests.push({ id, from: agent.role, ticketId, text: p.text, context: p.context, choices: p.choices });
-    (m.recipients ??= {})[id] = agent.terminal;
+    recordRequest(m, agent, { ticketId, text: p.text, context: p.context, choices: p.choices });
     saveMission(dir,m);
     return visible(m);
   });

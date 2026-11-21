@@ -14,8 +14,10 @@ function question(m: SavedMission, id: string | undefined) {
 }
 
 function pilotReady(m: SavedMission) {
-  delete m.pilotBusy;
-  delete m.delivery;
+  if (m.pilotBusy !== "spec") delete m.pilotBusy;
+  for (const message of Object.keys(m.delivery ?? {})) {
+    if (!JSON.parse(message).action.startsWith("spec.")) delete m.delivery![message];
+  }
 }
 
 export function askQuestions(m: SavedMission, incoming: Payloads["pilot.questions"]["questions"]) {
@@ -44,7 +46,7 @@ export function deliver(dir: string, key: string, kind: "validate" | "reply" | "
     if (kind === "reply" && m.delivery?.[JSON.stringify(event)] && q && q.answer === undefined && q.replies.at(-1) === content) return;
     const proposals = q?.proposals.length;
     return { event, confirm(latest, waiting) {
-      if (waiting) {
+      if (waiting && latest.pilotBusy !== "spec") {
         if (kind === "tell") latest.pilotBusy ??= "questions";
         else latest.pilotBusy = kind === "reply" ? "proposal" : "questions";
       }

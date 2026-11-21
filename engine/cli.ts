@@ -6,6 +6,7 @@ import { listMissions, readMission, loadDetail, saveMission, summary, visible, w
 import { CommandError, type Action, type Payloads, type Reply, type Results } from "./contract.ts";
 
 import { askQuestions, propose, deliver } from "./questions.ts";
+import { receiveSpec, specGesture } from "./spec.ts";
 import { startPilot } from "./pilot.ts";
 
 interface Settings { teamKey: string; allowedIssueKeys: string[]; repository: string }
@@ -31,11 +32,11 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
     failure = reading;
     const payload: Payloads[A] = JSON.parse(json === "-" ? readFileSync(0, "utf8") : json);
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new CommandError(failure);
-    if (process.env.MC_PILOT_ISSUE && (!(action === "pilot.questions" || action === "pilot.propose") ||
+    if (process.env.MC_PILOT_ISSUE && (!(action === "pilot.questions" || action === "pilot.propose" || action === "pilot.spec") ||
         !("issueKey" in payload) || payload.issueKey !== process.env.MC_PILOT_ISSUE)) {
       throw new Error("Invalid Pilot callback");
     }
-    if (action.startsWith("questions.") || action.startsWith("pilot.")) {
+    if (action.startsWith("questions.") || action.startsWith("pilot.") || action.startsWith("spec.")) {
       issueNumber("issueKey" in payload ? payload.issueKey : undefined, teamKey);
     }
     function update(key: string, change: (mission: SavedMission) => void) {
@@ -52,6 +53,10 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
       "pilot.tell": p => deliver(dir, p.issueKey, "tell", undefined, p.text),
       "pilot.questions": p => update(p.issueKey, m => askQuestions(m, p.questions)),
       "pilot.propose": p => update(p.issueKey, m => propose(m, p.questionId, p.proposal)),
+      "spec.write": p => specGesture(dir, p.issueKey, { action: "spec.write" }),
+      "spec.change": p => specGesture(dir, p.issueKey, { action: "spec.change", text: p.text }),
+      "spec.validate": p => specGesture(dir, p.issueKey, { action: "spec.validate", repository }),
+      "pilot.spec": p => update(p.issueKey, m => receiveSpec(m, p)),
       "missions.list": () => listMissions(dir),
       "issues.list": async () => {
         failure = "Impossible de lire les tickets dans Linear.";

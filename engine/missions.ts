@@ -4,8 +4,8 @@ import { join, parse } from "node:path";
 import { CommandError, type Mission, type MissionDetail } from "./contract.ts";
 
 // Per-message delivery confirmations last until Pilot calls back.
-export type SavedMission = MissionDetail & { delivery?: Record<string, boolean> };
-export function visible({ delivery: _receipt, ...mission }: SavedMission): MissionDetail { return mission; }
+export type SavedMission = MissionDetail & { delivery?: Record<string, boolean>; validationDate?: string };
+export function visible({ delivery: _receipt, validationDate: _date, ...mission }: SavedMission): MissionDetail { return mission; }
 
 export function summary({ issueKey, title, stage }: Mission): Mission { return { issueKey, title, stage }; }
 

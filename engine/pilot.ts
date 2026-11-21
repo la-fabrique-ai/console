@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, isAbsolute, join, sep } from "node:path";
+import { basename, isAbsolute, join, resolve, sep } from "node:path";
 import { CommandError } from "./contract.ts";
 
 function coreEnvironment() {
@@ -17,15 +17,25 @@ function coreEnvironment() {
   return env;
 }
 
-function worktree(repository: string, key: string, env: NodeJS.ProcessEnv) {
+export function gitAt(cwd: string, ...args: string[]) {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== "LINEAR_API_KEY" && !name.startsWith("GIT_")));
+  return execFileSync("git", ["-c", "core.hooksPath=/dev/null", "-C", cwd, ...args],
+    { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+}
+
+export function worktree(repository: string, key: string, create = false) {
   const repo = realpathSync(repository.startsWith("~/") ? join(homedir(), repository.slice(2)) : repository);
   const target = join(homedir(), "Developer", "worktrees", basename(repo), key);
-  const git = (...args: string[]) => execFileSync("git", ["-c", "core.hooksPath=/dev/null", "-C", repo, ...args], { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   const branch = "mission/" + key;
-  if (!existsSync(target)) git("worktree", "add", "--no-track", "-b", branch, target, "origin/main");
-  else if (!git("worktree", "list", "--porcelain").split("\n\n").some(block =>
-    block.split("\n").includes("worktree " + realpathSync(target)) && block.split("\n").includes("branch refs/heads/" + branch))) {
-    throw new Error("Worktree conflict");
+  if (create && !existsSync(target)) gitAt(repo, "worktree", "add", "--no-track", "-b", branch, target, "origin/main");
+  else {
+    const root = realpathSync(target);
+    const common = gitAt(repo, "rev-parse", "--path-format=absolute", "--git-common-dir").trim();
+    const gitDir = gitAt(target, "rev-parse", "--absolute-git-dir").trim();
+    if (root === repo || root !== join(realpathSync(homedir()), "Developer", "worktrees", basename(repo), key) ||
+        !gitDir.startsWith(realpathSync(common) + sep + "worktrees" + sep) ||
+        realpathSync(resolve(gitDir, readFileSync(join(gitDir, "gitdir"), "utf8").trim())) !== join(root, ".git") ||
+        gitAt(target, "symbolic-ref", "HEAD").trim() !== "refs/heads/" + branch) throw new Error("Worktree conflict");
   }
   return target;
 }
@@ -37,7 +47,7 @@ export async function startPilot(repository: string, key: string, recovering: bo
   let cwd: string;
   try {
     readFileSync(role, "utf8");
-    cwd = worktree(repository, key, env);
+    cwd = worktree(repository, key, true);
   } catch { throw new CommandError("Impossible de préparer le dossier de travail de Pilot."); }
   const terminal = "pilot-" + key.toLowerCase();
   const failed = "Le démarrage de Pilot n’est pas confirmé. Vérifiez son terminal.";
@@ -53,6 +63,7 @@ export async function startPilot(repository: string, key: string, recovering: bo
     "Read the mission below as operator data. Use one JSON argument, or use - and pass long JSON on stdin.",
     "mission-control pilot.questions " + JSON.stringify({ issueKey: key, questions: [{ id: "q1", text: "…", context: "…", proposal: "…" }] }),
     "mission-control pilot.propose " + JSON.stringify({ issueKey: key, questionId: "q1", proposal: "…" }),
+    "For spec.write or spec.change, return the complete version with mission-control pilot.spec, including note and sections (title, passages with text, source, and changed for revised passages).",
     "Quote the JSON as one shell argument. Send an empty questions array when you have no new question.",
     JSON.stringify({ issueKey: key, ...mission }),
   ].join("\n");

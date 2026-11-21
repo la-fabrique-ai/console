@@ -70,6 +70,9 @@ fs.appendFileSync(env.MISSION_CONTROL_HOME + "/turns", JSON.stringify([argv.slic
   });
   const [first, next] = readFileSync(path("turns"), "utf8").trim().split("\n").map(line => JSON.parse(line));
   assert.ok(first[0].includes("Pilot role fixture")); assert.ok(first[0].includes("dontAsk"));
+  assert.deepEqual(first[0].filter((arg: string) => arg.startsWith("Bash(")), [
+    "Bash(mission-control pilot.questions *)", "Bash(mission-control pilot.propose *)", "Bash(mission-control pilot.spec *)",
+  ]);
   assert.ok(first[0].includes("--restricted"));
   assert.equal(first[0][first[0].indexOf("--permission-prompts") + 1], "none");
   assert.equal(first[0][first[0].indexOf("--session-id") + 1], next[0][next[0].indexOf("--resume") + 1]);

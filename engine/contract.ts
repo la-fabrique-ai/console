@@ -88,6 +88,55 @@ export interface Plan {
   launched?: boolean;
 }
 
+/** One turn of work on a ticket. The last step says who holds the ticket; a step without `endedAt` is running. */
+export interface TicketStep {
+  /** "fix" is a dev's turn after a review asked for fixes. */
+  kind: "build" | "review" | "fix";
+  tool: Tool;
+  /** ISO dates. */
+  startedAt: string;
+  endedAt?: string;
+  /** build and fix: what the dev says it did, and the commit handed to the reviewer. */
+  summary?: string;
+  commit?: string;
+  /** review: the verdict, and the remarks to fix when it is not accepted. */
+  accepted?: boolean;
+  remarks?: string[];
+}
+
+/** A ticket of the plan once a dev has started it. It is accepted, and its PR merged into the mission branch, when its last step is an accepted review. */
+export interface TicketRun {
+  /** The id of its `PlanTicket`. */
+  id: string;
+  branch: string;
+  steps: TicketStep[];
+  /** Its draft PR towards the mission branch, opened when the dev first hands it to review. */
+  pr?: { number: number; url: string };
+}
+
+/** What an agent needs from the operator (decision 0006). Answered on screen; the answer reaches the agent's terminal once. */
+export interface Request {
+  id: string;
+  from: "lead" | "dev" | "reviewer";
+  /** The plan ticket it is about, if any: that ticket waits for the answer. */
+  ticketId?: string;
+  text: string;
+  /** One line saying why the agent asks. */
+  context: string;
+  /** Proposed answers, the recommended one first. May be empty. */
+  choices: string[];
+  answer?: string;
+}
+
+export interface Development {
+  /** The tickets started so far, in the order they started. */
+  tickets: TicketRun[];
+  /** Oldest first. */
+  requests: Request[];
+  /** The mission's draft PR towards the project's main branch. The system never merges it. */
+  pr?: { number: number; url: string };
+}
+
 export interface MissionDetail extends Mission {
   /** What the operator added to the issue before validating the request. */
   details: string[];
@@ -97,6 +146,8 @@ export interface MissionDetail extends Mission {
   spec?: Spec;
   /** Absent until Pilot has found a first ticket. A draft until it is launched. */
   plan?: Plan;
+  /** Absent until the Lead has been started. */
+  development?: Development;
   /** Pilot's terminal in Herdr Core, for whoever wants to open it. */
   pilotTerminal?: string;
   /** Empty until Pilot has sent its questions. */
@@ -137,6 +188,24 @@ export interface Payloads {
   "pilot.ticket": OfMission & { ticket: Plan["found"][number] };
   /** The split is complete. `summary` is the short summary of the spec written in the main ticket at launch. */
   "pilot.plan": OfMission & { tickets: Omit<PlanTicket, "key">[]; testMinutes: number; validationMinutes: number; advice: string; summary: string };
+  /**
+   * Start the Lead in a fresh terminal, unless it is already running. `plan.launch` does the same after creating the
+   * sub-tickets; this action is for a mission launched before, or whose Lead terminal is gone. Writes nothing to the tracker.
+   */
+  "develop.start": OfMission;
+  /** Answer a request: the text reaches the terminal of the agent that asked, once. */
+  "requests.answer": OfMission & { requestId: string; text: string };
+  /**
+   * The agents' actions. The engine knows who calls from the terminal it started, not from the payload.
+   * Lead: have a ready ticket built. The engine creates its branch from the mission branch and its worktree, and starts its dev.
+   */
+  "lead.build": OfMission & { ticketId: string };
+  /** Dev: the work is committed. The engine pushes, opens the draft PR the first time, and starts a fresh reviewer of the other family on that commit. */
+  "dev.done": OfMission & { ticketId: string; summary: string };
+  /** Reviewer: accepted, the engine merges the ticket's PR into the mission branch and tells the Lead; otherwise the remarks reach the dev, once. */
+  "review.verdict": OfMission & { ticketId: string; accepted: boolean; remarks: string[] };
+  /** Any agent: ask the operator. */
+  "request.ask": OfMission & { ticketId?: string; text: string; context: string; choices: string[] };
   /** Anything else the operator tells Pilot. */
   "pilot.tell": OfMission & { text: string };
   /** Pilot's questions, or questions it adds after an answer. */
@@ -158,6 +227,12 @@ export interface Results {
   "pilot.spec": MissionDetail;
   "plan.team": MissionDetail;
   "plan.launch": MissionDetail;
+  "develop.start": MissionDetail;
+  "requests.answer": MissionDetail;
+  "lead.build": MissionDetail;
+  "dev.done": MissionDetail;
+  "review.verdict": MissionDetail;
+  "request.ask": MissionDetail;
   "pilot.ticket": MissionDetail;
   "pilot.plan": MissionDetail;
   "pilot.tell": MissionDetail;

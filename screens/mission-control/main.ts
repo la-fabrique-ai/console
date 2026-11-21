@@ -61,8 +61,11 @@ export default class MissionControl extends View {
   /** What the operator adds to the issue before validating the request. */
   details: string[] = [];
   inputs: Partial<Record<Field, InputState>> = {};
+  /** Why the mission could not be read. */
+  detailError = "";
   sending = false;
   sends = 0;
+  reads = 0;
 
   init(_props: unknown, cx: Spawner & Pick<Context, "timer">) {
     if (checking()) return;
@@ -112,6 +115,7 @@ export default class MissionControl extends View {
     this.issueError = "";
     this.requestError = "";
     this.detail = null;
+    this.detailError = "";
     this.tab = "questions";
     this.viewing = "";
     this.details = [];
@@ -133,17 +137,25 @@ export default class MissionControl extends View {
     if (this.page !== "request" || !this.mission(key) || this.sending) return;
     const turn = this.opens;
     const sends = this.sends;
+    const read = ++this.reads; // a later reading has the last word
     cx.spawn(async (cx) => {
       const reply = await call("missions.show", { issueKey: key });
-      if (turn !== this.opens || sends !== this.sends || !("data" in reply)) return;
-      if (JSON.stringify(reply.data) === JSON.stringify(this.detail)) return;
-      this.detail = reply.data;
+      if (turn !== this.opens || sends !== this.sends || read !== this.reads) return;
+      const error = "error" in reply ? reply.error.message : "";
+      if (error === this.detailError && ("error" in reply || JSON.stringify(reply.data) === JSON.stringify(this.detail))) return;
+      this.detailError = error;
+      if ("data" in reply) this.detail = reply.data;
       cx.notify();
     });
   }
 
+  /** What is written belongs to the question on screen: it never follows the operator to another one. */
+  clear() {
+    for (const field of ["answer", "again", "tell"] as const) this.inputs[field]?.set_value("");
+  }
+
   /** One gesture of the operator towards Pilot; the button is off until the engine answers. */
-  send<A extends "questions.validate" | "questions.reply" | "pilot.tell">(action: A, payload: Payloads[A], field: Field | null, cx: Context) {
+  send<A extends "questions.validate" | "questions.reply" | "pilot.tell">(action: A, payload: Payloads[A], cx: Context) {
     if (this.sending) return;
     const turn = this.opens;
     this.sending = true;
@@ -156,8 +168,9 @@ export default class MissionControl extends View {
       if (turn === this.opens) {
         if ("data" in reply) {
           this.detail = reply.data as MissionDetail;
-          this.viewing = "";
-          if (field) this.inputs[field]?.set_value("");
+          // A reply stays on its question, to see Pilot's new proposal; a validation moves on.
+          this.viewing = action === "questions.reply" ? (payload as Payloads["questions.reply"]).questionId : "";
+          this.clear();
         } else this.requestError = reply.error.message;
       }
       cx.notify();
@@ -432,7 +445,7 @@ export default class MissionControl extends View {
     const total = questions.length;
     const done = questions.filter((question) => question.answer !== undefined).length;
     const current = questions.find((question) => question.id === this.viewing) ?? questions.find((question) => question.answer === undefined);
-    const tell = (text: string, cx: Context) => this.send("pilot.tell", { issueKey: key, text }, "tell", cx);
+    const tell = (text: string, cx: Context) => this.send("pilot.tell", { issueKey: key, text }, cx);
     const side = (counter: string, lead: string, rows: NativeElement[]) => this.column("LES QUESTIONS DE PILOT", "questions-list", [
       div().px(10).text_size(20).font_semibold().text_color("#ffffff").child(counter),
       div().px(10).mt(6).mb(8).text_size(13.5).text_color("#8C93A6").child(lead),
@@ -442,8 +455,7 @@ export default class MissionControl extends View {
       ...questions.map((question, index) => this.line(this.badge(question, index), question.text, question.answer ?? "", this.tone(question), question === current)
         .id(`question-${question.id}`).cursor_pointer().on_click((_event, cx) => {
           this.viewing = question.id;
-          this.inputs.answer?.set_value("");
-          this.inputs.again?.set_value("");
+          this.clear();
           cx.notify();
         })),
       this.label("À SAVOIR"),
@@ -452,6 +464,13 @@ export default class MissionControl extends View {
     const page = (content: NativeElement[], composer: NativeElement, column: NativeElement) =>
       h_flex().flex_1().min_h_0().gap(14).items_stretch().child(this.conversation("questions", content, composer)).child(column);
 
+    const busy = detail.pilotBusy === "questions";
+    if (total === 0 && !busy) {
+      // Pilot answered that the request is enough.
+      return page(this.heading("LES QUESTIONS", "Pilot n’a pas de question", "Votre demande lui suffit pour écrire la spec."),
+        this.composer("tell", "la spec arrive avec la prochaine étape", "✓  Écrire la spec", null, "Pilot en tient compte pour la spec", tell),
+        side("Aucune question", "Pilot a lu la demande et le projet.", []));
+    }
     if (total === 0) {
       return page([
         ...this.heading("LES QUESTIONS", "Pilot prépare ses questions", "Il vous les posera une par une, avec une réponse proposée à chaque fois."),
@@ -464,6 +483,7 @@ export default class MissionControl extends View {
         ...this.heading("LES QUESTIONS", total === 1 ? "La question a une réponse" : `Les ${total} questions ont une réponse`,
           "Relisez-les si vous voulez : un clic sur une question, à droite, la rouvre."),
         v_flex().mt(18).children(questions.map((question, index) => this.line(this.badge(question, index), question.text, question.answer, this.tone(question)))),
+        ...(busy ? [this.waiting("Pilot vérifie s’il lui reste une question")] : []),
       ], this.composer("tell", "vos réponses sont validées · la spec arrive avec la prochaine étape", "✓  Écrire la spec", null, "Pilot en tient compte pour la spec", tell),
       side(`${total} réponses sur ${total}`, "Une question par page. Un clic pour revenir sur une réponse.", rows));
     }
@@ -481,12 +501,13 @@ export default class MissionControl extends View {
         pending ? this.waiting("Pilot met sa réponse à jour") : this.proposal("PILOT · SUGGESTION MISE À JOUR", last, "current"));
     } else content.push(this.proposal("PILOT · RÉPONSE PROPOSÉE", last, "current"));
 
-    const reply = (text: string, cx: Context) => this.send("questions.reply", { issueKey: key, questionId: current.id, text }, revised ? "again" : "answer", cx);
-    const validate = (cx: Context) => this.send("questions.validate", { issueKey: key, questionId: current.id }, null, cx);
+    const reply = (text: string, cx: Context) => this.send("questions.reply", { issueKey: key, questionId: current.id, text }, cx);
+    const validate = (cx: Context) => this.send("questions.validate", { issueKey: key, questionId: current.id }, cx);
     const sendHint = "Pilot met sa réponse à jour · vous validez ensuite";
     const composer = current.answer !== undefined
       ? this.composer("answer", `ou gardez votre réponse · ${next ? "retour aux questions" : "retour au récapitulatif"}`, "✓  Garder cette réponse", (cx) => {
         this.viewing = "";
+        this.clear();
         cx.notify();
       }, sendHint, reply)
       : pending ? this.composer("again", "Pilot reformule votre réponse", "Pilot met sa réponse à jour…", null)
@@ -508,7 +529,8 @@ export default class MissionControl extends View {
     const answered = questions.length ? `${questions.filter((question) => question.answer !== undefined).length} sur ${questions.length}` : "";
     if (created && this.tab === "questions") {
       // The questions are local: they never wait for the tracker.
-      return [header, this.steps(true, answered), this.detail ? this.questionsBody(this.detail) : note("Chargement…")];
+      return [header, this.steps(true, answered), this.detail ? this.questionsBody(this.detail)
+        : note(this.detailError || "Chargement…", this.detailError ? "#F2C14E" : "#8C93A6")];
     }
     if (!issue) return [header, ...(created ? [this.steps(true, answered)] : []), note(this.issueError || "Chargement…", this.issueError ? "#F2C14E" : "#8C93A6")];
     return [header, this.steps(created, answered), this.requestBody(issue, created)];

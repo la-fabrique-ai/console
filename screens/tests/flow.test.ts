@@ -115,13 +115,34 @@ test("a validated request becomes a mission, and the operator answers Pilot's qu
   click("validate");
   texts = await shown();
   assert.ok(texts.includes("Les 2 questions ont une réponse") && texts.includes("✎") && texts.includes("En français."), "the recap marks the corrected answer");
-  assert.equal(calls().filter(([command]) => command === "send").length, 3, "Pilot received the reply and the two validations, once each");
+  const sent = () => calls().filter(([command]) => command === "send").map(([, , , message]) => message);
+  assert.equal(sent().length, 3, "Pilot received the reply and the two validations, once each");
+  assert.deepEqual(sent().map((message) => /q\d/.exec(message)?.[0]), ["q1", "q1", "q2"], "each about its own question");
 
   click("question-q1");
   texts = await shown();
   assert.ok(texts.includes("VOTRE RÉPONSE · VALIDÉE, APRÈS VOTRE CORRECTION"), "a click on a question reopens it");
   click("validate");
   assert.ok((await shown()).includes("Les 2 questions ont une réponse"), "keeping the answer returns to the recap");
+
+  // A correction written on a reopened question stays with that question.
+  click("question-q2");
+  await shown();
+  type("Écrivez une autre réponse…", "En anglais aussi");
+  await shown();
+  click("validate");
+  texts = await shown();
+  assert.ok(texts.includes("QUESTION 2 SUR 2") && texts.includes("Pilot met sa réponse à jour"), "the page stays on the corrected question");
+  assert.ok(sent()[3].includes("q2") && sent()[3].includes("En anglais aussi"));
+  click("question-q1");
+  await shown();
+  assert.equal(screen.fields.get("Écrivez une autre réponse…")?.value(), "", "nothing written for one question follows to another");
+  await pilot("pilot.propose", { questionId: "q2", proposal: "En français et en anglais." });
+  click("question-q2");
+  tick();
+  await shown();
+  click("validate");
+  assert.ok((await shown()).includes("Les 2 questions ont une réponse"));
 
   click("step-0");
   texts = await shown();
@@ -132,6 +153,19 @@ test("a validated request becomes a mission, and the operator answers Pilot's qu
   assert.ok(texts.includes("First issue") && texts.includes("Préparer"), "the mission is listed with its stage");
   click("mission-DEMO-1");
   assert.ok((await shown()).includes("Les 2 questions ont une réponse"), "the mission opens where the preparation stands");
+});
+
+test("a request that needs no question says so instead of waiting", async (t) => {
+  const { cli } = project(t);
+  const { shown, click, tick } = window();
+  await shown();
+  click("issue-DEMO-1");
+  await shown();
+  click("validate");
+  assert.ok((await shown()).includes("Pilot prépare ses questions"));
+  await cli("pilot.questions", { issueKey: "DEMO-1", questions: [] });
+  tick();
+  assert.ok((await shown()).includes("Pilot n’a pas de question"));
 });
 
 test("a ticket outside the operator's list is refused on its request page", async (t) => {

@@ -65,6 +65,14 @@ export async function issueDetail(teamKey: string, number: number): Promise<Issu
 interface Parent { id: string; teamId: string }
 interface Child { id: string; identifier: string }
 
+function nextCursor(page: Page<unknown>["pageInfo"], seen: Set<string>, failure: string) {
+  if (!page.hasNextPage) return null;
+  const cursor = page.endCursor;
+  if (typeof cursor !== "string" || !cursor || seen.has(cursor)) throw new CommandError(failure);
+  seen.add(cursor);
+  return cursor;
+}
+
 async function members<I>(parent: string, field: "children" | "comments"): Promise<I[]> {
   const fields = field === "children" ? "id identifier" : "id";
   const query = `query LaunchInventory($parent: String!, $after: String) {
@@ -73,13 +81,14 @@ async function members<I>(parent: string, field: "children" | "comments"): Promi
     } }
   }`;
   const nodes: I[] = [];
+  const seen = new Set<string>();
   let after: string | null = null;
   do {
     const data: { issue?: Record<string, Page<I>> } = await request(query, { parent, after }, parentReadFailed);
     const page: Page<I> | undefined = data.issue?.[field];
     if (!Array.isArray(page?.nodes) || typeof page.pageInfo?.hasNextPage !== "boolean") throw new CommandError(parentReadFailed);
     nodes.push(...page.nodes);
-    after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+    after = nextCursor(page.pageInfo, seen, parentReadFailed);
   } while (after);
   return nodes;
 }
@@ -92,6 +101,7 @@ async function lookupMissingChildren(savedIds: string[], keys: Map<string, strin
       nodes { id identifier } pageInfo { hasNextPage endCursor }
     }
   }`;
+  const seen = new Set<string>();
   let after: string | null = null;
   do {
     const { issues }: { issues: Page<Child> } = await request(query, { ids, after }, childReadFailed);
@@ -100,9 +110,7 @@ async function lookupMissingChildren(savedIds: string[], keys: Map<string, strin
       if (!ids.includes(child?.id) || typeof child.identifier !== "string" || !child.identifier) throw new CommandError(childReadFailed);
       keys.set(child.id, child.identifier);
     }
-    if (!issues.pageInfo.hasNextPage) return;
-    after = issues.pageInfo.endCursor;
-    if (typeof after !== "string" || !after) throw new CommandError(childReadFailed);
+    after = nextCursor(issues.pageInfo, seen, childReadFailed);
   } while (after);
 }
 

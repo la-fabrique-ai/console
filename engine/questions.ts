@@ -1,6 +1,6 @@
-import { CommandError, type Payloads } from "./contract.ts";
-import { loadDetail, saveMission, visible, withMission, type SavedMission } from "./missions.ts";
-import { pilotSender, unconfirmed } from "./pilot.ts";
+import { type Payloads } from "./contract.ts";
+import { type SavedMission } from "./missions.ts";
+import { sendGesture } from "./gesture.ts";
 
 function text(value: unknown) {
   if (typeof value !== "string" || !value.trim()) throw new Error("Empty text");
@@ -36,40 +36,23 @@ export function propose(m: SavedMission, id: string, proposal: string) {
 }
 
 export function deliver(dir: string, key: string, kind: "validate" | "reply" | "tell", id?: string, value?: string) {
-  // Only operator gestures queue behind the transport. Callbacks use the shorter mission lock.
-  return withMission(dir, key + ".operator", async () => {
-    const attempt = await withMission(dir, key, () => {
-      const m = loadDetail(dir, key);
-      const q = kind === "tell" ? undefined : question(m, id);
-      const content = kind === "validate" ? q!.proposals.at(-1)! : text(value);
-      const action = kind === "tell" ? "pilot.tell" : "questions." + kind;
-      const message = JSON.stringify({ action, questionId: id, text: content });
-      const confirmed = m.delivery?.[message];
-      if (kind === "validate" && q?.answer === content) return;
-      if (kind !== "tell" && confirmed === false) throw new CommandError(unconfirmed);
-      if (kind === "reply" && confirmed && q && q.answer === undefined && q.replies.at(-1) === content) return;
-      const send = pilotSender(m.pilotTerminal);
-      (m.delivery ??= {})[message] = false;
-      saveMission(dir, m);
-      return { send, message, content, proposals: q?.proposals.length };
-    });
-    if (!attempt) return visible(loadDetail(dir, key));
-    const { send, message, content, proposals } = attempt;
-    send(message);
-    return withMission(dir, key, () => {
-      const m = loadDetail(dir, key);
-      if (m.delivery?.[message] === false) {
-        m.delivery[message] = true;
-        if (kind === "tell") m.pilotBusy ??= "questions";
-        else m.pilotBusy = kind === "reply" ? "proposal" : "questions";
+  return sendGesture(dir, key, m => {
+    const q = kind === "tell" ? undefined : question(m, id);
+    const content = kind === "validate" ? q!.proposals.at(-1)! : text(value);
+    const event = { action: kind === "tell" ? "pilot.tell" : "questions." + kind, questionId: id, text: content };
+    if (kind === "validate" && q?.answer === content) return;
+    if (kind === "reply" && m.delivery?.[JSON.stringify(event)] && q && q.answer === undefined && q.replies.at(-1) === content) return;
+    const proposals = q?.proposals.length;
+    return { event, confirm(latest, waiting) {
+      if (waiting) {
+        if (kind === "tell") latest.pilotBusy ??= "questions";
+        else latest.pilotBusy = kind === "reply" ? "proposal" : "questions";
       }
       if (kind !== "tell") {
-        const q = question(m, id);
-        if (kind === "reply") { q.replies.push(content); delete q.answer; }
-        else if (q.proposals.length === proposals) q.answer = content;
+        const current = question(latest, id);
+        if (kind === "reply") { current.replies.push(content); delete current.answer; }
+        else if (current.proposals.length === proposals) current.answer = content;
       }
-      saveMission(dir, m);
-      return visible(m);
-    });
+    } };
   });
 }

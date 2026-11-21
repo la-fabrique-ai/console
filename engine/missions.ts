@@ -5,9 +5,9 @@ import type { Agent } from "./agents.ts";
 import { CommandError, type Mission, type MissionDetail } from "./contract.ts";
 
 // Per-message delivery confirmations last until Pilot calls back.
-export type SavedMission = MissionDetail & { publication?: { commit: string; base: string; summary: string }; merging?: boolean; agents?: Partial<Record<Agent["role"], Agent>>; delivery?: Record<string, boolean>; validationDate?: string; planSummary?: string;
+export type SavedMission = MissionDetail & { recipients?: Record<string, string>; publication?: { commit: string; base: string; summary: string }; merging?: boolean; agents?: Partial<Record<Agent["role"], Agent>>; delivery?: Record<string, boolean>; validationDate?: string; planSummary?: string;
   launch?: { date: string; children: string[]; comment: string } };
-export function visible({ publication: _publication, merging: _merging, agents: _agents, delivery: _receipt, validationDate: _date, planSummary: _summary, launch: _launch, ...mission }: SavedMission): MissionDetail { return mission; }
+export function visible({ recipients: _recipients, publication: _publication, merging: _merging, agents: _agents, delivery: _receipt, validationDate: _date, planSummary: _summary, launch: _launch, ...mission }: SavedMission): MissionDetail { return mission; }
 
 export function summary({ issueKey, title, stage }: Mission): Mission { return { issueKey, title, stage }; }
 

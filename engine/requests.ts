@@ -1,0 +1,38 @@
+import { randomUUID } from "node:crypto";
+import { caller, refused } from "./agents.ts";
+import { CommandError, type Payloads } from "./contract.ts";
+import { withMission, loadDetail, saveMission, visible } from "./missions.ts";
+import { notifyAgent } from "./review.ts";
+
+export function ask(dir: string, p: Payloads["request.ask"]) {
+  return withMission(dir, p.issueKey, () => {
+    const m = loadDetail(dir, p.issueKey), agent = caller(m, "request.ask", p.ticketId);
+    const ticketId = agent.ticketId ?? p.ticketId;
+    const step = m.development?.tickets.find(r => r.id === ticketId)?.steps.at(-1);
+    if (!m.development || (ticketId !== undefined && !m.plan?.tickets.some(t => t.id === ticketId)) ||
+        (agent.role !== "lead" && (!step || step.endedAt || (agent.role === "reviewer") !== (step.kind === "review"))) ||
+        typeof p.text !== "string" || !p.text.trim() || typeof p.context !== "string" || !p.context.trim() ||
+        !Array.isArray(p.choices) || !p.choices.every(s => typeof s === "string" && s.trim())) throw refused();
+    const id = randomUUID();
+    m.development.requests.push({ id, from: agent.role, ticketId, text: p.text, context: p.context, choices: p.choices });
+    (m.recipients ??= {})[id] = agent.terminal;
+    saveMission(dir,m);
+    return visible(m);
+  });
+}
+
+export function answer(dir: string, p: Payloads["requests.answer"]) {
+  return withMission(dir, p.issueKey, () => {
+    const m = loadDetail(dir,p.issueKey);
+    const request = m.development?.requests.find(r => r.id === p.requestId);
+    if (!request) throw new CommandError("Cette demande est introuvable.");
+    if (request.answer !== undefined) return visible(m);
+    if (typeof p.text !== "string" || !p.text.trim()) throw new CommandError("Saisissez votre réponse avant de l’envoyer.");
+    const terminal = m.recipients?.[request.id];
+    if (!terminal) throw refused();
+    request.answer = p.text;
+    saveMission(dir,m);
+    notifyAgent({ terminal }, { action: "requests.answer", requestId: request.id, text: p.text });
+    return visible(m);
+  });
+}

@@ -8,6 +8,7 @@ import { CommandError, type Action, type Payloads, type Reply, type Results } fr
 import { askQuestions, propose, deliver } from "./questions.ts";
 import { receiveSpec, specGesture } from "./spec.ts";
 import { chooseTeam, completePlan, foundTicket, launchPlan } from "./plan.ts";
+import { ask, answer } from "./requests.ts";
 import { done, verdict } from "./review.ts";
 import { build, startDevelopment, caller, refused } from "./agents.ts";
 import { startPilot } from "./pilot.ts";
@@ -72,6 +73,8 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
       "pilot.plan": p => update(p.issueKey, m => completePlan(m, p)),
       "plan.team": p => update(p.issueKey, m => chooseTeam(m, p.team)),
       "develop.start": p => startDevelopment(dir, repository, p.issueKey),
+      "request.ask": p => ask(dir, p),
+      "requests.answer": p => answer(dir, p),
       "dev.done": p => done(dir, repository, p),
       "review.verdict": p => verdict(dir, repository, p),
       "lead.build": p => build(dir, repository, p),

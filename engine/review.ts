@@ -6,7 +6,7 @@ import { github, remoteError } from "./github.ts";
 import { loadDetail, saveMission, visible, withMission } from "./missions.ts";
 import { coreEnvironment, gitAt, worktree } from "./pilot.ts";
 
-export function notifyAgent(agent: Agent, message: object) {
+export function notifyAgent(agent: Pick<Agent, "terminal">, message: object) {
   try { execFileSync("hc", ["send","--",agent.terminal,JSON.stringify(message)], { env: coreEnvironment(), timeout: 15_000, stdio: "pipe" }); }
   catch { throw new CommandError("L’envoi à l’agent n’est pas confirmé. Vérifiez son terminal."); }
 }

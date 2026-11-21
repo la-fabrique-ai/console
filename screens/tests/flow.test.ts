@@ -1,7 +1,7 @@
 // On screen: pick an issue, validate the request, answer Pilot's questions, see the mission.
 import assert from "node:assert/strict";
 import { setup } from "../../engine/tests/pilot-project.ts";
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { test, type TestContext } from "node:test";
 import { draw, screen } from "./herdr-stub.ts";
@@ -300,6 +300,77 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   await shown();
   assert.ok(!screen.fields.has("Écrivez une autre réponse…") && !screen.clicks.has("validate"), "an answer the spec is written from no longer changes here");
   assert.ok(!screen.texts.includes("Écrivez une autre réponse…") && screen.texts.includes("la spec validée est écrite d’après vos réponses"), "and the page says why, with no invitation to write");
+});
+
+test("the operator sees the plan with one dev and with two, then launches it", async (t) => {
+  const { cli, path } = project(t);
+  const pilot = (action: string, payload: object) => cli(action, { issueKey: "DEMO-1", ...payload });
+  const writes = () => (existsSync(path("linear-requests")) ? readFileSync(path("linear-requests"), "utf8").trim().split("\n") : [])
+    .filter((line) => JSON.parse(line).query.startsWith("mutation")).length;
+  const { shown, click, tick } = window();
+  await shown();
+  click("issue-DEMO-1");
+  await shown();
+  click("validate");
+  await shown();
+  await pilot("pilot.questions", { questions: [] });
+  tick();
+  await shown();
+  click("validate");
+  await shown();
+  await pilot("pilot.spec", { note: "Voici la spec.", sections: [{ title: "Le problème", passages: [{ text: "Les liens sont muets.", source: "votre demande" }] }] });
+  tick();
+  await shown();
+  click("validate");
+  let texts = await shown();
+  assert.ok(texts.includes("Pilot découpe la spec en tickets"), "validating the spec moves on to the split");
+
+  await pilot("pilot.ticket", { ticket: { id: "1", title: "Afficher les ajouts", change: "Le fil montre un lien ajouté." } });
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("Pilot découpe · 1 ticket trouvé") && texts.includes("Afficher les ajouts") && texts.includes("TICKET 2"), "the split grows on screen");
+
+  const ticket = (id: string, title: string, minutes: number, after: string[], dev: number, step: number, sensitive = false) =>
+    ({ id, title, change: `Change ${id}.`, how: `Comment ${id}.`, covers: [`Point ${id}`], after, minutes, sensitive, parallel: { dev, step } });
+  await pilot("pilot.plan", { tickets: [ticket("1", "Afficher les ajouts", 30, [], 1, 1), ticket("2", "Afficher les retraits", 45, ["1"], 1, 2, true),
+    ticket("3", "Mettre à jour le guide", 20, ["1"], 2, 2)], testMinutes: 10, validationMinutes: 5, advice: "Un second dev fait gagner vingt minutes.", summary: "Le fil montre les liens." });
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("Le plan est prêt : 3 tickets") && texts.includes("Approuver et lancer le dev"));
+  assert.ok(texts.includes("Environ 1 h 50 avec 1 dev, test et validation compris · 1 h 30 avec 2 devs en parallèle"), "both durations follow the tickets");
+  assert.ok(texts.includes("Sensible") && texts.includes("après 1") && texts.includes("Un second dev fait gagner vingt minutes."));
+
+  click("ticket-2");
+  texts = await shown();
+  assert.ok(texts.includes("TICKET 2 SUR 3") && texts.includes("~45 min · sensible : relu deux fois") && texts.includes("Le ticket 1"), "a click on a ticket shows its detail");
+  click("estimate");
+  await shown();
+
+  click("add-dev");
+  texts = await shown();
+  assert.ok(texts.includes("Approuver et lancer les devs") && texts.includes("ÉTAPE 2") && texts.includes("Dev 2") && texts.includes("≈ 1 h 30"), "two devs: one line each, by steps");
+  assert.ok(texts.includes("Environ 1 h 30 avec 2 devs en parallèle, test et validation compris · 1 h 50 avec 1 dev"));
+  const tools = () => screen.texts.filter((text) => text === "Claude" || text === "Codex").slice(0, 2);
+  assert.deepEqual(tools(), ["Claude", "Codex"]);
+  click("dev-2");
+  await shown();
+  assert.deepEqual(tools(), ["Claude", "Claude"], "each dev's tool is the operator's choice");
+  click("remove-dev");
+  texts = await shown();
+  assert.ok(texts.includes("Approuver et lancer le dev") && texts.includes("≈ 1 h 50"));
+  click("team-2");
+  await shown();
+  assert.equal(writes(), 0, "looking at the plan and choosing the team writes nothing to the tracker");
+
+  click("launch");
+  texts = await shown();
+  assert.ok(texts.includes("C’est parti : 3 tickets créés dans le tracker") && texts.some((text) => text.endsWith("rattachés à DEMO-1")));
+  assert.equal(writes(), 4, "the launch creates the three sub-tickets and one comment");
+  for (const id of ["launch", "add-dev", "remove-dev", "dev-1", "team-1"]) assert.ok(!screen.clicks.has(id), `nothing changes after the launch: ${id}`);
+
+  click("nav-development");
+  texts = await shown();
+  assert.ok(texts.includes("Développer"), "the mission is in the develop stage");
 });
 
 test("a gesture on its way for one mission leaves another mission free", async (t) => {

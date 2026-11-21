@@ -84,6 +84,9 @@ export default class MissionControl extends View {
   detail: MissionDetail | null = null;
   /** The step the operator chose to look at; none: the one the preparation has reached. */
   tab: Tab | "" = "";
+  /** Orders the engine's answers about a mission's stage; see `staged`. */
+  clock = 0;
+  stamps = new Map<string, number>();
   /** The ticket of the plan the operator is looking at; none: the estimate. */
   ticket = "";
   /** How many times the operator chose a step: a gesture's answer never undoes a choice made meanwhile. */
@@ -114,13 +117,21 @@ export default class MissionControl extends View {
 
   refresh(cx: Spawner) {
     const turn = ++this.refreshes; // a later refresh has the last word
+    const asked = ++this.clock;
     // The missions are local: they never wait for Linear.
     cx.spawn(async (cx) => {
       const reply = await call("missions.list", {});
       if (turn !== this.refreshes) return;
       this.missionsError = "error" in reply ? reply.error.message : "";
-      if ("data" in reply) this.missions = reply.data;
-      if (this.detail) this.staged(this.detail); // this list may be older than what the open mission already said
+      // A mission whose stage was given by a later answer keeps it: this list was read before.
+      if ("data" in reply) {
+        this.missions = reply.data.map((mission) => {
+          const known = this.mission(mission.issueKey);
+          if (known && asked < (this.stamps.get(mission.issueKey) ?? 0)) return { ...mission, stage: known.stage };
+          this.stamps.set(mission.issueKey, asked);
+          return mission;
+        });
+      }
       cx.notify();
     });
     cx.spawn(async (cx) => {
@@ -175,12 +186,13 @@ export default class MissionControl extends View {
     const sends = this.sends;
     if (this.reading === turn) return;
     this.reading = turn;
+    const asked = ++this.clock;
     cx.spawn(async (cx) => {
       const reply = await call("missions.show", { issueKey: key });
       if (this.reading === turn) this.reading = 0;
       if (turn !== this.opens || sends !== this.sends) return;
       const error = "error" in reply ? reply.error.message : "";
-      if ("data" in reply) this.staged(reply.data);
+      if ("data" in reply) this.staged(reply.data, asked);
       if (error === this.detailError && ("error" in reply || JSON.stringify(reply.data) === JSON.stringify(this.detail))) return;
       this.detailError = error;
       if ("data" in reply) this.detail = reply.data;
@@ -188,12 +200,14 @@ export default class MissionControl extends View {
     });
   }
 
-  /** The menu and the header follow the stage the engine last gave for a mission: a launch moves it to the next one. */
-  staged(detail: MissionDetail) {
-    // A mission only moves forward: an older answer never takes it back a stage.
-    const order = (stage: Stage) => STAGES.findIndex(([key]) => key === stage);
-    this.missions = (this.missions ?? []).map((mission) =>
-      (mission.issueKey === detail.issueKey && order(detail.stage) > order(mission.stage) ? { ...mission, stage: detail.stage } : mission));
+  /**
+   * The menu and the header follow the stage the engine last gave for a mission. Answers arrive in any order:
+   * a reading counts from the moment it was asked, a gesture from the moment it is answered, and the later one wins.
+   */
+  staged(mission: Mission, stamp: number) {
+    if (stamp < (this.stamps.get(mission.issueKey) ?? 0)) return;
+    this.stamps.set(mission.issueKey, stamp);
+    this.missions = (this.missions ?? []).map((known) => (known.issueKey === mission.issueKey ? { ...known, stage: mission.stage } : known));
   }
 
   /** A gesture about the page on screen is on its way: its button and its field wait for the engine. */
@@ -212,6 +226,7 @@ export default class MissionControl extends View {
     if (this.sending.has(key)) return;
     const turn = this.opens;
     const choices = this.choices;
+    const viewing = this.viewing;
     this.clear(); // what was written is on its way; it comes back to its field if the engine refuses it
     this.sending.set(key, action);
     this.sends++;
@@ -220,7 +235,7 @@ export default class MissionControl extends View {
     cx.spawn(async (cx) => {
       const reply = await call(action, payload);
       this.sending.delete(key);
-      if ("data" in reply) this.staged(reply.data as MissionDetail); // also when the operator opened another page meanwhile
+      if ("data" in reply) this.staged(reply.data as MissionDetail, ++this.clock); // also when the operator opened another page meanwhile
       if (this.page === "request" && this.requested === key) { // its mission is on screen, even opened again meanwhile
         if ("data" in reply) {
           this.detail = reply.data as MissionDetail;
@@ -233,7 +248,8 @@ export default class MissionControl extends View {
           // A mission opened again while its gesture was on its way has not been read yet: read it now.
           if (!this.detail) this.follow(cx);
           // A refused text comes back to its field only if the operator is still on its step.
-          if (field && "text" in payload && this.choices === choices) this.inputs[field]?.set_value(payload.text);
+          // It never lands on a page opened again, nor on another question.
+          if (field && "text" in payload && turn === this.opens && this.choices === choices && this.viewing === viewing) this.inputs[field]?.set_value(payload.text);
         }
       }
       cx.notify();
@@ -250,7 +266,10 @@ export default class MissionControl extends View {
     cx.spawn(async (cx) => {
       const reply = await call("missions.create", { issueKey: issue.key, details: this.details });
       this.creating.delete(issue.key);
-      if ("data" in reply) this.missions = [...(this.missions ?? []).filter((mission) => mission.issueKey !== issue.key), reply.data];
+      if ("data" in reply) {
+        this.missions = [...(this.missions ?? []).filter((mission) => mission.issueKey !== issue.key), reply.data];
+        this.stamps.set(issue.key, ++this.clock);
+      }
       else if (turn === this.opens) this.requestError = reply.error.message;
       this.refresh(cx);
       this.follow(cx);
@@ -886,9 +905,9 @@ export default class MissionControl extends View {
       ...(tickets.length > 1 ? [
         this.label("UN 2ᵉ DEV FERAIT-IL GAGNER DU TEMPS ?"),
         this.line(devs === 1 ? "✓" : " ", `1 dev · ${duration(total(1))}`, TOOLS[plan.team[0] ?? "claude"], devs === 1 ? "done" : "todo")
-          .id("team-1").cursor_pointer().on_click((_event, cx) => { if (devs !== 1 && !this.busy()) setTeam(plan.team.slice(0, 1), cx); }),
+          .when(devs !== 1 && !held, (el) => el.id("team-1").cursor_pointer().on_click((_event, cx) => setTeam(plan.team.slice(0, 1), cx))),
         this.line(devs === 2 ? "✓" : " ", `2 devs · ${duration(total(2))}`, "les tickets d’une même étape se font en même temps", devs === 2 ? "done" : "todo")
-          .id("team-2").cursor_pointer().on_click((_event, cx) => { if (devs !== 2 && !this.busy()) setTeam([plan.team[0] ?? "claude", other(plan.team[0] ?? "claude")], cx); }),
+          .when(devs !== 2 && !held, (el) => el.id("team-2").cursor_pointer().on_click((_event, cx) => setTeam([plan.team[0] ?? "claude", other(plan.team[0] ?? "claude")], cx))),
       ] : []),
       ...(plan.advice ? [this.label("CONSEIL"), text(plan.advice)] : []),
     ]);

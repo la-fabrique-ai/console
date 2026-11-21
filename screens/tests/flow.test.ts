@@ -354,7 +354,7 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   now();
   assert.ok(!screen.texts.includes("Création des tickets dans le tracker…"), "choosing the team never looks like a launch");
   assert.ok(screen.texts.includes("Approuver et lancer le dev") && !screen.clicks.has("launch"), "the launch waits for the team to be recorded: no click is lost");
-  assert.ok(!screen.clicks.has("dev-1") && !screen.clicks.has("add-dev"), "and so does any other choice of the team");
+  assert.ok(!screen.clicks.has("dev-1") && !screen.clicks.has("add-dev") && !screen.clicks.has("team-2"), "and so does any other choice of the team");
   chosen();
   texts = await shown();
   assert.ok(texts.includes("Approuver et lancer les devs") && texts.includes("ÉTAPE 2") && texts.includes("Dev 2") && texts.includes("≈ 1 h 30"), "two devs: one line each, by steps");
@@ -380,6 +380,7 @@ test("the operator sees the plan with one dev and with two, then launches it", a
       tick();
       now();
     }
+    assert.ok(ready(), "the screen never got there");
   };
   // The operator opens the mission again before the refusal arrives: it still reaches the page.
   let refused = () => {};
@@ -410,6 +411,38 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   assert.equal(writes(), 5, "the launch creates the four sub-tickets and one comment");
   assert.equal(texts[texts.indexOf("DEMO-1") + 1], "Développer", "the menu shows the new stage without leaving the page");
   for (const id of ["launch", "add-dev", "remove-dev", "dev-1", "team-1", "ticket-1", "estimate"]) assert.ok(!screen.clicks.has(id), `nothing changes after the launch: ${id}`);
+});
+
+test("a refused correction never lands on another question", async (t) => {
+  const { cli, path } = project(t);
+  const { shown, now, click, type, tick } = window();
+  await shown();
+  click("issue-DEMO-1");
+  await shown();
+  click("validate");
+  await shown();
+  await cli("pilot.questions", { issueKey: "DEMO-1", questions: [
+    { id: "q1", text: "Première ?", context: "Contexte.", proposal: "Oui." }, { id: "q2", text: "Seconde ?", context: "Contexte.", proposal: "Non." }] });
+  tick();
+  await shown();
+  click("question-q2");
+  await shown();
+  type("Écrivez une autre réponse…", "Pour la seconde seulement");
+  await shown();
+  writeFileSync(path("offline"), ""); // Pilot's terminal cannot be reached: the engine will refuse
+  let refused = () => {};
+  screen.slow.set("questions.reply", new Promise((resolve) => { refused = resolve; }));
+  click("validate");
+  now();
+  click("nav-development");
+  now();
+  click("mission-DEMO-1"); // opened again: the page is back on the first open question
+  refused();
+  await shown();
+  tick();
+  const texts = await shown();
+  assert.ok(texts.includes("QUESTION 1 SUR 2"));
+  assert.equal(screen.fields.get("Écrivez une autre réponse…")?.value(), "", "what was written for the second question is not offered for the first");
 });
 
 test("a gesture on its way for one mission leaves another mission free", async (t) => {

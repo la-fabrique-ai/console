@@ -284,6 +284,7 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   screen.slow.set("spec.validate", new Promise((resolve) => { validated = resolve; }));
   click("validate");
   now();
+  assert.equal(aside.value(), "", "a gesture empties what was written before it: nothing comes back as a message ready to send in the plan");
   click("step-1");
   now();
   assert.ok(screen.texts.includes("la spec est en cours de validation") && !screen.texts.includes("Pilot prépare la prochaine version de la spec"),
@@ -292,7 +293,6 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   validated();
   texts = await shown();
   assert.ok(texts.includes("Spec validée") && texts.includes("validée · v2"));
-  assert.equal(aside.value(), "", "a gesture empties what was written before it: nothing comes back as a message ready to send in the plan");
   assert.ok(!screen.clicks.has("validate") && !screen.fields.has("Demandez un changement…"), "a validated spec takes no more change");
   assert.ok(git("show", "mission/DEMO-1:docs/missions/DEMO-1/spec.md").includes("Voir le retrait d’un lien, doublons compris."), "the validated version is in the project");
   assert.ok(git("show", "mission/DEMO-1:docs/missions/DEMO-1/answers.md").includes("Tous."), "with the operator's answers");

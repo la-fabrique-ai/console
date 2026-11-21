@@ -1,4 +1,4 @@
-// Slice 1 on screen: pick an issue, ask for its development, see the mission.
+// On screen: pick an issue, validate the request, answer Pilot's questions, see the mission.
 import assert from "node:assert/strict";
 import { setup } from "../../engine/tests/pilot-project.ts";
 import { registerHooks } from "node:module";
@@ -15,11 +15,12 @@ const { default: MissionControl } = await import(new URL("../mission-control/mai
 const STAGES = ["Préparer", "Développer", "Tester", "Valider"];
 
 function project(t: TestContext) {
-  const { env, cliArgs } = setup(t);
-  screen.env = env;
-  screen.cliArgs = cliArgs;
+  const project = setup(t);
+  screen.env = project.env;
+  screen.cliArgs = project.cliArgs;
   screen.failure = "";
   screen.slow.clear();
+  return project;
 }
 
 /** Opens the window on the current project. */
@@ -27,7 +28,12 @@ function window() {
 
   const pending: unknown[] = [];
   let stale = true; // Herdr draws once at start, then only when the window asks for it
-  const cx = { notify() { stale = true; }, spawn(body: (cx: unknown) => unknown) { pending.push(body(cx)); } };
+  const timers: ((cx: unknown) => void)[] = [];
+  const cx = {
+    notify() { stale = true; },
+    spawn(body: (cx: unknown) => unknown) { pending.push(body(cx)); },
+    timer: { every(_ms: number, body: (cx: unknown) => void) { timers.push(body); } },
+  };
   const view = new MissionControl();
   view.init(undefined, cx);
   /** What the operator sees right now, replies still on their way. */
@@ -49,29 +55,83 @@ function window() {
       assert.ok(handler, `not on screen: ${id}`);
       handler({}, cx);
     },
+    /** Writes in a field that is on screen. */
+    type(placeholder: string, text: string) {
+      const field = screen.fields.get(placeholder);
+      assert.ok(field, `no such field on screen: ${placeholder}`);
+      field.type(text, cx);
+    },
+    /** Time passes: the window asks the engine again. */
+    tick() {
+      timers.forEach((timer) => timer(cx));
+    },
   };
 }
 
-test("an issue becomes a mission that shows in the Development list", async (t) => {
-  project(t);
-  const { shown, click } = window();
+test("a validated request becomes a mission, and the operator answers Pilot's questions", async (t) => {
+  const { cli, calls } = project(t);
+  const pilot = (action: string, payload: object) => cli(action, { issueKey: "DEMO-1", ...payload });
+  const { shown, click, type, tick } = window();
   assert.ok((await shown()).includes("First issue"));
 
   click("issue-DEMO-1");
   let texts = await shown();
   assert.ok(texts.includes("**Texte original**"), "the request page shows the issue as written");
-  assert.ok(texts.includes("✓  Valider la demande"));
+  type("Ajoutez une précision…", "Pour les joueurs seulement");
+  assert.ok((await shown()).includes("Envoyer à Pilot  ↑"), "a written field turns the button into a send");
+  click("validate");
+  texts = await shown();
+  assert.ok(texts.includes("Pour les joueurs seulement") && texts.includes("✓  Valider la demande"), "the detail joins the request, still to validate");
 
   click("validate");
   texts = await shown();
-  assert.ok(texts.includes("Mission créée"));
-  assert.ok(!screen.clicks.has("validate"), "a created mission cannot be created again");
+  assert.ok(texts.includes("Pilot prépare ses questions"), "Pilot starts by itself");
+  assert.ok(!screen.clicks.has("validate"), "nothing to validate while Pilot reads");
+
+  await pilot("pilot.questions", { questions: [
+    { id: "q1", text: "Qui reçoit les messages ?", context: "Deux publics possibles.", proposal: "Tous les joueurs." },
+    { id: "q2", text: "Dans quelle langue ?", context: "Le projet en a deux.", proposal: "En français." },
+  ] });
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("QUESTION 1 SUR 2") && texts.includes("Tous les joueurs."), "the first question shows with Pilot's proposal");
+  assert.ok(texts.includes("ou validez la réponse de Pilot · question 2 ensuite"));
+
+  type("Écrivez une autre réponse…", "Seulement les abonnés");
+  await shown();
+  click("validate");
+  texts = await shown();
+  assert.ok(texts.includes("Seulement les abonnés") && texts.includes("Pilot met sa réponse à jour"), "the operator's answer waits for Pilot");
+  assert.ok(!screen.clicks.has("validate"), "nothing to validate until Pilot proposes again");
+
+  await pilot("pilot.propose", { questionId: "q1", proposal: "Seulement les joueurs abonnés." });
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("PILOT · SUGGESTION MISE À JOUR") && texts.includes("Seulement les joueurs abonnés."));
+  click("validate");
+  texts = await shown();
+  assert.ok(texts.includes("QUESTION 2 SUR 2"), "validating shows the next open question");
+  assert.ok(texts.includes("ou validez la réponse de Pilot · c’était la dernière question"));
+  click("validate");
+  texts = await shown();
+  assert.ok(texts.includes("Les 2 questions ont une réponse") && texts.includes("✎") && texts.includes("En français."), "the recap marks the corrected answer");
+  assert.equal(calls().filter(([command]) => command === "send").length, 3, "Pilot received the reply and the two validations, once each");
+
+  click("question-q1");
+  texts = await shown();
+  assert.ok(texts.includes("VOTRE RÉPONSE · VALIDÉE, APRÈS VOTRE CORRECTION"), "a click on a question reopens it");
+  click("validate");
+  assert.ok((await shown()).includes("Les 2 questions ont une réponse"), "keeping the answer returns to the recap");
+
+  click("step-0");
+  texts = await shown();
+  assert.ok(texts.includes("Demande validée") && texts.includes("Pour les joueurs seulement"), "the request stays readable, with its detail");
 
   click("nav-development");
   texts = await shown();
   assert.ok(texts.includes("First issue") && texts.includes("Préparer"), "the mission is listed with its stage");
   click("mission-DEMO-1");
-  assert.ok((await shown()).includes("Mission créée"), "the mission opens on its page");
+  assert.ok((await shown()).includes("Les 2 questions ont une réponse"), "the mission opens where the preparation stands");
 });
 
 test("a ticket outside the operator's list is refused on its request page", async (t) => {
@@ -135,5 +195,7 @@ test("a mission is listed and opens on its page while Linear does not answer", a
   assert.ok(texts.includes("First issue"), "the page header carries the mission's title");
   const header = texts.slice(texts.indexOf("Jiroo · DEMO-1") + 1).filter((text) => text !== "›");
   assert.deepEqual(header.slice(0, 4), STAGES, "and its line of stages");
-  assert.ok(texts.includes("Impossible de joindre Linear."));
+  assert.ok(texts.includes("Pilot prépare ses questions"), "the questions never wait for Linear");
+  click("step-0");
+  assert.ok((await shown()).includes("Impossible de joindre Linear."), "the request says why the issue cannot be read");
 });

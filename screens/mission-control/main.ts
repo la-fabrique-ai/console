@@ -48,6 +48,9 @@ export default class MissionControl extends View {
   opens = 0;
   requested = "";
   issue: IssueDetail | null = null;
+  /** Why the issue could not be read. */
+  issueError = "";
+  /** Why the operator's last gesture failed; shown in the composer. */
   requestError = "";
   creating = false;
   /** The open mission as the engine knows it: Pilot's questions and the answers. */
@@ -106,6 +109,7 @@ export default class MissionControl extends View {
     this.page = "request";
     this.requested = key;
     this.issue = null;
+    this.issueError = "";
     this.requestError = "";
     this.detail = null;
     this.tab = "questions";
@@ -118,7 +122,7 @@ export default class MissionControl extends View {
       const reply = await call("issues.show", { key });
       if (turn !== this.opens) return; // the operator opened a page again meanwhile
       if ("data" in reply) this.issue = reply.data;
-      else this.requestError = reply.error.message;
+      else this.issueError = reply.error.message;
       cx.notify();
     });
   }
@@ -506,7 +510,7 @@ export default class MissionControl extends View {
       // The questions are local: they never wait for the tracker.
       return [header, this.steps(true, answered), this.detail ? this.questionsBody(this.detail) : note("Chargement…")];
     }
-    if (!issue) return [header, ...(created ? [this.steps(true, answered)] : []), note(this.requestError || "Chargement…", this.requestError ? "#F2C14E" : "#8C93A6")];
+    if (!issue) return [header, ...(created ? [this.steps(true, answered)] : []), note(this.issueError || "Chargement…", this.issueError ? "#F2C14E" : "#8C93A6")];
     return [header, this.steps(created, answered), this.requestBody(issue, created)];
   }
 

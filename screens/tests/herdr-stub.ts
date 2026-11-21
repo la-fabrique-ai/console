@@ -5,11 +5,14 @@
 import { spawnSync } from "node:child_process";
 
 type Click = (event: unknown, cx: unknown) => void;
-interface Drawn { id: string; texts: string[]; click?: Click; children: Drawn[] }
+interface Drawn { id: string; texts: string[]; click?: Click; field?: string; children: Drawn[] }
+interface Field { value(): string; set_value(next: string): void; on(event: string, handler: Click): boolean; type(text: string, cx: unknown): void }
 
 export const screen = {
   texts: [] as string[],
   clicks: new Map<string, Click>(),
+  /** The fields drawn right now, by placeholder. */
+  fields: new Map<string, Field>(),
   env: {} as NodeJS.ProcessEnv,
   cliArgs: [] as string[],
   /** "network": Linear cannot be reached (see the engine's Linear fixture). */
@@ -20,8 +23,8 @@ export const screen = {
 
 const drawn = new WeakMap<object, Drawn>();
 
-function element(text?: string): object {
-  const node: Drawn = { id: "", texts: text ? [text] : [], children: [] };
+function element(text?: string, field?: string): object {
+  const node: Drawn = { id: "", texts: text ? [text] : [], field, children: [] };
   const el: object = new Proxy({}, {
     get: (_target, method) => (...args: unknown[]) => {
       if (method === "id") node.id = String(args[0]);
@@ -43,9 +46,11 @@ function element(text?: string): object {
 export function draw(root: object) {
   screen.texts = [];
   screen.clicks = new Map();
+  screen.fields = new Map();
   const walk = (node: Drawn) => {
     screen.texts.push(...node.texts);
     if (node.click) screen.clicks.set(node.id, node.click);
+    if (node.field !== undefined) screen.fields.set(node.field, states.get(node.field)!);
     node.children.forEach(walk);
   };
   walk(drawn.get(root)!);
@@ -56,6 +61,23 @@ export const div = () => element();
 export const v_flex = div;
 export const h_flex = div;
 export const TextView = { markdown: (_id: string, text: string) => element(text) };
+
+const states = new Map<string, Field>();
+export const InputState = {
+  new({ placeholder = "" } = {}): Field {
+    let value = "";
+    const handlers: Click[] = [];
+    const state: Field = {
+      value: () => value,
+      set_value(next) { value = next; },
+      on(_event, handler) { handlers.push(handler); return true; },
+      type(text, cx) { value = text; handlers.forEach((handler) => handler({}, cx)); },
+    };
+    states.set(placeholder, state);
+    return state;
+  },
+};
+export const Input = { new: (state: Field) => element(state.value(), [...states].find(([, other]) => other === state)![0]) };
 
 export const checking = () => false;
 export const props = () => ({ engine: "engine.sh" });

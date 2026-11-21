@@ -217,9 +217,11 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   click("validate");
   now();
   click("step-0");
+  now();
+  click("step-1");
   asked();
   texts = await shown();
-  assert.ok(texts.includes("Demande validée"), "the step the operator chose meanwhile stays on screen");
+  assert.ok(texts.includes("La question a une réponse") && texts.includes("Spec écrite"), "the step the operator chose meanwhile stays on screen");
   click("step-2");
   texts = await shown();
   assert.ok(texts.includes("Pilot écrit la spec"), "the spec has its step");
@@ -252,7 +254,8 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   assert.ok(texts.includes("LA SPEC, ÉCRITE PAR PILOT · VERSION 2") && texts.includes("J’ai ajouté les doublons."));
   assert.equal(texts[texts.indexOf("Voir le retrait d’un lien, doublons compris.") + 1], "modifié · v2", "the mark sits on the changed passage");
   assert.equal(texts.filter((text) => text === "modifié · v2").length, 1, "and on no other");
-  assert.ok(texts.indexOf("Version 2 · à relire") < texts.indexOf("Version 1") && texts.includes("1 passage modifié à votre demande"), "the version to read comes first");
+  assert.ok(texts.includes("Version 2 · à relire") && texts.indexOf("Version 2 · à relire") < texts.indexOf("Version 1"), "the version to read comes first");
+  assert.ok(texts.includes("1 passage modifié à votre demande"));
 
   click("validate");
   texts = await shown();
@@ -261,8 +264,7 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   assert.ok(git("show", "mission/DEMO-1:docs/missions/DEMO-1/spec.md").includes("Voir le retrait d’un lien, doublons compris."), "the validated version is in the project");
   assert.ok(git("show", "mission/DEMO-1:docs/missions/DEMO-1/answers.md").includes("Tous."), "with the operator's answers");
   const sent = calls().filter(([command]) => command === "send").map(([, , , message]) => JSON.parse(message).action);
-  assert.deepEqual(sent.slice(1), ["spec.write", "spec.change", "spec.validate"], "after the answer, Pilot received each gesture of the spec once");
-  assert.equal(sent.length, 4);
+  assert.deepEqual(sent, ["questions.validate", "spec.write", "spec.change", "spec.validate"], "Pilot received each gesture once, in order");
 
   click("step-1");
   texts = await shown();
@@ -325,6 +327,8 @@ test("a request that needs no question says so instead of waiting", async (t) =>
   await cli("pilot.questions", { issueKey: "DEMO-1", questions: [] });
   tick();
   assert.ok((await shown()).includes("Pilot n’a pas de question"));
+  click("validate");
+  assert.ok((await shown()).includes("Pilot écrit la spec"), "asking for the spec moves on to its step by itself");
 });
 
 test("a reading slower than the clock still reaches the screen", async (t) => {

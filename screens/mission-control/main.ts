@@ -61,6 +61,8 @@ export default class MissionControl extends View {
   detail: MissionDetail | null = null;
   /** The step the operator chose to look at; none: the one the preparation has reached. */
   tab: Tab | "" = "";
+  /** How many times the operator chose a step: a gesture's answer never undoes a choice made meanwhile. */
+  choices = 0;
   /** The question the operator chose to look at; none: the first one still open. */
   viewing = "";
   /** What the operator adds to the issue before validating the request. */
@@ -173,7 +175,7 @@ export default class MissionControl extends View {
     const key = payload.issueKey;
     if (this.sending.has(key)) return;
     const turn = this.opens;
-    const tab = this.tab;
+    const choices = this.choices;
     this.clear(); // what was written is on its way; it comes back to its field if the engine refuses it
     this.sending.add(key);
     this.sends++;
@@ -188,10 +190,11 @@ export default class MissionControl extends View {
           // A reply stays on its question, to see Pilot's new proposal; a validation moves on.
           this.viewing = action === "questions.reply" ? (payload as Payloads["questions.reply"]).questionId : "";
           // On to the step the preparation has reached, unless the operator chose another one meanwhile.
-          if (action === "spec.write" && this.tab === tab) this.tab = "";
+          if (action === "spec.write" && this.choices === choices) this.tab = "";
         } else {
           this.requestError = reply.error.message;
-          if (field && "text" in payload) this.inputs[field]?.set_value(payload.text);
+          // A refused text comes back to its field only if the operator is still on its step.
+          if (field && "text" in payload && this.choices === choices) this.inputs[field]?.set_value(payload.text);
         }
       }
       cx.notify();
@@ -348,7 +351,9 @@ export default class MissionControl extends View {
         .child(name)
         .when(small, (el) => el.child(div().text_size(12.5).text_color(on ? "#A9B4FF" : "#6F7689").child(small!)));
       parts.push(created && index <= current ? pill.cursor_pointer().on_click((_event, cx) => {
+        if (index === shown) return;
         this.tab = TABS[index]!;
+        this.choices++;
         this.clear(); // a draft belongs to its step
         cx.notify();
       }) : pill);
@@ -506,10 +511,13 @@ export default class MissionControl extends View {
     const busy = detail.pilotBusy === "questions";
     // Once the spec is asked, the answers it is written from no longer change here: a change goes through the spec.
     const settled = Boolean(detail.spec) || detail.pilotBusy === "spec";
+    const closed = detail.spec?.validated === true;
+    const settledHint = closed ? "la spec validée est écrite d’après vos réponses" : "la spec est écrite d’après vos réponses · demandez un changement à l’étape Spec";
     if (total === 0 && !busy) {
       // Pilot answered that the request is enough.
       return page(this.heading("LES QUESTIONS", "Pilot n’a pas de question", "Votre demande lui suffit pour écrire la spec."),
-        this.composer("tell", "votre demande suffit · Pilot écrit ensuite la spec", settled ? "Spec écrite" : "✓  Écrire la spec", settled ? null : write, "Pilot en tient compte pour la spec", tell),
+        settled ? this.composer("tell", closed ? "la spec est validée" : "la spec est écrite d’après votre demande · demandez un changement à l’étape Spec", "Spec écrite", null)
+          : this.composer("tell", "votre demande suffit · Pilot écrit ensuite la spec", "✓  Écrire la spec", write, "Pilot en tient compte pour la spec", tell),
         side("Aucune question", "Pilot a lu la demande et le projet.", []));
     }
     if (total === 0) {
@@ -525,9 +533,10 @@ export default class MissionControl extends View {
           "Relisez-les si vous voulez : un clic sur une question, à droite, la rouvre."),
         v_flex().mt(18).children(questions.map((question, index) => this.line(this.badge(question, index), question.text, question.answer, this.tone(question)))),
         busy ? this.waiting("Pilot vérifie s’il lui reste une question")
+          : settled ? div()
           : this.said(`${total === 1 ? "J’ai votre réponse" : `J’ai vos ${total} réponses`}. Je peux écrire la spec : une page, à relire avant le découpage.`),
-      ], this.composer("tell", "vos réponses sont validées · Pilot écrit ensuite la spec",
-        settled ? "Spec écrite" : "✓  Écrire la spec", busy || settled ? null : write, "Pilot en tient compte pour la spec", tell),
+      ], settled ? this.composer("tell", settledHint, "Spec écrite", null)
+        : this.composer("tell", "vos réponses sont validées · Pilot écrit ensuite la spec", "✓  Écrire la spec", busy ? null : write, "Pilot en tient compte pour la spec", tell),
       side(`${total} réponses sur ${total}`, "Une question par page. Un clic pour revenir sur une réponse.", rows));
     }
 
@@ -547,7 +556,7 @@ export default class MissionControl extends View {
     const reply = (text: string, cx: Context) => this.send("questions.reply", { issueKey: key, questionId: current.id, text }, cx, current.answer === undefined && revised ? "again" : "answer");
     const validate = (cx: Context) => this.send("questions.validate", { issueKey: key, questionId: current.id }, cx);
     const sendHint = "Pilot met sa réponse à jour · vous validez ensuite";
-    const composer = settled ? this.composer("answer", "la spec est écrite d’après cette réponse · demandez un changement à l’étape Spec", "Réponse validée", null)
+    const composer = settled ? this.composer("answer", settledHint, "Réponse validée", null)
       : current.answer !== undefined
       ? this.composer("answer", `ou gardez votre réponse · ${next ? "retour aux questions" : "retour au récapitulatif"}`, "✓  Garder cette réponse", (cx) => {
         this.viewing = "";

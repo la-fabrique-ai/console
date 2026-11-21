@@ -65,7 +65,8 @@ export default class MissionControl extends View {
   detailError = "";
   sending = false;
   sends = 0;
-  reads = 0;
+  /** The opening whose mission is being read: one reading at a time, so a slow one is never overtaken. */
+  reading = 0;
 
   init(_props: unknown, cx: Spawner & Pick<Context, "timer">) {
     if (checking()) return;
@@ -137,10 +138,12 @@ export default class MissionControl extends View {
     if (this.page !== "request" || !this.mission(key) || this.sending) return;
     const turn = this.opens;
     const sends = this.sends;
-    const read = ++this.reads; // a later reading has the last word
+    if (this.reading === turn) return;
+    this.reading = turn;
     cx.spawn(async (cx) => {
       const reply = await call("missions.show", { issueKey: key });
-      if (turn !== this.opens || sends !== this.sends || read !== this.reads) return;
+      if (this.reading === turn) this.reading = 0;
+      if (turn !== this.opens || sends !== this.sends) return;
       const error = "error" in reply ? reply.error.message : "";
       if (error === this.detailError && ("error" in reply || JSON.stringify(reply.data) === JSON.stringify(this.detail))) return;
       this.detailError = error;
@@ -454,6 +457,7 @@ export default class MissionControl extends View {
     const rows = [
       ...questions.map((question, index) => this.line(this.badge(question, index), question.text, question.answer ?? "", this.tone(question), question === current)
         .id(`question-${question.id}`).cursor_pointer().on_click((_event, cx) => {
+          if (this.sending) return; // the gesture on its way belongs to the question on screen
           this.viewing = question.id;
           this.clear();
           cx.notify();

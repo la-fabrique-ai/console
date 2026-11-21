@@ -97,52 +97,53 @@ test("a validated request becomes a mission, and the operator answers Pilot's qu
   assert.ok(texts.includes("QUESTION 1 SUR 2") && texts.includes("Tous les joueurs."), "the first question shows with Pilot's proposal");
   assert.ok(texts.includes("ou validez la réponse de Pilot · question 2 ensuite"));
 
-  type("Écrivez une autre réponse…", "Seulement les abonnés");
+  // Q1 stays open while Q2 is corrected, validated, then corrected again.
+  const sent = () => calls().filter(([command]) => command === "send").map(([, , , message]) => message);
+  click("question-q2");
+  await shown();
+  type("Écrivez une autre réponse…", "En anglais");
   await shown();
   click("validate");
   texts = await shown();
-  assert.ok(texts.includes("Seulement les abonnés") && texts.includes("Pilot met sa réponse à jour"), "the operator's answer waits for Pilot");
+  assert.ok(texts.includes("QUESTION 2 SUR 2") && texts.includes("En anglais") && texts.includes("Pilot met sa réponse à jour"), "the page stays on the corrected question");
   assert.ok(!screen.clicks.has("validate"), "nothing to validate until Pilot proposes again");
 
-  await pilot("pilot.propose", { questionId: "q1", proposal: "Seulement les joueurs abonnés." });
+  await pilot("pilot.propose", { questionId: "q2", proposal: "En anglais seulement." });
   tick();
   texts = await shown();
-  assert.ok(texts.includes("PILOT · SUGGESTION MISE À JOUR") && texts.includes("Seulement les joueurs abonnés."));
+  assert.ok(texts.includes("PILOT · SUGGESTION MISE À JOUR") && texts.includes("En anglais seulement."));
   click("validate");
   texts = await shown();
-  assert.ok(texts.includes("QUESTION 2 SUR 2"), "validating shows the next open question");
+  assert.ok(texts.includes("QUESTION 1 SUR 2"), "validating shows the question still open");
   assert.ok(texts.includes("ou validez la réponse de Pilot · c’était la dernière question"));
-  click("validate");
-  texts = await shown();
-  assert.ok(texts.includes("Les 2 questions ont une réponse") && texts.includes("✎") && texts.includes("En français."), "the recap marks the corrected answer");
-  const sent = () => calls().filter(([command]) => command === "send").map(([, , , message]) => message);
-  assert.equal(sent().length, 3, "Pilot received the reply and the two validations, once each");
-  assert.deepEqual(sent().map((message) => /q\d/.exec(message)?.[0]), ["q1", "q1", "q2"], "each about its own question");
 
-  click("question-q1");
+  click("question-q2");
   texts = await shown();
   assert.ok(texts.includes("VOTRE RÉPONSE · VALIDÉE, APRÈS VOTRE CORRECTION"), "a click on a question reopens it");
-  click("validate");
-  assert.ok((await shown()).includes("Les 2 questions ont une réponse"), "keeping the answer returns to the recap");
-
-  // A correction written on a reopened question stays with that question.
-  click("question-q2");
-  await shown();
-  type("Écrivez une autre réponse…", "En anglais aussi");
+  type("Écrivez une autre réponse…", "En français aussi");
   await shown();
   click("validate");
   texts = await shown();
-  assert.ok(texts.includes("QUESTION 2 SUR 2") && texts.includes("Pilot met sa réponse à jour"), "the page stays on the corrected question");
-  assert.ok(sent()[3].includes("q2") && sent()[3].includes("En anglais aussi"));
+  assert.ok(texts.includes("QUESTION 2 SUR 2") && texts.includes("En français aussi"), "a second correction stays on its question, with another one open");
   click("question-q1");
-  await shown();
+  texts = await shown();
+  assert.ok(texts.includes("QUESTION 1 SUR 2"));
   assert.equal(screen.fields.get("Écrivez une autre réponse…")?.value(), "", "nothing written for one question follows to another");
+  click("validate");
+  await shown();
+  assert.deepEqual(sent().map((message) => /q\d/.exec(message)?.[0]), ["q2", "q2", "q2", "q1"], "each gesture reached Pilot once, about its own question");
+  assert.ok(sent()[2].includes("En français aussi"));
+
   await pilot("pilot.propose", { questionId: "q2", proposal: "En français et en anglais." });
-  click("question-q2");
   tick();
   await shown();
   click("validate");
-  assert.ok((await shown()).includes("Les 2 questions ont une réponse"));
+  texts = await shown();
+  assert.ok(texts.includes("Les 2 questions ont une réponse") && texts.includes("✎") && texts.includes("Tous les joueurs."), "the recap marks the corrected answer");
+  click("question-q1");
+  await shown();
+  click("validate");
+  assert.ok((await shown()).includes("Les 2 questions ont une réponse"), "keeping an answer returns to the recap");
 
   click("step-0");
   texts = await shown();
@@ -166,6 +167,27 @@ test("a request that needs no question says so instead of waiting", async (t) =>
   await cli("pilot.questions", { issueKey: "DEMO-1", questions: [] });
   tick();
   assert.ok((await shown()).includes("Pilot n’a pas de question"));
+});
+
+test("a reading slower than the clock still reaches the screen", async (t) => {
+  const { cli } = project(t);
+  const { shown, now, click, tick } = window();
+  await shown();
+  click("issue-DEMO-1");
+  await shown();
+  click("validate");
+  await shown();
+  await cli("pilot.questions", { issueKey: "DEMO-1", questions: [{ id: "q1", text: "Qui ?", context: "Deux publics.", proposal: "Tous." }] });
+
+  let release = () => {};
+  screen.slow.set("missions.show", new Promise((resolve) => { release = resolve; }));
+  tick();
+  screen.slow.set("missions.show", new Promise(() => {})); // a second reading would never answer
+  tick();
+  release();
+  await new Promise((resolve) => setImmediate(resolve));
+  now();
+  assert.ok(screen.texts.includes("QUESTION 1 SUR 1"), "the clock did not discard the reading on its way");
 });
 
 test("a ticket outside the operator's list is refused on its request page", async (t) => {

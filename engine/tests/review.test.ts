@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { test, type TestContext } from "node:test";
 import { development } from "./develop-project.ts";
 
-async function project(t: TestContext) {
+async function project(t: TestContext, team?: string[]) {
   const p = development(t), id = { ticketId: "1" };
   p.git("init", "--bare", p.path("bare"));
   p.git("push", p.path("bare"), "main:main");
@@ -11,6 +11,10 @@ async function project(t: TestContext) {
   p.git("config", "url." + p.path("bare") + ".insteadOf", "https://github.com/demo/repo.git");
   for (const tool of ["gh","git"]) writeFileSync(p.path("bin",tool),
     '#!/bin/sh\nexec "' + process.execPath + '" "' + p.path("engine/tests/github-fixture.ts") + '" ' + tool + ' "$@"\n', { mode: 0o700 });
+  if (team) {
+    const m = p.state(); m.plan.team = team;
+    writeFileSync(p.path("missions/DEMO-1.json"), JSON.stringify(m));
+  }
   await p.action("develop.start");
   await p.action("lead.build", id, p.state().agents.lead.id);
   const dev = p.state().agents.dev.id, cwd = p.path("Developer/worktrees/repo/DEMO-10");
@@ -105,4 +109,71 @@ for (const accepted of [true,false]) test("an interrupted verdict reaches the or
   assert.equal(sends.length,1); assert.equal(sends[0][2],recipient.terminal);
   assert.deepEqual(JSON.parse(sends[0][3]).remarks,accepted ? [] : ["Corriger le résultat."]);
   assert.equal(p.log().filter(c => c.includes("repos/demo/repo/pulls/2/merge")).length,accepted ? 1 : 0);
+});
+
+test("a single Claude dev, fresh Codex reviewer and Lead receive only their commands and the exact assigned context", async t => {
+  const p = await project(t, ["claude"]), sha = p.commit();
+  p.git("config", "push.followTags", "true");
+  p.git("tag", "-a", "unrelated-tag", "-m", "Keep local", sha);
+  await p.done();
+  assert.equal(p.git("--git-dir",p.path("bare"),"tag","--list"), "");
+  const { lead, dev, reviewer } = p.state().agents;
+  const launch = (name: string) => p.calls().find(a => a[0] === "run" && a.includes(name))!;
+  const assigned = p.state().plan.tickets[0];
+  for (const [agent,tool,action] of [[lead,"claude","lead.build"],[dev,"claude","dev.done"],[reviewer,"codex","review.verdict"]]) {
+    const args = launch(agent.terminal);
+    assert.ok(args, agent.role + " terminal");
+    assert.equal(args.at(-2),tool);
+    const prompt = args.at(-1)!;
+    assert.ok(prompt.includes(agent.role + " role fixture"));
+    for (const permitted of [action,"request.ask"]) assert.ok(prompt.includes("mission-control " + permitted + " -"));
+    const context = JSON.parse(prompt.split("\n").at(-1)!);
+    assert.equal(context.issueKey,"DEMO-1");
+    if (agent === lead) {
+      for (const doc of ["spec.md","split.md","answers.md"]) assert.ok(prompt.includes("docs/missions/DEMO-1/" + doc));
+    } else assert.deepEqual(context.ticket,assigned);
+    if (agent === reviewer) {
+      assert.equal(context.commit,sha); assert.equal(context.base,p.git("-C",p.mission,"rev-parse","HEAD"));
+      assert.equal(context.summary,"Travail terminé.");
+    }
+  }
+  // Both missions and their ticket IDs exist. Each owns distinct terminal identities.
+  const other = p.state(); other.issueKey = "DEMO-2";
+  for (const agent of Object.values(other.agents) as {id:string}[]) agent.id += "-other";
+  writeFileSync(p.path("missions/DEMO-2.json"),JSON.stringify(other));
+  for (const agent of [lead,dev,reviewer]) {
+    for (const [action,owner] of [["lead.build",lead],["dev.done",dev],["review.verdict",reviewer]] as const) {
+      const payload = {ticketId:"1",summary:"Travail terminé.",accepted:false,remarks:["Un point."]};
+      if (agent !== owner) assert.equal((await p.action(action,payload,agent.id)).error?.message,"Cette action n’est pas autorisée pour cet agent.");
+      assert.equal((await p.action(action,{...payload,issueKey:"DEMO-2"},agent.id)).error?.message,"Cette action n’est pas autorisée pour cet agent.");
+    }
+    if (agent !== lead) assert.equal((await p.action("request.ask",{ticketId:"2",text:"?",context:"?",choices:[]},agent.id)).error?.message,
+      "Cette action n’est pas autorisée pour cet agent.");
+  }
+  await p.verdict(true);
+  assert.equal(existsSync(reviewer.cwd),false);
+  const next = await p.action("lead.build",{ticketId:"2"},lead.id);
+  assert.equal(next.data?.development.tickets[1].steps[0].tool,"claude");
+  assert.equal(p.git("-C",p.state().agents.dev.cwd,"rev-parse","HEAD"),p.git("-C",p.mission,"rev-parse","HEAD"));
+});
+
+test("the merge checks the target immediately before and verifies the merge on the remote mission afterwards", async t => {
+  const p = await project(t); p.commit(); await p.done();
+  writeFileSync(p.path("retarget"),"after ready");
+  assert.ok((await p.verdict(true)).error);
+  assert.equal(p.log().filter(c => c.includes("repos/demo/repo/pulls/2/merge")).length,0);
+  const prs = JSON.parse(readFileSync(p.path("pulls"),"utf8"));
+  prs[1].baseRefName = "mission/DEMO-1"; writeFileSync(p.path("pulls"),JSON.stringify(prs));
+  writeFileSync(p.path("wrong-remote"),"merge object exists on the host, absent on the mission branch");
+  const before = p.git("-C",p.mission,"rev-parse","HEAD");
+  assert.ok((await p.verdict(true)).error);
+  assert.equal(p.git("-C",p.mission,"rev-parse","HEAD"),before);
+  assert.equal(p.state().development.tickets[0].steps.at(-1).accepted,undefined);
+});
+
+test("automatic branch deletion blocks the merge with a specific explanation", async t => {
+  const p = await project(t); p.commit(); await p.done();
+  writeFileSync(p.path("auto-delete"),"true");
+  assert.equal((await p.verdict(true)).error?.message,"GitHub supprimerait la branche du ticket après la fusion. Vérifiez les réglages du dépôt.");
+  assert.ok(!p.log().some(c => c.includes("ready") || c.includes("repos/demo/repo/pulls/2/merge")));
 });

@@ -83,8 +83,11 @@ export function verdict(dir: string, repository: string, p: Payloads["review.ver
     if (p.accepted) {
       m.merging = true; saveMission(dir,m);
       try { github(worktree(repository,m.issueKey)).merge(run.branch,"mission/" + m.issueKey,sha,run.pr!.number); }
-      catch { throw remoteError(); }
+      catch (err) { throw err instanceof CommandError ? err : remoteError(); }
     } else if (m.merging) throw refused();
+    if (existsSync(agent.cwd) && !gitAt(agent.cwd, "status", "--porcelain", "--untracked-files=all").trim()) {
+      gitAt(worktree(repository, m.issueKey), "worktree", "remove", agent.cwd);
+    }
     delete m.merging;
     Object.assign(previous, { endedAt: new Date().toISOString(), accepted: p.accepted, remarks: p.remarks });
     const dev = m.agents!.dev!;

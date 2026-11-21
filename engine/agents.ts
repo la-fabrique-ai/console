@@ -45,9 +45,19 @@ export function startAgent(dir: string, m: SavedMission, agent: Agent, recoverin
     dev: "Build this ticket test-first. Commit your work, then call dev.done with ticketId and summary.",
     reviewer: "Review only the supplied commit. Call review.verdict with ticketId, accepted and remarks.",
   };
+  const scope = { issueKey: m.issueKey, ticketId: agent.ticketId };
+  function example(action: string, payload: object) {
+    return "mission-control " + action + " -\n" + JSON.stringify({ ...scope, ...payload });
+  }
+  const command = {
+    lead: example("lead.build", { ticketId: "<ready ticket id from split.md>" }),
+    dev: example("dev.done", { summary: "<résumé du travail et des tests>" }),
+    reviewer: example("review.verdict", { accepted: false, remarks: ["<correction demandée>"] }),
+  };
   try {
     const prompt = [readFileSync(roleFile, "utf8"), guidance[agent.role],
       "Use the command tool to run mission-control ACTION -: pass action and json (the complete JSON string for standard input). Use shell for project commands and commit for a dev commit. Reviewers can run tests in a private TMPDIR copy. Include issueKey in every call. For request.ask include text, context, choices and your ticketId if assigned.",
+      command[agent.role], example("request.ask", { text: "<question>", context: "<raison>", choices: ["<choix recommandé>"] }),
       JSON.stringify({ issueKey: m.issueKey, ticket, commit, base: agent.base, summary })].join("\n");
     const core = coreEnvironment();
     execFileSync("hc", ["run", "--bg", "--no-parent", "--name", agent.terminal, "--cwd", agent.cwd, "--",

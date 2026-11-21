@@ -19,14 +19,12 @@ export function github(cwd: string) {
   function find(head: string, base: string): Pull | undefined {
     const pulls: Pull[] = JSON.parse(gh("pr","list","--head",head,"--base",base,"--state","all","--json",
       "number,url,headRefName,baseRefName,headRefOid,isCrossRepository,isDraft,state,mergeCommit"));
-    const matches = pulls.filter(p => !p.isCrossRepository && p.baseRefName === base && p.headRefName === head);
-    if (matches.length > 1) throw remoteError();
-    return matches[0];
+    return pulls.find(p => !p.isCrossRepository && p.baseRefName === base && p.headRefName === head);
   }
   return {
     publish(branch: string, commit: string) {
       const ref = "refs/heads/" + branch;
-      if (gitAt(cwd,"ls-remote","--refs","origin",ref).split(/\s+/)[0] !== commit) gitAt(cwd,"push","origin",commit + ":" + ref);
+      if (gitAt(cwd,"ls-remote","--refs","origin",ref).split(/\s+/)[0] !== commit) gitAt(cwd,"push","--no-follow-tags","--recurse-submodules=no","origin",commit + ":" + ref);
     },
     draft(head: string, base: string, commit: string, title: string) {
       let pr = find(head,base);
@@ -38,18 +36,27 @@ export function github(cwd: string) {
       return { number: pr.number, url: pr.url };
     },
     merge(head: string, base: string, sha: string, number: number) {
-      let pr = find(head,base);
-      if (!pr || pr.number !== number || pr.headRefOid !== sha) throw remoteError();
-      if (pr.state === "OPEN") {
-        if (gh("api","repos/" + repo,"--jq",".delete_branch_on_merge") !== "false") throw remoteError();
-        if (pr.isDraft) gh("pr","ready",String(number));
-        gh("api","--method","PUT","repos/" + repo + "/pulls/" + number + "/merge","-f","merge_method=merge","-f","sha=" + sha);
-        pr = find(head,base);
+      function ticketPull() {
+        const pr = find(head, base);
+        if (!pr || pr.number !== number || pr.headRefOid !== sha) throw remoteError();
+        return pr;
       }
-      if (pr?.state !== "MERGED" || !pr.mergeCommit || !/^[0-9a-f]{40}$/.test(pr.mergeCommit.oid)) throw remoteError();
+      let pr = ticketPull();
+      if (pr.state === "OPEN") {
+        const autoDelete = gh("api", "repos/" + repo, "--jq", ".delete_branch_on_merge");
+        if (autoDelete === "true") throw new CommandError("GitHub supprimerait la branche du ticket après la fusion. Vérifiez les réglages du dépôt.");
+        if (autoDelete !== "false") throw remoteError();
+        if (pr.isDraft) gh("pr","ready",String(number));
+        pr = ticketPull();
+        if (pr.isDraft || pr.state !== "OPEN") throw remoteError();
+        gh("api","--method","PUT","repos/" + repo + "/pulls/" + number + "/merge","-f","merge_method=merge","-f","sha=" + sha);
+        pr = ticketPull();
+      }
+      if (pr.state !== "MERGED" || !pr.mergeCommit || !/^[0-9a-f]{40}$/.test(pr.mergeCommit.oid)) throw remoteError();
       gitAt(cwd,"fetch","--no-tags","origin","refs/heads/" + base);
       if (gitAt(cwd,"rev-parse",pr.mergeCommit.oid + "^2").trim() !== sha) throw remoteError();
-      gitAt(cwd,"merge","--ff-only",pr.mergeCommit.oid);
+      gitAt(cwd, "merge-base", "--is-ancestor", pr.mergeCommit.oid, "FETCH_HEAD");
+      gitAt(cwd, "merge", "--ff-only", pr.mergeCommit.oid);
     },
   };
 }

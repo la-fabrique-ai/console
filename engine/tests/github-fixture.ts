@@ -24,15 +24,18 @@ if (tool === "git") {
     const number = prs.length + 1;
     prs.push({ number, url: "https://github.com/demo/repo/pull/" + number, headRefName: head, baseRefName: base,
       isDraft: true, state: "OPEN", isCrossRepository: false });
-  } else if (args[1] === "ready" && args[2] === "2") prs[1].isDraft = false;
+  } else if (args[1] === "ready" && args[2] === "2") {
+    prs[1].isDraft = false;
+    if (existsSync(join(root,"retarget"))) prs[1].baseRefName = "main";
+  }
   else if (args[0] === "api" && args.includes("repos/demo/repo/pulls/2/merge")) {
     const pr = prs[1], sha = ref(pr.headRefName);
     if (pr.isDraft || pr.state !== "OPEN" || !args.includes("sha=" + sha) || !args.includes("merge_method=merge")) process.exit(92);
     const parent = ref(pr.baseRefName);
     const merge = git("-C", root + "/repo", "commit-tree", ref(sha + "^{tree}"), "-p", parent, "-p", sha, "-m", "Merge");
-    git("-C", root + "/repo", "push", origin, merge + ":refs/heads/" + pr.baseRefName);
+    if (!existsSync(join(root,"wrong-remote"))) git("-C", root + "/repo", "push", origin, merge + ":refs/heads/" + pr.baseRefName);
     pr.state = "MERGED"; pr.mergeCommit = { oid: merge };
-  } else if (args[0] === "api" && args.includes("repos/demo/repo")) output = "false";
+  } else if (args[0] === "api" && args.includes("repos/demo/repo")) output = String(existsSync(join(root,"auto-delete")));
   else process.exit(93);
   writeFileSync(file, JSON.stringify(prs));
 }

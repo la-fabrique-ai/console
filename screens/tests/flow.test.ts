@@ -22,6 +22,7 @@ function project(t: TestContext) {
   screen.failure = "";
   screen.slow.clear();
   screen.canned.clear();
+  screen.sent.length = 0;
   return project;
 }
 
@@ -410,7 +411,8 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   click("mission-DEMO-1");
   await until(() => screen.clicks.has("launch"));
   click("launch");
-  await until(() => screen.texts.includes("C’est parti : 4 tickets créés dans le tracker"));
+  await until(() => screen.texts.includes("Développement"));
+  assert.ok(screen.clicks.has("develop-now"), "the launch opens the development: the operator sees the page move on");
   // The operator goes back to the list: the old reading is answered there, and changes nothing.
   click("nav-development");
   late();
@@ -418,6 +420,10 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   assert.ok(texts.includes("Développer") && !texts.includes("Préparer"), "in the list too the mission keeps the stage of its launch");
   click("mission-DEMO-1");
   texts = await shown();
+  assert.ok(texts.includes("Développement") && !texts.includes("C’est parti : 4 tickets créés dans le tracker"), "a launched mission opens on its development");
+  click("step-3");
+  now();
+  texts = screen.texts;
   assert.ok(texts.includes("C’est parti : 4 tickets créés dans le tracker") && texts.some((text) => text.endsWith("rattachés à DEMO-1")));
   assert.equal(writes(), 5, "the launch creates the four sub-tickets and one comment");
   assert.equal(texts[texts.indexOf("DEMO-1") + 1], "Développer", "the menu shows the new stage without leaving the page");
@@ -657,4 +663,85 @@ test("a mission is listed and opens on its page while Linear does not answer", a
   assert.ok(texts.includes("Pilot prépare ses questions"), "the questions never wait for Linear");
   click("step-0");
   assert.ok((await shown()).includes("Impossible de joindre Linear."), "the request says why the issue cannot be read");
+});
+
+test("the operator follows a ticket from the Lead's start to accepted, and answers a dev's request in place", async (t) => {
+  project(t);
+  const ticket = { id: "1", key: "DEMO-2", title: "Links in the feed", change: "Added links show in the feed.", how: "A new entry type.", covers: ["A link shows when added"],
+    after: [], minutes: 45, sensitive: false, parallel: { dev: 1, step: 1 } };
+  const mission = { issueKey: "DEMO-1", title: "First issue", stage: "develop" };
+  const said = (development?: object) => JSON.stringify({ data: { ...mission, details: [], questions: [],
+    plan: { found: [], tickets: [ticket], testMinutes: 20, validationMinutes: 15, advice: "", team: ["codex"], launched: true }, ...(development ? { development } : {}) } });
+  const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+  const sentOf = (action: string) => screen.sent.filter(([name]) => name === action).map(([, payload]) => JSON.parse(payload!));
+  screen.canned.set("missions.list", Array(40).fill(JSON.stringify({ data: [mission] })));
+  screen.canned.set("missions.show", [said()]);
+  const { shown, now, click, type, tick } = window();
+  await shown();
+  click("nav-development");
+  await shown();
+  click("mission-DEMO-1");
+  let texts = await shown();
+  assert.ok(texts.includes("Le développement n’a pas démarré") && texts.includes("Développement"), "a mission launched before opens on its development, not started yet");
+
+  screen.canned.set("develop.start", [said({ tickets: [], requests: [] })]);
+  click("start-develop");
+  texts = await shown();
+  assert.deepEqual(sentOf("develop.start"), [{ issueKey: "DEMO-1" }]);
+  assert.ok(texts.includes("Le Lead prend la mission") && !screen.clicks.has("start-develop"), "once the Lead is started the button is gone");
+
+  const build = { kind: "build", tool: "codex", startedAt: ago(12) };
+  const run = (steps: object[], more = {}) => ({ id: "1", branch: "ticket/DEMO-2", steps, ...more });
+  screen.canned.set("missions.show", [said({ tickets: [run([build])], requests: [] })]);
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("En cours : DEMO-2 en construction") && texts.includes("Codex construit") && texts.includes("12 min"), "the dev's work shows by itself, with the time it has taken");
+
+  const request = { id: "r1", from: "dev", ticketId: "1", text: "Faut-il aussi les liens retirés ?", context: "La spec ne le dit pas.", choices: ["Oui, les deux", "Non, seulement les ajouts"] };
+  const asked = said({ tickets: [run([build])], requests: [request] });
+  screen.canned.set("missions.show", [asked]);
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("À vous : une demande du dev sur DEMO-2") && texts.includes("Vous attend") && texts.includes(request.text) && texts.includes("Recommandé"),
+    "a request takes the banner and the right column, its ticket waits for the operator");
+  click("ticket-1");
+  now();
+  assert.ok(screen.texts.includes("DÉROULÉ") && !screen.clicks.has("choice-0"), "the operator can still look at a ticket");
+  click("see-request");
+  now();
+
+  // A refused answer comes back to its field; the answer then reaches the engine once.
+  const refusal = JSON.stringify({ error: { code: "failed", message: "L’envoi au dev n’est pas confirmé." } });
+  screen.canned.set("requests.answer", [refusal, said({ tickets: [run([build])], requests: [{ ...request, answer: "Seulement les ajouts pour l’instant" }] })]);
+  screen.canned.set("missions.show", [asked, asked]);
+  type("Répondez autrement…", "Seulement les ajouts pour l’instant");
+  now();
+  click("send-reply");
+  now();
+  assert.ok(!screen.clicks.has("choice-0") && !screen.clicks.has("send-reply"), "one answer at a time: nothing else can be sent while it is on its way");
+  texts = await shown();
+  assert.ok(texts.includes("L’envoi au dev n’est pas confirmé.") && texts.includes("Seulement les ajouts pour l’instant"), "the refusal shows and the text is back in its field");
+  click("send-reply");
+  texts = await shown();
+  assert.deepEqual(sentOf("requests.answer").at(-1), { issueKey: "DEMO-1", requestId: "r1", text: "Seulement les ajouts pour l’instant" });
+  assert.ok(texts.includes("VOS RÉPONSES") && texts.includes("En cours : DEMO-2 en construction") && !screen.clicks.has("send-reply"), "once answered, the request leaves the banner and the work goes on");
+
+  const built = { ...build, endedAt: ago(8), summary: "Feed entry for added links", commit: "abcdef1234" };
+  const refused = { kind: "review", tool: "claude", startedAt: ago(8), endedAt: ago(5), accepted: false, remarks: ["The removed link is not tested"] };
+  screen.canned.set("missions.show", [said({ tickets: [run([built, refused, { kind: "fix", tool: "codex", startedAt: ago(5) }], { pr: { number: 7, url: "u" } })], requests: [] })]);
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("En cours : DEMO-2 en correction") && texts.includes("Relecture · corrections demandées") && texts.includes("Codex corrige · tour 1"), "fixes asked by the reviewer show as a round");
+  click("ticket-1");
+  now();
+  assert.ok(screen.texts.includes("– The removed link is not tested") && screen.texts.some((text) => text.includes("commit abcdef1")), "the ticket's panel gives the reviewer's remarks and the commit reviewed");
+  click("ticket-1");
+
+  const accepted = [built, refused, { kind: "fix", tool: "codex", startedAt: ago(5), endedAt: ago(3), commit: "bcdef12345" },
+    { kind: "review", tool: "claude", startedAt: ago(3), endedAt: ago(1), accepted: true, remarks: [] }];
+  screen.canned.set("missions.show", [said({ tickets: [run(accepted, { pr: { number: 7, url: "u" } })], requests: [], pr: { number: 6, url: "u" } })]);
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("Le ticket est accepté") && texts.includes("DEMO-2 accepté et fusionné") && texts.some((text) => text.startsWith("PR #6 vers main")),
+    "an accepted ticket is merged into the mission branch; the mission's PR stays the operator's");
 });

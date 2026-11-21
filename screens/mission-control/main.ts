@@ -513,7 +513,8 @@ export default class MissionControl extends View {
     // Once the spec is asked, the answers it is written from no longer change here: a change goes through the spec.
     const settled = Boolean(detail.spec) || detail.pilotBusy === "spec";
     const closed = detail.spec?.validated === true;
-    const revising = detail.spec !== undefined && !closed && detail.spec.requests.length >= detail.spec.version;
+    // A change is on its way as soon as the operator sent it, before the engine has recorded it.
+    const revising = detail.spec !== undefined && !closed && (detail.spec.requests.length >= detail.spec.version || this.busy());
     const settledLabel = !detail.spec ? "Pilot écrit la spec…" : revising ? "Pilot met la spec à jour…" : "Spec écrite";
     const settledHint = closed ? "la spec validée est écrite d’après vos réponses"
       : revising ? "Pilot prépare la prochaine version de la spec"

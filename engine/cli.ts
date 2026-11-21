@@ -80,13 +80,13 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
         const number = issueNumber(issueKey, teamKey);
         return withMission(dir, issueKey + ".operator", async () => {
           const existing = readMission(dir, issueKey);
-          if (existing?.pilotTerminal) return summary(existing);
+          if (existing) return summary(existing);
           if (!Array.isArray(details) || !details.every(d => typeof d === "string")) throw new Error("Invalid details");
           const pending = readMission(dir, issueKey, ".starting");
           const firstIssue = pending ? undefined : await issueDetail(teamKey, number);
           const terminal = await startPilot(repository, issueKey, !!pending, async () => {
             const issue = firstIssue ?? await issueDetail(teamKey, number);
-            const mission = pending ?? existing ?? { issueKey, title: issue.title, stage: "prepare", details, questions: [] };
+            const mission = pending ?? { issueKey, title: issue.title, stage: "prepare", details, questions: [] };
             if (!pending) await withMission(dir, issueKey, () => saveMission(dir, { ...mission, pilotBusy: "questions" }, true));
             return { title: issue.title, description: issue.description, details: mission.details };
           });

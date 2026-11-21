@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { setup } from "./pilot-project.ts";
 
@@ -70,9 +70,18 @@ fs.appendFileSync(env.MISSION_CONTROL_HOME + "/turns", JSON.stringify([argv.slic
   });
   const [first, next] = readFileSync(path("turns"), "utf8").trim().split("\n").map(line => JSON.parse(line));
   assert.ok(first[0].includes("Pilot role fixture")); assert.ok(first[0].includes("dontAsk"));
-  assert.deepEqual(first[0].filter((arg: string) => arg.startsWith("Bash(")), [
-    "Bash(mission-control pilot.questions *)", "Bash(mission-control pilot.propose *)", "Bash(mission-control pilot.spec *)",
-  ]);
+  for (const [args] of [first, next]) {
+    const flagValues = (flag: string) => {
+      assert.ok(args.includes(flag));
+      const rest: string[] = args.slice(args.indexOf(flag) + 1);
+      const end = rest.findIndex(arg => arg.startsWith("--"));
+      return end === -1 ? rest : rest.slice(0, end);
+    };
+    assert.deepEqual(flagValues("--tools"), ["Read,Glob,Grep,Bash"]);
+    assert.deepEqual(flagValues("--allowedTools"), [
+      "Read", "Glob", "Grep", "Bash(mission-control pilot.questions *)", "Bash(mission-control pilot.propose *)", "Bash(mission-control pilot.spec *)",
+    ]);
+  }
   assert.ok(first[0].includes("--restricted"));
   assert.equal(first[0][first[0].indexOf("--permission-prompts") + 1], "none");
   assert.equal(first[0][first[0].indexOf("--session-id") + 1], next[0][next[0].indexOf("--resume") + 1]);
@@ -136,7 +145,9 @@ test("unconfirmed terminal delivery never marks a question answered or automatic
 });
 
 test("the next validation adopts the live Pilot after an unconfirmed start", async t => {
-  const { cli, calls, path } = setup(t);
+  const { cli, calls, path, env } = setup(t);
+  symlinkSync(path("."), path("alias"));
+  env.MISSION_CONTROL_HOME = path("alias");
   writeFileSync(path("offline"), "");
   const cwd = path("Developer/worktrees/repo/DEMO-1"), name = "pilot-demo-1";
   writeFileSync(path("run.callback"), JSON.stringify(["pilot.questions", { ...key, questions: [q1] }]));
@@ -144,7 +155,9 @@ test("the next validation adopts the live Pilot after an unconfirmed start", asy
   assert.deepEqual((await cli("missions.list")).data, []);
   assert.ok((await cli("missions.show", key)).error);
   assert.ok((await cli("missions.create", key)).error, "an unavailable inventory cannot authorize another launch");
-  writeFileSync(path("live"), JSON.stringify({ hidden_finished: 0, terminals: [{ name, cwd, state: "live" }] }));
+  const resolved = realpathSync(cwd);
+  assert.notEqual(calls()[0][calls()[0].indexOf("--cwd") + 1], resolved);
+  writeFileSync(path("live"), JSON.stringify({ hidden_finished: 0, terminals: [{ name, cwd: resolved, state: "live" }] }));
   assert.equal((await cli("missions.create", key)).data.issueKey, key.issueKey);
   const mission = (await cli("missions.show", key)).data;
   assert.equal(mission.pilotTerminal, name);

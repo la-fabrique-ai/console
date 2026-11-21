@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, isAbsolute, join, resolve, sep } from "node:path";
 import { CommandError } from "./contract.ts";
@@ -54,8 +54,12 @@ export async function startPilot(repository: string, key: string, recovering: bo
   if (recovering) {
     try {
       const { terminals } = JSON.parse(execFileSync("hc", ["ls", "--json"], { env, encoding: "utf8", stdio: "pipe" }));
-      if (terminals.some((t: { name?: string; cwd: string; state: string }) =>
-        t.name === terminal && t.cwd === cwd && t.state === "live")) return terminal;
+      const workFolder = statSync(cwd, { bigint: true });
+      if (terminals.some((t: { name?: string; cwd: string; state: string }) => {
+        if (t.name !== terminal || t.state !== "live") return false;
+        const folder = statSync(t.cwd, { bigint: true, throwIfNoEntry: false });
+        return folder?.ino === workFolder.ino && folder.dev === workFolder.dev;
+      })) return terminal;
     } catch { throw new CommandError(failed); }
   }
   const mission = await prepare();

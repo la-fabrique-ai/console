@@ -70,8 +70,8 @@ export default class MissionControl extends View {
   inputs: Partial<Record<Field, InputState>> = {};
   /** Why the mission could not be read. */
   detailError = "";
-  /** The missions with a gesture on its way to the engine. */
-  sending = new Set<string>();
+  /** The missions with a gesture on its way to the engine, and which gesture. */
+  sending = new Map<string, Action>();
   sends = 0;
   /** The opening whose mission is being read: one reading at a time, so a slow one is never overtaken. */
   reading = 0;
@@ -177,7 +177,7 @@ export default class MissionControl extends View {
     const turn = this.opens;
     const choices = this.choices;
     this.clear(); // what was written is on its way; it comes back to its field if the engine refuses it
-    this.sending.add(key);
+    this.sending.set(key, action);
     this.sends++;
     this.requestError = "";
     cx.notify();
@@ -514,15 +514,17 @@ export default class MissionControl extends View {
     const settled = Boolean(detail.spec) || detail.pilotBusy === "spec";
     const closed = detail.spec?.validated === true;
     // A change is on its way as soon as the operator sent it, before the engine has recorded it.
-    const revising = detail.spec !== undefined && !closed && (detail.spec.requests.length >= detail.spec.version || this.busy());
+    const revising = detail.spec !== undefined && !closed && (detail.spec.requests.length >= detail.spec.version || this.sending.get(key) === "spec.change");
+    const validating = this.sending.get(key) === "spec.validate";
     const settledLabel = !detail.spec ? "Pilot écrit la spec…" : revising ? "Pilot met la spec à jour…" : "Spec écrite";
     const settledHint = closed ? "la spec validée est écrite d’après vos réponses"
+      : validating ? "la spec est en cours de validation"
       : revising ? "Pilot prépare la prochaine version de la spec"
       : detail.spec ? "la spec est écrite d’après vos réponses · un changement se demande à l’étape Spec" : "Pilot écrit la spec d’après vos réponses";
     if (total === 0 && !busy) {
       // Pilot answered that the request is enough.
       return page(this.heading("LES QUESTIONS", "Pilot n’a pas de question", "Votre demande lui suffit pour écrire la spec."),
-        settled ? this.composer(null, closed ? "la spec est validée" : revising ? "Pilot prépare la prochaine version de la spec"
+        settled ? this.composer(null, closed ? "la spec est validée" : validating ? "la spec est en cours de validation" : revising ? "Pilot prépare la prochaine version de la spec"
           : detail.spec ? "la spec est écrite d’après votre demande · un changement se demande à l’étape Spec" : "Pilot écrit la spec d’après votre demande", settledLabel, null)
           : this.composer("tell", "votre demande suffit · Pilot écrit ensuite la spec", "✓  Écrire la spec", write, "Pilot en tient compte pour la spec", tell),
         side("Aucune question", "Pilot a lu la demande et le projet.", []));

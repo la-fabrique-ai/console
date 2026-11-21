@@ -275,7 +275,16 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   assert.ok(texts.includes("Version 2 · à relire") && texts.indexOf("Version 2 · à relire") < texts.indexOf("Version 1"), "the version to read comes first");
   assert.ok(texts.includes("1 passage modifié à votre demande"));
 
+  let validated = () => {};
+  screen.slow.set("spec.validate", new Promise((resolve) => { validated = resolve; }));
   click("validate");
+  now();
+  click("step-1");
+  now();
+  assert.ok(screen.texts.includes("la spec est en cours de validation") && !screen.texts.includes("Pilot prépare la prochaine version de la spec"),
+    "while the validation is on its way the questions do not announce another version");
+  click("step-2");
+  validated();
   texts = await shown();
   assert.ok(texts.includes("Spec validée") && texts.includes("validée · v2"));
   assert.ok(!screen.clicks.has("validate") && !screen.fields.has("Demandez un changement…"), "a validated spec takes no more change");

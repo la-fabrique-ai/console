@@ -83,7 +83,12 @@ test("a validated request becomes a mission, and the operator answers Pilot's qu
   texts = await shown();
   assert.ok(texts.includes("Pour les joueurs seulement") && texts.includes("✓  Valider la demande"), "the detail joins the request, still to validate");
 
+  let created = () => {};
+  screen.slow.set("missions.create", new Promise((resolve) => { created = resolve; }));
   click("validate");
+  now();
+  assert.ok(!screen.fields.has("Ajoutez une précision…"), "no detail can be written once the request is on its way");
+  created();
   texts = await shown();
   assert.ok(texts.includes("Pilot prépare ses questions"), "Pilot starts by itself");
   assert.ok(!screen.clicks.has("validate"), "nothing to validate while Pilot reads");

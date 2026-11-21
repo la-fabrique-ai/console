@@ -174,7 +174,6 @@ export default class MissionControl extends View {
           this.detail = reply.data as MissionDetail;
           // A reply stays on its question, to see Pilot's new proposal; a validation moves on.
           this.viewing = action === "questions.reply" ? (payload as Payloads["questions.reply"]).questionId : "";
-          this.clear();
         } else {
           this.requestError = reply.error.message;
           if (field && "text" in payload) this.inputs[field]?.set_value(payload.text);
@@ -343,7 +342,7 @@ export default class MissionControl extends View {
       .child(v_flex().rounded(14).border_1().border_color(text ? "#4A52A8" : "#3A4052").bg("#0F1219").overflow_hidden()
         .child(div().min_h(66).px(18).pt(16).pb(18).text_size(15).text_color("#E6E9F0")
           // No field while a gesture is on its way: nothing can be written that the answer would erase.
-          .child(input && send && !this.sending ? Input.new(input) : div().text_color("#6F7689").child(FIELDS[field])))
+          .child(input && send && !this.sending && !this.creating ? Input.new(input) : div().text_color("#6F7689").child(FIELDS[field])))
         .child(h_flex().items_center().gap(12).pl(18).pr(10).py(10).border_t_1().border_color("#2A2F40").bg("#1B1F2B")
           .child(div().flex_1().min_w_0().truncate().text_size(13.5).text_color(this.requestError ? "#F2C14E" : "#8C93A6")
             .child(this.requestError || (text ? sendHint : hint)))

@@ -238,7 +238,10 @@ export default class MissionControl extends View {
       if ("data" in reply) {
         // What is written answers the request on screen: it never lands on the next one.
         const asked = (detail: MissionDetail | null) => detail?.development?.requests.find((request) => request.answer === undefined)?.id;
-        if (asked(reply.data) !== asked(this.detail)) this.inputs.reply?.set_value("");
+        if (asked(reply.data) !== asked(this.detail)) {
+          this.inputs.reply?.set_value("");
+          this.requestError = ""; // nor does the refusal of its answer
+        }
         this.detail = reply.data;
       }
       cx.notify();
@@ -1020,7 +1023,7 @@ export default class MissionControl extends View {
     const row = h_flex().h(32).flex_none().items_center().gap(8)
       .child(div().mr(4).text_size(17).font_semibold().child("Plan"))
       .children(plan.team.map((tool, index) => {
-        const mine = tickets.find((ticket) => devOf(ticket) === index + 1 && !["todo", "accepted"].includes(held.get(ticket.id)!));
+        const mine = tickets.find((ticket) => devOf(ticket) === index + 1 && runOf(ticket) && held.get(ticket.id) !== "accepted");
         return h_flex().h(30).pl(5).pr(10).gap(7).items_center().rounded(9).border_1().border_color("#2A2F40").bg("#161923").text_size(13)
           .child(this.devBadge(index + 1, tool)).child(TOOLS[tool])
           .when(mine, (el) => el.child(div().text_color("#8C93A6").child(`${name(mine!)} ${doing[held.get(mine!.id)!]}`)));
@@ -1087,6 +1090,9 @@ export default class MissionControl extends View {
     const answer = (request: Request, said: string, cx: Context) => this.send("requests.answer", { issueKey: key, requestId: request.id, text: said }, cx, "reply");
     const reply = this.inputs.reply;
     const written = reply?.value().trim() ?? "";
+    // The window cannot tell whether the Lead's terminal is still there: starting it again changes nothing when it is.
+    const restart = work && accepted < tickets.length && !this.busy() ? [div().id("restart-lead").px(10).py(4).text_size(13).text_color("#A9B4FF").cursor_pointer()
+      .on_click((_event, cx) => this.send("develop.start", { issueKey: key }, cx)).child("Le terminal du Lead a disparu ? Relancer le Lead")] : [];
     const side = chosen ? (() => {
       const run = runOf(chosen);
       const reviewer: Tool = toolOf(chosen) === "claude" ? "codex" : "claude";
@@ -1127,7 +1133,8 @@ export default class MissionControl extends View {
           .text_size(13.5).font_semibold().text_color(written && !this.busy() ? "#ffffff" : "#8C93A6")
           .when(written !== "" && !this.busy(), (el) => el.cursor_pointer().on_click((_event, cx) => answer(open, written, cx))).child("Envoyer  ↑")),
       ...(about(open) ? [this.label("TICKET CONCERNÉ"), this.line("#", name(about(open)!), about(open)!.title)] : []),
-      div().px(10).mt(16).text_size(13).text_color("#8C93A6").child("Votre réponse arrive une seule fois dans le terminal de l’agent."),
+      div().px(10).mt(16).mb(8).text_size(13).text_color("#8C93A6").child("Votre réponse arrive une seule fois dans le terminal de l’agent."),
+      ...restart,
     ]) : (() => {
       const events = (work?.tickets ?? []).flatMap((run) => {
         const ticket = tickets.find((candidate) => candidate.id === run.id);
@@ -1145,12 +1152,9 @@ export default class MissionControl extends View {
         div().px(10).mt(4).text_size(13.5).text_color("#8C93A6").child(`temps passé sur temps estimé · ${count}`),
         this.label("QUI TRAVAILLE"),
         ...(work ? [this.line("L", "Lead · Claude", accepted === tickets.length ? "tous les tickets sont acceptés" : "coordonne la mission"),
-          // The window cannot tell whether the Lead's terminal is still there: starting it again changes nothing when it is.
-          ...(accepted < tickets.length && !this.busy() ? [div().id("restart-lead").pl(43).pb(4).text_size(13).text_color("#A9B4FF").cursor_pointer()
-            .on_click((_event, cx) => this.send("develop.start", { issueKey: key }, cx)).child("Son terminal a disparu ? Relancer le Lead")] : []),
-        ] : [this.line("L", "Lead", "pas encore démarré")]),
+          ...restart] : [this.line("L", "Lead", "pas encore démarré")]),
         ...plan.team.map((tool, index) => {
-          const mine = tickets.find((ticket) => devOf(ticket) === index + 1 && !["todo", "accepted"].includes(held.get(ticket.id)!));
+          const mine = tickets.find((ticket) => devOf(ticket) === index + 1 && runOf(ticket) && held.get(ticket.id) !== "accepted");
           return this.line(`D${index + 1}`, `Dev ${index + 1} · ${TOOLS[tool]}`, mine ? `${name(mine)} ${doing[held.get(mine.id)!]}` : "attend son prochain ticket");
         }),
         ...(reviewing ? [this.line("R", `Relecteur · ${TOOLS[runOf(reviewing)!.steps.at(-1)!.tool]}`, `relit ${name(reviewing)}`)] : []),

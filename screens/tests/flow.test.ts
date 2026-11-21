@@ -690,6 +690,10 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   assert.deepEqual(sentOf("develop.start"), [{ issueKey: "DEMO-1" }]);
   assert.ok(texts.includes("Le Lead prend la mission") && !screen.clicks.has("start-develop"), "once the Lead is started the button is gone");
 
+  screen.canned.set("missions.show", [said({ tickets: [], requests: [{ id: "r0", from: "lead", ticketId: "1", text: "Par où commencer ?", context: "c", choices: [] }] })]);
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("Vous attend") && !texts.includes("DEMO-2 vous attend"), "a ticket the Lead asks about before its start waits for the operator, and no dev holds it yet");
   const build = { kind: "build", tool: "codex", startedAt: ago(12) };
   const run = (steps: object[], more = {}) => ({ id: "1", branch: "ticket/DEMO-2", steps, ...more });
   screen.canned.set("missions.show", Array(2).fill(said({ tickets: [run([build])], requests: [] })));
@@ -699,9 +703,11 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   const later = Date.now() + 2 * 60_000;
   t.mock.method(Date, "now", () => later);
   tick();
-  texts = await shown();
+  now(); // before any reading is answered: the clock alone redraws
+  texts = screen.texts;
   assert.ok(texts.includes("14 min") && !screen.texts.includes("12 min"), "the time spent goes on while the engine has nothing new to say");
   t.mock.restoreAll();
+  await shown();
 
   const request = { id: "r1", from: "dev", ticketId: "1", text: "Faut-il aussi les liens retirés ?", context: "La spec ne le dit pas.", choices: ["Oui, les deux", "Non, seulement les ajouts"] };
   const asked = said({ tickets: [run([build])], requests: [request] });
@@ -719,21 +725,32 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
 
   // What is written answers the request on screen: when another one takes its place, the draft does not follow.
   type("Répondez autrement…", "Oui pour les deux");
+  now();
+  screen.canned.set("requests.answer", [JSON.stringify({ error: { code: "failed", message: "Réponse refusée." } })]);
+  screen.canned.set("missions.show", [asked]);
+  click("send-reply");
+  texts = await shown();
+  assert.ok(texts.includes("Réponse refusée.") && texts.includes("Oui pour les deux"));
   const other = { ...request, id: "r2", text: "Et les liens en double ?" };
+  const later3 = { ...request, id: "r3" };
   screen.canned.set("missions.show", [said({ tickets: [run([build])], requests: [{ ...request, answer: "Oui, les deux" }, other] })]);
   tick();
   texts = await shown();
-  assert.ok(texts.includes(other.text) && !texts.includes("Oui pour les deux") && !screen.clicks.has("send-reply"), "a draft never lands on another request");
-  screen.canned.set("requests.answer", [said({ tickets: [run([build])], requests: [{ ...request, answer: "Oui, les deux" }, { ...other, answer: "Oui, les deux" }, request] })]);
+  assert.ok(texts.includes(other.text) && !texts.includes("Oui pour les deux") && !texts.includes("Réponse refusée.") && !screen.clicks.has("send-reply"),
+    "a draft never lands on another request, nor does the refusal of its answer");
+  screen.canned.set("requests.answer", [said({ tickets: [run([build])], requests: [{ ...request, answer: "Oui, les deux" }, { ...other, answer: "Oui, les deux" }, later3] })]);
+  assert.ok(screen.clicks.has("restart-lead"), "a Lead that asked and lost its terminal can still be started again");
   click("choice-0");
   texts = await shown();
-  assert.deepEqual(sentOf("requests.answer"), [{ issueKey: "DEMO-1", requestId: "r2", text: "Oui, les deux" }], "a proposed answer is sent once, for the request on screen");
+  assert.deepEqual(sentOf("requests.answer"), [{ issueKey: "DEMO-1", requestId: "r1", text: "Oui pour les deux" }, { issueKey: "DEMO-1", requestId: "r2", text: "Oui, les deux" }],
+    "a proposed answer is sent once, for the request on screen");
   screen.sent.length = 0;
 
   // A refused answer comes back to its field; the answer then reaches the engine once.
   const refusal = JSON.stringify({ error: { code: "failed", message: "L’envoi au dev n’est pas confirmé." } });
-  screen.canned.set("requests.answer", [refusal, said({ tickets: [run([build])], requests: [{ ...request, answer: "Seulement les ajouts pour l’instant" }] })]);
-  screen.canned.set("missions.show", [asked, asked]);
+  screen.canned.set("requests.answer", [refusal, said({ tickets: [run([build])], requests: [{ ...later3, answer: "Seulement les ajouts pour l’instant" }] })]);
+  const again = said({ tickets: [run([build])], requests: [later3] });
+  screen.canned.set("missions.show", [again, again]);
   type("Répondez autrement…", "Seulement les ajouts pour l’instant");
   now();
   click("send-reply");
@@ -743,7 +760,7 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   assert.ok(texts.includes("L’envoi au dev n’est pas confirmé.") && texts.includes("Seulement les ajouts pour l’instant"), "the refusal shows and the text is back in its field");
   click("send-reply");
   texts = await shown();
-  const answer = { issueKey: "DEMO-1", requestId: "r1", text: "Seulement les ajouts pour l’instant" };
+  const answer = { issueKey: "DEMO-1", requestId: "r3", text: "Seulement les ajouts pour l’instant" };
   assert.deepEqual(sentOf("requests.answer"), [answer, answer], "one call for the refused answer, one for the second try");
   assert.ok(texts.includes("VOS RÉPONSES") && texts.includes("En cours : DEMO-2 en construction") && !screen.clicks.has("send-reply"), "once answered, the request leaves the banner and the work goes on");
 

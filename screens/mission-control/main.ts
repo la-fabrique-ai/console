@@ -4,13 +4,13 @@
 import { View, div, type Context, type NativeElement } from "gpui-kit";
 import { v_flex, h_flex, TextView, InputState, Input } from "gpui-base";
 import { exec, checking, props } from "herdr";
-import type { Action, IssueDetail, IssueSummary, Mission, MissionDetail, Payloads, Plan, PlanTicket, Question, Reply, Stage, Tool } from "../../engine/contract.ts";
+import type { Action, IssueDetail, IssueSummary, Mission, MissionDetail, Payloads, Plan, PlanTicket, Question, Reply, Request, Stage, TicketRun, TicketStep, Tool } from "../../engine/contract.ts";
 
 type Page = "issues" | "request" | "development";
 type Spawner = Pick<Context, "spawn">;
-type Field = "request" | "answer" | "again" | "tell" | "change";
-type Tab = "request" | "questions" | "spec" | "plan";
-const TABS: Tab[] = ["request", "questions", "spec", "plan"];
+type Field = "request" | "answer" | "again" | "tell" | "change" | "reply";
+type Tab = "request" | "questions" | "spec" | "plan" | "develop";
+const TABS: Tab[] = ["request", "questions", "spec", "plan", "develop"];
 const TOOLS: Record<Tool, string> = { claude: "Claude", codex: "Codex" };
 
 /** "45 min", "3 h", "3 h 10". */
@@ -36,6 +36,28 @@ function development(tickets: PlanTicket[], devs: number): number {
 }
 type Tone = "todo" | "done" | "fixed";
 
+/** Where a ticket stands during the development: who holds it. */
+type Holding = "todo" | "building" | "review" | "fixing" | "waiting" | "accepted";
+
+function holding(id: string, run: TicketRun | undefined, requests: Request[]): Holding {
+  if (requests.some((request) => request.ticketId === id && request.answer === undefined)) return "waiting";
+  if (!run) return "todo";
+  const last = run.steps.at(-1);
+  if (last?.kind === "review") return !last.endedAt ? "review" : last.accepted ? "accepted" : "fixing";
+  return last?.kind === "fix" ? "fixing" : "building";
+}
+
+/** Whole minutes a step has taken; up to now while it runs. */
+function spent(step: TicketStep): number {
+  return Math.max(0, Math.round(((step.endedAt ? Date.parse(step.endedAt) : Date.now()) - Date.parse(step.startedAt)) / 60000));
+}
+
+/** "14:05". */
+function hour(date: string): string {
+  const at = new Date(date);
+  return `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`;
+}
+
 // A field keeps the placeholder it was created with: one field per placeholder.
 const FIELDS: Record<Field, string> = {
   request: "Ajoutez une précision…",
@@ -43,11 +65,13 @@ const FIELDS: Record<Field, string> = {
   again: "Écrivez encore, Pilot ajuste sa réponse…",
   tell: "Autre chose à dire à Pilot ?",
   change: "Demandez un changement…",
+  reply: "Répondez autrement…",
 };
 
 const PROJECT = "Jiroo";
 const STAGES: [Stage, string][] = [["prepare", "Préparer"], ["develop", "Développer"], ["test", "Tester"], ["validate", "Valider"]];
-const STEPS = ["Demande", "Questions", "Spec", "Plan"];
+const STEPS = ["Demande", "Questions", "Spec", "Plan", "Développement"];
+const ASKERS: Record<Request["from"], string> = { lead: "du Lead", dev: "du dev", reviewer: "du relecteur" };
 const CLEAR = "#00000000";
 
 function stageName(stage: Stage): string {
@@ -117,6 +141,7 @@ export default class MissionControl extends View {
     // Pilot answers in its own time, and the missions move on by themselves: the window reads both again
     // at each tick, so whatever the order of the engine's answers, what is shown is at most one tick late.
     cx.timer.every(3000, (cx) => {
+      if (this.page === "request" && this.detail?.development) cx.notify(); // the time spent goes on
       this.follow(cx);
       if (!this.listing) this.relist(cx);
     });
@@ -210,7 +235,15 @@ export default class MissionControl extends View {
       const moved = "data" in reply && this.staged(reply.data, asked);
       if (!moved && error === this.detailError && ("error" in reply || JSON.stringify(reply.data) === JSON.stringify(this.detail))) return;
       this.detailError = error;
-      if ("data" in reply) this.detail = reply.data;
+      if ("data" in reply) {
+        // What is written answers the request on screen: it never lands on the next one.
+        const asked = (detail: MissionDetail | null) => detail?.development?.requests.find((request) => request.answer === undefined)?.id;
+        if (asked(reply.data) !== asked(this.detail)) {
+          this.inputs.reply?.set_value("");
+          this.requestError = ""; // nor does the refusal of its answer
+        }
+        this.detail = reply.data;
+      }
       cx.notify();
     });
   }
@@ -234,17 +267,17 @@ export default class MissionControl extends View {
 
   /** What is written belongs to the question on screen: it never follows the operator to another one. */
   clear() {
-    for (const field of ["answer", "again", "tell", "change"] as const) this.inputs[field]?.set_value("");
+    for (const field of ["answer", "again", "tell", "change", "reply"] as const) this.inputs[field]?.set_value("");
   }
 
   /** One gesture of the operator towards Pilot; the button is off until the engine answers. */
-  send<A extends "questions.validate" | "questions.reply" | "pilot.tell" | "spec.write" | "spec.change" | "spec.validate" | "plan.team" | "plan.launch">(action: A, payload: Payloads[A], cx: Context, field?: Field) {
+  send<A extends "questions.validate" | "questions.reply" | "pilot.tell" | "spec.write" | "spec.change" | "spec.validate" | "plan.team" | "plan.launch" | "develop.start" | "requests.answer">(action: A, payload: Payloads[A], cx: Context, field?: Field) {
     const key = payload.issueKey;
     if (this.sending.has(key)) return;
     const turn = this.opens;
     const choices = this.choices;
     const viewing = this.viewing;
-    this.clear(); // what was written is on its way; it comes back to its field if the engine refuses it
+    if ("text" in payload) this.clear(); // what was written is on its way; it comes back to its field if the engine refuses it
     this.sending.set(key, action);
     this.sends++;
     this.requestError = "";
@@ -263,7 +296,7 @@ export default class MissionControl extends View {
           // A reply stays on its question, to see Pilot's new proposal; a validation moves on.
           this.viewing = action === "questions.reply" ? (payload as Payloads["questions.reply"]).questionId : "";
           // On to the step the preparation has reached, unless the operator chose another one meanwhile.
-          if ((action === "spec.write" || action === "spec.validate") && this.choices === choices) this.tab = "";
+          if ((action === "spec.write" || action === "spec.validate" || action === "plan.launch") && this.choices === choices) this.tab = "";
         } else {
           this.requestError = reply.error.message;
           // A mission opened again while its gesture was on its way has not been read yet: read it now.
@@ -399,10 +432,10 @@ export default class MissionControl extends View {
     return h_flex().items_center().gap(10).children(parts);
   }
 
-  /** The step the preparation has reached: 0 the request, 1 the questions, 2 the spec, 3 the plan. */
+  /** The step the mission has reached: 0 the request, 1 the questions, 2 the spec, 3 the plan, 4 the development. */
   reached(created: boolean): number {
     const detail = this.detail;
-    return !created ? 0 : detail?.plan || detail?.spec?.validated ? 3 : detail?.spec || detail?.pilotBusy === "spec" ? 2 : 1;
+    return !created ? 0 : detail?.plan?.launched ? 4 : detail?.plan || detail?.spec?.validated ? 3 : detail?.spec || detail?.pilotBusy === "spec" ? 2 : 1;
   }
 
   /** The four steps of the preparation. A step that was reached opens its page. */
@@ -418,9 +451,10 @@ export default class MissionControl extends View {
       !questions.length ? "" : current > 1 ? (answers === 1 ? "1 réponse" : `${answers} réponses`) : `${answers} sur ${questions.length}`,
       !spec ? "" : spec.validated ? `validée · v${spec.version}` : "à relire",
       current < 3 ? "" : !plan?.tickets.length ? "en cours" : plan.tickets.length === 1 ? "1 ticket" : `${plan.tickets.length} tickets`,
+      "",
     ];
     const parts: NativeElement[] = [];
-    STEPS.forEach((name, index) => {
+    STEPS.slice(0, plan?.launched ? 5 : 4).forEach((name, index) => {
       if (index > 0) parts.push(div().text_size(13).text_color("#4A5066").child("›"));
       const on = index === shown;
       const done = !on && index < current || (index === 3 && plan?.launched === true);
@@ -836,7 +870,7 @@ export default class MissionControl extends View {
         .child(div().mt(4).text_size(14).text_color(this.requestError && !frozen ? "#F2C14E" : frozen ? "#A9B1D6" : "#A9C9BE").truncate().child(
           this.requestError && !frozen ? this.requestError
             : launching ? "Le plan est figé · rien d’autre à faire"
-            : launched ? "Le plan est figé · le développement arrive avec la prochaine étape"
+            : launched ? "Le plan est figé · la suite se passe dans Développement"
             : `Environ ${duration(total(devs))} avec ${team(devs)}, test et validation compris`
               + (tickets.length > 1 ? ` · ${duration(total(devs === 1 ? 2 : 1))} avec ${team(devs === 1 ? 2 : 1)}` : ""))))
       .when(!frozen, (el) => {
@@ -903,8 +937,8 @@ export default class MissionControl extends View {
       this.label("CE QUI VIENT DE SE PASSER"),
       this.line("✓", "Plan approuvé et figé", "", "done"),
       this.line("✓", `${tickets.length === 1 ? "1 ticket créé" : `${tickets.length} tickets créés`} dans le tracker`,
-        `${tickets.map((ticket) => ticket.key ?? "").filter(Boolean).join(", ")} · rattachés à ${key}`, "done"),
-      this.line("○", "Le Lead prend la mission", "avec la prochaine étape"),
+        `${tickets.map((ticket) => ticket.key ?? "").filter(Boolean).join(", ")} · ${tickets.length === 1 ? "rattaché" : "rattachés"} à ${key}`, "done"),
+      detail.development ? this.line("✓", "Le Lead a pris la mission", "", "done") : this.line("○", "Le Lead prend la mission"),
     ]) : chosen ? this.column(`TICKET ${tickets.indexOf(chosen) + 1} SUR ${tickets.length}`, "plan-side", [
       div().px(10).text_size(20).font_semibold().text_color("#ffffff").child(chosen.title),
       div().px(10).mt(6).text_size(13.5).text_color("#8C93A6").child(`~${duration(chosen.minutes)}${chosen.sensitive ? " · sensible : relu deux fois" : ""}`),
@@ -937,6 +971,208 @@ export default class MissionControl extends View {
       .child(body([v_flex().flex_1().min_h_0().gap(16).px(24).pt(20).pb(18).rounded(12).border_1().border_color("#2A2F40").bg("#1B1F2B").child(teamRow).child(board)], right));
   }
 
+  // ---- the development (mockup develop, states 1dev-01 to 1dev-17) -----------
+  developBody(detail: MissionDetail): NativeElement {
+    const key = detail.issueKey;
+    const plan = detail.plan!;
+    const tickets = plan.tickets;
+    const work = detail.development;
+    const requests = work?.requests ?? [];
+    const runOf = (ticket: PlanTicket) => work?.tickets.find((run) => run.id === ticket.id);
+    const name = (ticket: PlanTicket) => ticket.key ?? `ticket ${ticket.id}`;
+    const devOf = (ticket: PlanTicket) => (plan.team.length === 1 ? 1 : ticket.parallel.dev);
+    const toolOf = (ticket: PlanTicket) => plan.team[devOf(ticket) - 1] ?? "claude";
+    const held = new Map(tickets.map((ticket) => [ticket.id, holding(ticket.id, runOf(ticket), requests)]));
+    const accepted = tickets.filter((ticket) => held.get(ticket.id) === "accepted").length;
+    const count = `${accepted} sur ${tickets.length} ${accepted > 1 ? "acceptés" : "accepté"}`;
+    const open = requests.find((request) => request.answer === undefined);
+    const about = (request: Request) => tickets.find((ticket) => ticket.id === request.ticketId);
+    const active = tickets.find((ticket) => ["building", "review", "fixing"].includes(held.get(ticket.id)!));
+    const time = (work?.tickets ?? []).reduce((sum, run) => sum + run.steps.reduce((total, step) => total + spent(step), 0), 0);
+    const clock = `${duration(time)} sur ≈ ${duration(development(tickets, plan.team.length) + plan.testMinutes + plan.validationMinutes)}`;
+    const starting = this.sending.get(key) === "develop.start";
+    const doing: Record<Holding, string> = { todo: "à faire", building: "en construction", review: "en relecture", fixing: "en correction", waiting: "vous attend", accepted: "accepté" };
+    const spinner = () => div().text_size(16).frames(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"], 90);
+
+    // One message at a time, the first that applies (mockup README, "Le bandeau").
+    const [tone, sign, title, sub, action]: ["blue" | "amber" | "green", NativeElement | string, string, string, [string, string, (cx: Context) => void] | null] =
+      !work ? ["blue", starting ? spinner() : "▶", starting ? "Le Lead démarre…" : "Le développement n’a pas démarré", "Le plan est approuvé · le Lead lit la spec, le plan et vos réponses, puis lance le dev",
+        starting || this.busy() ? null : ["start-develop", "Lancer le développement", (cx) => this.send("develop.start", { issueKey: key }, cx)]]
+      : open ? ["amber", "◆", `À vous : une demande ${ASKERS[open.from]}${about(open) ? ` sur ${name(about(open)!)}` : ""}`,
+        `${about(open) ? `${name(about(open)!)} attend votre réponse · ` : ""}${count}`,
+        this.ticket ? ["see-request", "Répondre", (cx) => { this.ticket = ""; cx.notify(); }] : null]
+      : accepted === tickets.length ? ["green", "✓", tickets.length === 1 ? "Le ticket est accepté" : `Les ${tickets.length} tickets sont acceptés`,
+        "Fusionné dans la branche de la mission · le test arrive avec une prochaine étape", null]
+      : active ? ["blue", spinner(), `En cours : ${name(active)} ${doing[held.get(active.id)!]}`, `${count} · ${clock}`, null]
+      : accepted === 0 ? ["blue", spinner(), "Le Lead prend la mission", "Il lit la spec, le plan et vos réponses, puis lance le premier ticket", null]
+      : ["blue", "✓", count[0]!.toUpperCase() + count.slice(1), "Les tickets suivants se lancent avec une prochaine étape", null];
+    const [edge, back, disc, ink, soft] = tone === "blue" ? ["#3A4AB8", "#151A38", "#1F2756", "#A9B4FF", "#A9B1D6"] as const
+      : tone === "amber" ? ["#8F6B1E", "#2A220F", "#3A2E12", "#F2C14E", "#D9C9A3"] as const : ["#2E8F6C", "#132823", "#1C3A31", "#5DE3B8", "#A9C9BE"] as const;
+    const banner = h_flex().h(76).flex_none().items_center().gap(16).px(22).rounded(12).border_1().border_color(edge).bg(back)
+      .child(h_flex().flex_none().w(38).h(38).rounded_full().items_center().justify_center().bg(disc).text_color(ink).font_bold().child(sign))
+      .child(v_flex().flex_1().min_w_0()
+        .child(div().text_size(20).font_semibold().text_color("#ffffff").truncate().child(title))
+        .child(div().mt(4).text_size(14).text_color(this.requestError ? "#F2C14E" : soft).truncate().child(this.requestError || sub)))
+      .when(action, (el) => el.child(h_flex().id(action![0]).flex_none().h(46).px(22).items_center().rounded(10).border_1().border_color(edge).bg(disc)
+        .text_size(15).font_semibold().text_color(ink).cursor_pointer().on_click((_event, cx) => action![2](cx)).child(action![1])));
+
+    const pick = (id: string, cx: Context) => {
+      this.ticket = this.ticket === id ? "" : id;
+      cx.notify();
+    };
+    const row = h_flex().h(32).flex_none().items_center().gap(8)
+      .child(div().mr(4).text_size(17).font_semibold().child("Plan"))
+      .children(plan.team.map((tool, index) => {
+        const mine = tickets.find((ticket) => devOf(ticket) === index + 1 && runOf(ticket) && held.get(ticket.id) !== "accepted");
+        return h_flex().h(30).pl(5).pr(10).gap(7).items_center().rounded(9).border_1().border_color("#2A2F40").bg("#161923").text_size(13)
+          .child(this.devBadge(index + 1, tool)).child(TOOLS[tool])
+          .when(mine, (el) => el.child(div().text_color("#8C93A6").child(`${name(mine!)} ${doing[held.get(mine!.id)!]}`)));
+      }))
+      .child(div().flex_1())
+      .child(h_flex().id("develop-now").h(30).px(11).items_center().rounded(9).border_1().border_color(this.ticket ? "#2A2F40" : "#7B8CFF").bg("#161923")
+        .font_family("JetBrains Mono").text_size(13).text_color("#ffffff").cursor_pointer().on_click((_event, cx) => pick(this.ticket, cx)).child(clock));
+
+    const stepLine = (ticket: PlanTicket, step: TicketStep, steps: TicketStep[]) => {
+      const round = steps.slice(0, steps.indexOf(step) + 1).filter((other) => other.kind === "fix").length;
+      const tool = TOOLS[step.tool];
+      const running = !step.endedAt;
+      const text = step.kind === "build" ? (running ? `${tool} construit` : `Dev · D${devOf(ticket)}`)
+        : step.kind === "fix" ? (running ? `${tool} corrige · tour ${round}` : `Corrections · tour ${round}`)
+        : running ? `${tool} relit` : step.accepted ? `Relecture · ${tool}` : "Relecture · corrections demandées";
+      const [mark, color] = running ? ["●", "#7B8CFF"] as const : step.kind === "review" && !step.accepted ? ["✗", "#F2C14E"] as const : ["✓", "#3DD6B0"] as const;
+      return h_flex().items_center().gap(7).text_size(12.5).text_color(running ? "#ffffff" : "#C9CFDB")
+        .child(div().flex_none().w(12).text_size(10).text_color(color).child(mark)).child(div().flex_1().min_w_0().truncate().child(text))
+        .child(div().flex_none().text_color("#8C93A6").child(duration(spent(step))));
+    };
+    const card = (ticket: PlanTicket) => {
+      const state = held.get(ticket.id)!;
+      const run = runOf(ticket);
+      const last = run?.steps.at(-1);
+      const on = this.ticket === ticket.id;
+      const [border, fill]: [`#${string}`, `#${string}`] = state === "waiting" ? ["#8F6B1E", "#2A220F"] : state === "accepted" ? ["#1F5A47", "#14211E"]
+        : state === "todo" ? [ticket.sensitive ? "#6E5BD6" : "#2A2F40", ticket.sensitive ? "#221D3A" : "#1B1F2B"] : ["#3A4AB8", "#151A38"];
+      const holder: [string, `#${string}`, `#${string}`] = state === "waiting" ? ["Vous", "#F2C14E", "#3A2E12"] : state === "review" ? ["R", "#A9B4FF", "#1F2756"]
+        : state === "building" || state === "fixing" ? [`D${devOf(ticket)}`, "#A9B4FF", "#1F2756"] : ["●", state === "accepted" ? "#3DD6B0" : "#6F7689", CLEAR];
+      const section = (label: string, lines: NativeElement[]) => v_flex().mt(8).pt(10).gap(4).border_t_1().border_color("#2A2F40")
+        .child(div().mb(1).text_size(10.5).font_semibold().text_color("#6F7689").child(label)).children(lines);
+      return v_flex().id(`ticket-${ticket.id}`).flex_none().w(241).h_full().gap(6).px(15).py(14).rounded(10).border_1().border_color(on ? "#E6E9ED" : border).bg(fill)
+        .cursor_pointer().on_click((_event, cx) => pick(ticket.id, cx))
+        .child(h_flex().flex_none().min_h(20).items_center().gap(6).text_size(11).text_color("#8C93A6")
+          .child(div().font_family("JetBrains Mono").child(ticket.key ? `${ticket.id} · ${ticket.key}` : ticket.id)).child(div().flex_1())
+          .when(plan.team.length > 1, (el) => el.child(this.devBadge(devOf(ticket), toolOf(ticket)))))
+        .child(div().text_size(15.5).font_semibold().text_color("#ffffff").child(ticket.title))
+        .child(h_flex().flex_none().items_center().gap(7).text_size(13).font_semibold().text_color(holder[1])
+          .child(h_flex().flex_none().min_w(20).h(18).px(5).rounded(9).bg(holder[2]).items_center().justify_center().text_size(10.5).child(holder[0]))
+          .child(div().flex_1().child(state === "fixing" ? `En correction · tour ${run!.steps.filter((step) => step.kind === "review").length}` : doing[state].replace(/^./, (first) => first.toUpperCase())))
+          .when(last && state !== "todo", (el) => el.child(div().font_normal().text_color("#8C93A6").child(duration(state === "accepted" ? run!.steps.reduce((sum, step) => sum + spent(step), 0) : spent(last!))))))
+        .child(v_flex().id(`ticket-text-${ticket.id}`).flex_1().min_h_0().overflow_y_scrollbar().gap(6)
+          .when(run, (el) => el.child(section("ÉTAPES", [
+            ...run!.steps.map((step) => stepLine(ticket, step, run!.steps)),
+            ...(state === "building" || state === "fixing" ? [h_flex().gap(7).text_size(12.5).text_color("#6F7689").child(div().w(12).text_size(10).child("○")).child("Relecture")] : []),
+          ])))
+          .child(div().mt(run ? 6 : 0).text_size(13.5).text_color("#C9CFDB").child(ticket.change))
+          .child(section("COUVRE, DANS LA SPEC", ticket.covers.map((line) => h_flex().items_start().gap(6).text_size(12.5).text_color("#A3AABB")
+            .child(div().flex_none().text_size(10).text_color("#3DD6B0").child("✓")).child(div().flex_1().min_w_0().child(line))))))
+        .child(h_flex().flex_none().mt(8).min_h(20).items_center().gap(6)
+          .when(ticket.sensitive, (el) => el.child(h_flex().h(19).px(6).rounded(5).border_1().border_color("#6E5BD6").bg("#3A2F6B").items_center()
+            .text_size(11).font_semibold().text_color("#E3DAFF").child("Sensible")))
+          .child(div().text_size(12.5).text_color("#C9CFDB").child(`~${duration(ticket.minutes)}`)));
+    };
+    const board = h_flex().id("develop-board").flex_1().min_h_0().overflow_x_scrollbar().items_stretch().gap(12).children([
+      ...tickets.map(card),
+      this.closingCard("▶", "Test", "Un agent joue chaque parcours de la spec.", `~${duration(plan.testMinutes)}`, false),
+      this.closingCard("✓", "Validation", "Vous vérifiez ce que la mission a livré.", `~${duration(plan.validationMinutes)} de votre temps`, false),
+    ]);
+
+    const text = (value: string) => div().px(10).py(4).text_size(14).text_color("#E6E9F0").child(value);
+    const chosen = tickets.find((ticket) => ticket.id === this.ticket);
+    const sent = this.sending.get(key) === "requests.answer";
+    const answer = (request: Request, said: string, cx: Context) => this.send("requests.answer", { issueKey: key, requestId: request.id, text: said }, cx, "reply");
+    const reply = this.inputs.reply;
+    const written = reply?.value().trim() ?? "";
+    // The window cannot tell whether the Lead's terminal is still there: starting it again changes nothing when it is.
+    const restart = work && (accepted < tickets.length || open) && !this.busy() ? [div().id("restart-lead").px(10).py(4).text_size(13).text_color("#A9B4FF").cursor_pointer()
+      .on_click((_event, cx) => this.send("develop.start", { issueKey: key }, cx)).child("Le terminal du Lead a disparu ? Relancer le Lead")] : [];
+    const side = chosen ? (() => {
+      const run = runOf(chosen);
+      const reviewer: Tool = toolOf(chosen) === "claude" ? "codex" : "claude";
+      return this.column(`TICKET ${tickets.indexOf(chosen) + 1} SUR ${tickets.length}`, "develop-side", [
+        div().px(10).text_size(20).font_semibold().text_color("#ffffff").child(chosen.title),
+        div().px(10).mt(6).text_size(13.5).text_color("#8C93A6").child(`${doing[held.get(chosen.id)!]} · ~${duration(chosen.minutes)}`),
+        this.label("CE QUE ÇA CHANGE"), text(chosen.change),
+        this.label("COMMENT"), text(chosen.how),
+        this.label("FAIT PAR"),
+        this.line(`D${devOf(chosen)}`, `Dev ${devOf(chosen)} · ${TOOLS[toolOf(chosen)]}`),
+        this.line("R", `Relecteur · ${TOOLS[reviewer]}`, "une session neuve à chaque relecture"),
+        ...(run ? [
+          this.label("DÉROULÉ"),
+          ...run.steps.flatMap((step) => [
+            this.line(!step.endedAt ? "●" : step.kind === "review" && !step.accepted ? "✗" : "✓",
+              `${hour(step.startedAt)} · ${step.kind === "review" ? "Relecture" : step.kind === "fix" ? "Corrections" : "Construction"} · ${TOOLS[step.tool]} · ${duration(spent(step))}`,
+              [step.summary, step.commit ? `commit ${step.commit.slice(0, 7)}` : ""].filter(Boolean).join(" · "),
+              !step.endedAt ? "todo" : step.kind === "review" && !step.accepted ? "fixed" : "done"),
+            ...(step.remarks ?? []).map((remark) => div().pl(43).pr(10).py(3).text_size(13).text_color("#D9C9A3").child(`– ${remark}`)),
+          ]),
+          this.label("CODE"),
+          this.line("⑂", run.branch, run.pr ? `PR #${run.pr.number} vers mission/${key}` : "pas encore poussée"),
+        ] : []),
+      ]);
+    })() : open ? this.column(`DEMANDE ${ASKERS[open.from].toUpperCase()} · À VOUS DE RÉPONDRE`, "develop-side", [
+      div().px(10).text_size(20).font_semibold().text_color("#ffffff").child(open.text),
+      div().px(10).mt(8).mb(10).text_size(14).text_color("#C9CFDB").child(open.context),
+      ...open.choices.map((choice, index) => h_flex().mx(10).mb(10).p(14).gap(12).items_center().rounded(10).border_1()
+        .border_color(index === 0 ? "#2E8F6C" : "#2A2F40").bg(index === 0 ? "#132823" : "#161923")
+        .child(v_flex().flex_1().min_w_0().gap(4).child(div().text_size(14.5).font_semibold().text_color("#ffffff").child(choice))
+          .when(index === 0, (el) => el.child(div().text_size(11.5).font_semibold().text_color("#5DE3B8").child("Recommandé"))))
+        .child(h_flex().id(`choice-${index}`).flex_none().h(34).px(13).items_center().rounded(8).border_1().border_color(index === 0 ? "#2E8F6C" : "#3A4052")
+          .text_size(13.5).font_semibold().text_color(this.busy() ? "#6F7689" : index === 0 ? "#5DE3B8" : "#E6E9F0")
+          .when(!this.busy(), (el) => el.cursor_pointer().on_click((_event, cx) => answer(open, choice, cx))).child("Choisir"))),
+      h_flex().mx(10).gap(10).items_center().pl(14).pr(8).py(8).rounded(10).border_1().border_color(written ? "#4A52A8" : "#3A4052").bg("#0F1219")
+        .child(div().flex_1().min_w_0().text_size(14).child(reply && !this.busy() ? Input.new(reply) : div().text_color("#6F7689").child(sent ? "Envoi de votre réponse…" : FIELDS.reply)))
+        .child(h_flex().id("send-reply").flex_none().h(34).px(13).items_center().rounded(8).bg(written && !this.busy() ? "#6B6CF5" : "#262B3A")
+          .text_size(13.5).font_semibold().text_color(written && !this.busy() ? "#ffffff" : "#8C93A6")
+          .when(written !== "" && !this.busy(), (el) => el.cursor_pointer().on_click((_event, cx) => answer(open, written, cx))).child("Envoyer  ↑")),
+      ...(about(open) ? [this.label("TICKET CONCERNÉ"), this.line("#", name(about(open)!), about(open)!.title)] : []),
+      div().px(10).mt(16).mb(8).text_size(13).text_color("#8C93A6").child("Votre réponse arrive une seule fois dans le terminal de l’agent."),
+      ...restart,
+    ]) : (() => {
+      const events = (work?.tickets ?? []).flatMap((run) => {
+        const ticket = tickets.find((candidate) => candidate.id === run.id);
+        const label = ticket ? name(ticket) : `ticket ${run.id}`;
+        return run.steps.flatMap((step) => [
+          { at: step.startedAt, text: step.kind === "build" ? `Le dev a commencé ${label}` : step.kind === "fix" ? `Le dev corrige ${label}` : `Relecture de ${label} commencée` },
+          ...(step.kind === "review" && step.endedAt ? [{ at: step.endedAt, text: step.accepted ? `${label} accepté et fusionné`
+            : `${step.remarks?.length === 1 ? "1 correction demandée" : `${step.remarks?.length ?? 0} corrections demandées`} sur ${label}` }] : []),
+        ]);
+      }).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
+      const reviewing = tickets.find((ticket) => held.get(ticket.id) === "review");
+      const answered = requests.filter((request) => request.answer !== undefined);
+      return this.column("EN CE MOMENT", "develop-side", [
+        div().px(10).font_family("JetBrains Mono").text_size(26).font_medium().text_color("#ffffff").child(clock),
+        div().px(10).mt(4).text_size(13.5).text_color("#8C93A6").child(`temps passé sur temps estimé · ${count}`),
+        this.label("QUI TRAVAILLE"),
+        ...(work ? [this.line("L", "Lead · Claude", accepted === tickets.length ? "tous les tickets sont acceptés" : "coordonne la mission"),
+          ...restart] : [this.line("L", "Lead", "pas encore démarré")]),
+        ...plan.team.map((tool, index) => {
+          const mine = tickets.find((ticket) => devOf(ticket) === index + 1 && runOf(ticket) && held.get(ticket.id) !== "accepted");
+          return this.line(`D${index + 1}`, `Dev ${index + 1} · ${TOOLS[tool]}`, mine ? `${name(mine)} ${doing[held.get(mine.id)!]}` : "attend son prochain ticket");
+        }),
+        ...(reviewing ? [this.line("R", `Relecteur · ${TOOLS[runOf(reviewing)!.steps.at(-1)!.tool]}`, `relit ${name(reviewing)}`)] : []),
+        ...(events.length ? [this.label("ACTIVITÉ RÉCENTE"), ...events.map((event) => h_flex().px(10).py(4).gap(12).text_size(13.5)
+          .child(div().flex_none().font_family("JetBrains Mono").text_size(12.5).text_color("#8C93A6").child(hour(event.at))).child(div().flex_1().min_w_0().child(event.text)))] : []),
+        ...(answered.length ? [this.label("VOS RÉPONSES"), ...answered.map((request) => this.line("✓", request.answer!, request.text, "done"))] : []),
+        this.label("RÉFÉRENCES"),
+        this.line("#", key, "le ticket principal"),
+        this.line("⑂", `mission/${key}`, work?.pr ? `PR #${work.pr.number} vers main · brouillon, vous seul la fusionnez` : "pas encore poussée"),
+      ]);
+    })();
+
+    return v_flex().flex_1().min_h_0().gap(14).child(banner)
+      .child(h_flex().flex_1().min_h_0().gap(14).items_stretch()
+        .child(v_flex().flex_1().min_w_0().h_full().gap(16).px(24).pt(20).pb(18).rounded(12).border_1().border_color("#2A2F40").bg("#1B1F2B").child(row).child(board))
+        .child(side));
+  }
+
   missionPage(): NativeElement[] {
     const key = this.requested;
     const issue = this.issue;
@@ -950,7 +1186,7 @@ export default class MissionControl extends View {
     if (created && tab !== "request") {
       // The questions and the spec are local: they never wait for the tracker.
       return [header, this.steps(true), !this.detail ? note(this.detailError || "Chargement…", this.detailError ? "#F2C14E" : "#8C93A6")
-        : tab === "plan" ? this.planBody(this.detail) : tab === "spec" ? this.specBody(this.detail) : this.questionsBody(this.detail)];
+        : tab === "develop" ? this.developBody(this.detail) : tab === "plan" ? this.planBody(this.detail) : tab === "spec" ? this.specBody(this.detail) : this.questionsBody(this.detail)];
     }
     if (!issue) return [header, ...(created ? [this.steps(true)] : []), note(this.issueError || "Chargement…", this.issueError ? "#F2C14E" : "#8C93A6")];
     return [header, this.steps(created), this.requestBody(issue, created)];

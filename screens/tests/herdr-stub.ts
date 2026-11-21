@@ -19,6 +19,8 @@ export const screen = {
   failure: "",
   /** Answers given in place of the engine's, one per call of the action: what another window or agent made of the state. */
   canned: new Map<string, string[]>(),
+  /** Every call to the engine, as [action, payload]. */
+  sent: [] as string[][],
   /** The next call of an action waits for its promise before answering: a slow reply. */
   slow: new Map<string, Promise<void>>(),
 };
@@ -84,6 +86,7 @@ export const Input = { new: (state: Field) => element(state.value(), [...states]
 export const checking = () => false;
 export const props = () => ({ engine: "engine.sh" });
 export async function exec(_command: string, [, ...args]: string[]) {
+  screen.sent.push(args);
   const gate = screen.slow.get(args[0]);
   screen.slow.delete(args[0]);
   const said = screen.canned.get(args[0])?.shift();

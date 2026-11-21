@@ -204,3 +204,17 @@ test("a resumed launch adopts moved, archived and trashed children by UUID, leav
   assert.deepEqual(done.data?.plan.tickets.map((t: { key: string }) => t.key), ["DEMO-10", "DEMO-11", "DEMO-12"]);
   assert.equal(writes().length, 4); assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), remote);
 });
+
+test("a tracker deadline releases the launch lock and a stalled mutation response is recoverable", async t => {
+  const { cli, env, path, writes } = await ready(t);
+  const fixture: NodeJS.ProcessEnv = env;
+  fixture.TEST_LAUNCH_FAULT = "wait-read";
+  assert.equal((await cli("plan.launch", key)).error?.message, "Impossible de joindre Linear.");
+  assert.equal(writes().length, 0);
+  fixture.TEST_LAUNCH_FAULT = "wait-body";
+  assert.match((await cli("plan.launch", key)).error?.message ?? "", /Linear n’a pas confirmé/);
+  assert.equal(writes().length, 1);
+  assert.equal(readFileSync(path("timeouts"), "utf8"), "wait-read\nwait-body\n");
+  delete fixture.TEST_LAUNCH_FAULT;
+  assert.equal((await cli("plan.launch", key)).data.stage, "develop"); assert.equal(writes().length, 4);
+});

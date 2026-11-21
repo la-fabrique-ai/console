@@ -6,6 +6,10 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 
 if (!process.env.TEST_NO_KEY) process.env.LINEAR_API_KEY = " " + randomUUID() + " ";
+if (process.env.TEST_LAUNCH_FAULT?.startsWith("wait-")) {
+  const timeout = AbortSignal.timeout.bind(AbortSignal);
+  AbortSignal.timeout = ms => timeout(Math.min(ms, 100));
+}
 globalThis.fetch = async (url, init) => {
   assert.equal(String(url), "https://api.linear.app/graphql");
   assert.equal(init?.method, "POST");
@@ -18,7 +22,25 @@ globalThis.fetch = async (url, init) => {
     case "http": return new Response(null, { status: 503 });
     case "graphql": return Response.json({ errors: [{ message: "Internal diagnostic" }] });
   }
-  if (!request.query.includes("query Issues(")) return launchRequest(request.query, request.variables);
+  if (!request.query.includes("query Issues(")) {
+    const result = launchRequest(request.query, request.variables);
+    const fault = process.env.TEST_LAUNCH_FAULT;
+    if ((fault === "wait-read" && request.query.includes("query LaunchParent(")) ||
+        (fault === "wait-body" && request.query.includes("issueCreate("))) {
+      const wait = new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, 500);
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer); appendFileSync(join(process.env.MISSION_CONTROL_HOME!, "timeouts"), fault + "\n");
+          reject(init.signal!.reason);
+        }, { once: true });
+      });
+      if (fault === "wait-read") await wait;
+      else return new Response(new ReadableStream({ async start(controller) {
+        await wait; controller.enqueue(new Uint8Array(await result.arrayBuffer())); controller.close();
+      } }));
+    }
+    return result;
+  }
   const { query, variables: { filter, after } } = request;
   assert.match(query, /issues\s*\([^)]*filter:\s*\$filter/);
   assert.equal(filter.team.key.eq, "DEMO");

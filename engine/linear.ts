@@ -19,7 +19,7 @@ async function request<T>(query: string, variables: object, message: string): Pr
   const key = process.env.LINEAR_API_KEY?.trim();
   if (!key) throw new CommandError("La clé d’accès à Linear est absente.", "linear_key_missing");
   const response = await fetch("https://api.linear.app/graphql", {
-    method: "POST", headers: { "Content-Type": "application/json", Authorization: key },
+    signal: AbortSignal.timeout(30_000), method: "POST", headers: { "Content-Type": "application/json", Authorization: key },
     body: JSON.stringify({ query, variables }),
   }).catch(() => { throw new CommandError(message === writeUnconfirmed ? message : "Impossible de joindre Linear."); });
   if (response.status === 401 || response.status === 403) throw new CommandError("Linear refuse l’accès avec cette clé.");

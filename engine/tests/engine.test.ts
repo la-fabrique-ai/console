@@ -50,6 +50,7 @@ test("explains a missing Linear key before trying HTTP", t => {
 test("lists and shows a slice 1 mission without starting Pilot", t => {
   const run = project(t, "", true);
   const mission = { issueKey: "DEMO-1", title: "First issue", stage: "prepare" };
+  assert.deepEqual(run("missions.create", { issueKey: "DEMO-1", details: ["New detail"] }, true), { data: mission });
   assert.deepEqual(run("missions.show", { issueKey: "DEMO-1" }, true), { data: { ...mission, details: [], questions: [] } });
   assert.deepEqual(run("missions.list", {}, true), { data: [mission] });
   assert.deepEqual(run("issues.list").data.map((i: { missionStage?: string }) => i.missionStage), ["prepare", undefined]);

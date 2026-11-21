@@ -11,13 +11,12 @@ const lines = createInterface({ input: process.stdin, terminal: Boolean(process.
 const env = { ...process.env, MC_PILOT_NODE: process.execPath, PATH: [join(import.meta.dirname, "bin"), process.env.PATH].join(delimiter) };
 const args = ["-p", "--permission-mode", "dontAsk", "--permission-prompts", "none", "--restricted",
   "--strict-mcp-config", "--tools", "Read,Glob,Grep,Bash", "--allowedTools",
-  "Read", "Glob", "Grep", "Bash(mission-control pilot.questions *)", "Bash(mission-control pilot.propose *)",
+  "Read", "Glob", "Grep", "Bash(mission-control pilot.questions *)", "Bash(mission-control pilot.propose *)", "Bash(mission-control pilot.spec *)",
   "--append-system-prompt", readFileSync(role, "utf8")];
 function turn(message: string, resume: boolean) {
-  const result = spawnSync("claude", [...args, resume ? "--resume" : "--session-id", session], {
+  spawnSync("claude", [...args, resume ? "--resume" : "--session-id", session], {
     env, input: message, stdio: ["pipe", "inherit", "inherit"],
   });
-  if (result.status !== 0) process.exit(1);
 }
 const input = lines[Symbol.asyncIterator]();
 turn(first, false);

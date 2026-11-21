@@ -5,16 +5,17 @@ import { issueDetail, openIssues } from "./linear.ts";
 import { listMissions, readMission, loadDetail, saveMission, summary, visible, withMission, type SavedMission } from "./missions.ts";
 import { CommandError, type Action, type Payloads, type Reply, type Results } from "./contract.ts";
 
-import { askQuestions, propose, answer, tell } from "./questions.ts";
+import { askQuestions, propose, deliver } from "./questions.ts";
+import { receiveSpec, specGesture } from "./spec.ts";
 import { startPilot } from "./pilot.ts";
 
 interface Settings { teamKey: string; allowedIssueKeys: string[]; repository: string }
 type Handlers = { [A in Action]: (payload: Payloads[A]) => Results[A] | Promise<Results[A]> };
 
-function issueNumber(key: string, teamKey: string): number {
+function issueNumber(key: unknown, teamKey: string): number {
   const parts = typeof key === "string" && /^([A-Z0-9]+)-([1-9][0-9]*)$/.exec(key);
   if (!parts || parts[1] !== teamKey || !Number.isSafeInteger(Number(parts[2]))) {
-    throw new CommandError("La référence du ticket ne correspond pas à l’équipe du projet.");
+    throw new Error("Invalid issue key");
   }
   return Number(parts[2]);
 }
@@ -27,29 +28,35 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
     const dir = join(home, "missions");
     const { teamKey, allowedIssueKeys, repository }: Settings = JSON.parse(await readFile(join(home, "settings.json"), "utf8"));
     if (!teamKey || typeof teamKey !== "string" || !Array.isArray(allowedIssueKeys)) throw new CommandError(failure);
-    failure = "Les paramètres de la commande sont invalides.";
+    const reading = "Impossible de lire les missions enregistrées.";
+    failure = reading;
     const payload: Payloads[A] = JSON.parse(json === "-" ? readFileSync(0, "utf8") : json);
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new CommandError(failure);
-    if (process.env.MC_PILOT_ISSUE && (!(action === "pilot.questions" || action === "pilot.propose") ||
+    if (process.env.MC_PILOT_ISSUE && (!(action === "pilot.questions" || action === "pilot.propose" || action === "pilot.spec") ||
         !("issueKey" in payload) || payload.issueKey !== process.env.MC_PILOT_ISSUE)) {
-      throw new CommandError("Ce rappel ne correspond pas à la mission de Pilot.");
+      throw new Error("Invalid Pilot callback");
     }
-    const reading = "Impossible de lire les missions enregistrées.";
+    if (action.startsWith("questions.") || action.startsWith("pilot.") || action.startsWith("spec.")) {
+      issueNumber("issueKey" in payload ? payload.issueKey : undefined, teamKey);
+    }
     function update(key: string, change: (mission: SavedMission) => void) {
-      issueNumber(key, teamKey);
       return withMission(dir, key, () => {
-        const mission = loadDetail(dir, key);
+        const mission = loadDetail(dir, key, true);
         change(mission);
         saveMission(dir, mission);
         return visible(mission);
       });
     }
     const handlers: Handlers = {
-      "questions.validate": p => update(p.issueKey, m => answer(dir, m, p.questionId, "validate")),
-      "questions.reply": p => update(p.issueKey, m => answer(dir, m, p.questionId, "reply", p.text)),
-      "pilot.tell": p => update(p.issueKey, m => tell(m, p.text)),
+      "questions.validate": p => deliver(dir, p.issueKey, "validate", p.questionId),
+      "questions.reply": p => deliver(dir, p.issueKey, "reply", p.questionId, p.text),
+      "pilot.tell": p => deliver(dir, p.issueKey, "tell", undefined, p.text),
       "pilot.questions": p => update(p.issueKey, m => askQuestions(m, p.questions)),
       "pilot.propose": p => update(p.issueKey, m => propose(m, p.questionId, p.proposal)),
+      "spec.write": p => specGesture(dir, p.issueKey, { action: "spec.write" }),
+      "spec.change": p => specGesture(dir, p.issueKey, { action: "spec.change", text: p.text }),
+      "spec.validate": p => specGesture(dir, p.issueKey, { action: "spec.validate", repository }),
+      "pilot.spec": p => update(p.issueKey, m => receiveSpec(m, p)),
       "missions.list": () => listMissions(dir),
       "issues.list": async () => {
         failure = "Impossible de lire les tickets dans Linear.";
@@ -71,21 +78,28 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
       "missions.create": async ({ issueKey, details = [] }) => {
         if (!allowedIssueKeys.includes(issueKey)) throw new CommandError("Ce ticket ne figure pas dans la liste autorisée.", "issue_not_allowed");
         const number = issueNumber(issueKey, teamKey);
-        return withMission(dir, issueKey, async () => {
+        return withMission(dir, issueKey + ".operator", async () => {
           const existing = readMission(dir, issueKey);
-          if (existing?.pilotTerminal) return summary(existing);
-          if (!Array.isArray(details) || !details.every(d => typeof d === "string")) throw new CommandError("Précisions invalides.");
-          const issue = await issueDetail(teamKey, number);
-          const mission = existing ?? { issueKey, title: issue.title, stage: "prepare", details, questions: [] };
-          mission.pilotTerminal = startPilot(repository, issueKey, issue, mission.details);
-          mission.pilotBusy = "questions";
-          saveMission(dir, mission);
-          return summary(mission);
+          if (existing) return summary(existing);
+          if (!Array.isArray(details) || !details.every(d => typeof d === "string")) throw new Error("Invalid details");
+          const pending = readMission(dir, issueKey, ".starting");
+          const firstIssue = pending ? undefined : await issueDetail(teamKey, number);
+          const terminal = await startPilot(repository, issueKey, !!pending, async () => {
+            const issue = firstIssue ?? await issueDetail(teamKey, number);
+            const mission = pending ?? { issueKey, title: issue.title, stage: "prepare", details, questions: [] };
+            if (!pending) await withMission(dir, issueKey, () => saveMission(dir, { ...mission, pilotBusy: "questions" }, true));
+            return { title: issue.title, description: issue.description, details: mission.details };
+          });
+          return withMission(dir, issueKey, () => {
+            const mission = loadDetail(dir, issueKey, true);
+            mission.pilotTerminal = terminal;
+            saveMission(dir, mission);
+            return summary(mission);
+          });
         });
       },
     };
-    if (!Object.hasOwn(handlers, action)) throw new CommandError("Action inconnue.");
-    failure = reading;
+    if (!Object.hasOwn(handlers, action)) throw new Error("Unknown action");
     return { data: await handlers[action](payload) };
   } catch (cause) {
     const { code, message } = cause instanceof CommandError ? cause : new CommandError(failure);

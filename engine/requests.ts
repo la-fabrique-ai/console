@@ -7,9 +7,7 @@ export function ask(dir: string, p: Payloads["request.ask"]) {
   return withMission(dir, p.issueKey, () => {
     const m = loadDetail(dir, p.issueKey), agent = caller(m, "request.ask", p.ticketId);
     const ticketId = agent.ticketId ?? p.ticketId;
-    const step = m.development?.tickets.find(r => r.id === ticketId)?.steps.at(-1);
     if (!m.development || (ticketId !== undefined && !m.plan?.tickets.some(t => t.id === ticketId)) ||
-        (agent.role !== "lead" && (!step || step.endedAt || (agent.role === "reviewer") !== (step.kind === "review"))) ||
         typeof p.text !== "string" || !p.text.trim() || typeof p.context !== "string" || !p.context.trim() ||
         !Array.isArray(p.choices) || !p.choices.every(s => typeof s === "string" && s.trim())) throw refused();
     const id = randomUUID();

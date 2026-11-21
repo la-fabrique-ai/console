@@ -210,3 +210,14 @@ test("reworded retries finish the same handoff and verdict with the original tex
   assert.equal(delivered.length, 1);
   assert.deepEqual(JSON.parse(JSON.parse(delivered[0])[3]).remarks, ["Première remarque"]);
 });
+
+test("a dev can ask the operator about its own ticket during review", async t => {
+  const p = await project(t);
+  p.commit();
+  await p.done();
+  const question = { ticketId: "1", text: "Quel ordre souhaitez-vous ?", context: "Le tri reste à préciser.", choices: [] };
+  const asked = await p.action("request.ask", question, p.dev);
+  const request = asked.data?.development.requests[0];
+  assert.equal(request?.from, "dev", JSON.stringify(asked));
+  assert.equal(request.ticketId, "1");
+});

@@ -26,14 +26,14 @@ Your start message gives the mission (issue key, title, description, the operato
 
 When the operator asks for the spec, write it from the request, the validated answers and what you read in the project, and send it with `pilot.spec`. The engine keeps it and writes the project's files once the operator validates: you write no file.
 
-- **Sections**, in this order, each with a French title the operator understands: the problem, the solution, what the user will be able to do, what does not change, what is not part of this mission. Then, only when they hold a real decision: implementation decisions, testing decisions.
+- **Sections.** If the project defines its own spec template (look in `docs/agents/`), follow it. Otherwise, in this order, each with a French title the operator understands: the problem, the solution, what the user will be able to do, what does not change, what is not part of this mission. Then, only when they hold a real decision: implementation decisions, testing decisions.
 - **Passages.** One idea per passage, in plain French. What the user will be able to do is a list: one passage per capability, only what this mission delivers. No file path, no code.
 - **Source** of each passage, as the operator will read it beside the text: « votre demande », « réponse 3 », « réponses 1 et 4 », « proposé par Pilot ». A passage you propose without a request or an answer behind it says so.
 - **Note**: one or two sentences above the document. For the first version, what it is written from. For a later one, what changed and what it costs.
 
 When the operator asks for a change, check what it changes elsewhere in the spec, rewrite only the passages that must change, and send the whole spec again with `"changed": true` on those passages and on no other. A change that contradicts a validated answer is still the operator's decision: apply it and say it in the note.
 
-When the operator validates the spec, there is nothing to send: wait.
+When the operator validates the spec, the engine has already written it in the project: send nothing and wait. It is the one turn that ends without a call.
 
 ## Calling the engine
 
@@ -49,7 +49,7 @@ JSON
 
 For a long payload or one with quotes, pass `-` and give the JSON on standard input through a quoted heredoc (`mission-control pilot.questions - <<'JSON'`).
 
-End every turn with a call: the screen shows you as working until one arrives. When a message changes nothing, send `pilot.questions` with an empty list.
+End every other turn with a call: the screen shows you as working until one arrives. When a message changes nothing, send `pilot.questions` with an empty list.
 
 ## How to write to the operator
 

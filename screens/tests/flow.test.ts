@@ -194,7 +194,7 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
       { text: changed ? "Voir le retrait d’un lien, doublons compris." : "Voir le retrait d’un lien.", source: "proposé par Pilot", ...(changed ? { changed } : {}) },
     ] },
   ] });
-  const { shown, click, type, tick } = window();
+  const { shown, now, click, type, tick } = window();
   await shown();
   click("issue-DEMO-1");
   await shown();
@@ -212,10 +212,25 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   assert.ok(texts.includes("La question a une réponse") && texts.includes("✓  Écrire la spec"));
   assert.ok(texts.some((text) => text.startsWith("J’ai votre réponse.")), "Pilot offers the spec under the recap");
 
+  let asked = () => {};
+  screen.slow.set("spec.write", new Promise((resolve) => { asked = resolve; }));
   click("validate");
+  now();
+  click("step-0");
+  asked();
   texts = await shown();
-  assert.ok(texts.includes("Pilot écrit la spec"), "asking for the spec moves on to its step");
+  assert.ok(texts.includes("Demande validée"), "the step the operator chose meanwhile stays on screen");
+  click("step-2");
+  texts = await shown();
+  assert.ok(texts.includes("Pilot écrit la spec"), "the spec has its step");
   assert.ok(!screen.clicks.has("validate"), "nothing to validate while Pilot writes");
+  type("Autre chose à dire à Pilot ?", "Un brouillon");
+  await shown();
+  click("step-1");
+  await shown();
+  assert.equal(screen.fields.get("Autre chose à dire à Pilot ?")?.value() ?? "", "", "a draft does not follow to another step");
+  click("step-2");
+  await shown();
 
   await spec("Voici la spec, écrite d’après votre réponse.");
   tick();
@@ -235,18 +250,26 @@ test("the operator reads Pilot's spec, asks for a change and validates it", asyn
   tick();
   texts = await shown();
   assert.ok(texts.includes("LA SPEC, ÉCRITE PAR PILOT · VERSION 2") && texts.includes("J’ai ajouté les doublons."));
-  assert.ok(texts.includes("modifié · v2") && texts.includes("Version 2 · à relire") && texts.includes("1 passage modifié à votre demande"));
+  assert.equal(texts[texts.indexOf("Voir le retrait d’un lien, doublons compris.") + 1], "modifié · v2", "the mark sits on the changed passage");
+  assert.equal(texts.filter((text) => text === "modifié · v2").length, 1, "and on no other");
+  assert.ok(texts.indexOf("Version 2 · à relire") < texts.indexOf("Version 1") && texts.includes("1 passage modifié à votre demande"), "the version to read comes first");
 
   click("validate");
   texts = await shown();
   assert.ok(texts.includes("Spec validée") && texts.includes("validée · v2"));
   assert.ok(!screen.clicks.has("validate") && !screen.fields.has("Demandez un changement…"), "a validated spec takes no more change");
   assert.ok(git("show", "mission/DEMO-1:docs/missions/DEMO-1/spec.md").includes("Voir le retrait d’un lien, doublons compris."), "the validated version is in the project");
-  const sent = calls().filter(([command]) => command === "send").map(([, , , message]) => message);
-  assert.deepEqual(sent.slice(-3).map((message) => JSON.parse(message).action), ["spec.write", "spec.change", "spec.validate"], "Pilot received each gesture once");
+  assert.ok(git("show", "mission/DEMO-1:docs/missions/DEMO-1/answers.md").includes("Tous."), "with the operator's answers");
+  const sent = calls().filter(([command]) => command === "send").map(([, , , message]) => JSON.parse(message).action);
+  assert.deepEqual(sent.slice(1), ["spec.write", "spec.change", "spec.validate"], "after the answer, Pilot received each gesture of the spec once");
+  assert.equal(sent.length, 4);
 
   click("step-1");
-  assert.ok((await shown()).includes("Spec écrite"), "the questions stay readable, the spec is not asked twice");
+  texts = await shown();
+  assert.ok(texts.includes("Spec écrite") && !screen.clicks.has("validate"), "the questions stay readable, the spec is not asked twice");
+  click("question-q1");
+  await shown();
+  assert.ok(!screen.fields.has("Écrivez une autre réponse…") && !screen.clicks.has("validate"), "an answer the spec is written from no longer changes here");
 });
 
 test("a gesture on its way for one mission leaves another mission free", async (t) => {
@@ -281,6 +304,12 @@ test("a gesture on its way for one mission leaves another mission free", async (
   }
   assert.ok(screen.texts.includes("Question de DEMO-2") && screen.clicks.has("validate") && screen.fields.has("Écrivez une autre réponse…"),
     "the other mission can be read and answered meanwhile");
+  click("validate");
+  for (let wait = 0; wait < 100 && !screen.texts.includes("La question a une réponse"); wait++) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    now();
+  }
+  assert.ok(screen.texts.includes("La question a une réponse"), "and its answer goes through while the first one still waits");
   confirm();
   await shown();
 });

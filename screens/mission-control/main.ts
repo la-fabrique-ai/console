@@ -173,6 +173,7 @@ export default class MissionControl extends View {
     const key = payload.issueKey;
     if (this.sending.has(key)) return;
     const turn = this.opens;
+    const tab = this.tab;
     this.clear(); // what was written is on its way; it comes back to its field if the engine refuses it
     this.sending.add(key);
     this.sends++;
@@ -186,7 +187,8 @@ export default class MissionControl extends View {
           this.detail = reply.data as MissionDetail;
           // A reply stays on its question, to see Pilot's new proposal; a validation moves on.
           this.viewing = action === "questions.reply" ? (payload as Payloads["questions.reply"]).questionId : "";
-          if (action === "spec.write") this.tab = ""; // on to the step the preparation has reached
+          // On to the step the preparation has reached, unless the operator chose another one meanwhile.
+          if (action === "spec.write" && this.tab === tab) this.tab = "";
         } else {
           this.requestError = reply.error.message;
           if (field && "text" in payload) this.inputs[field]?.set_value(payload.text);
@@ -347,6 +349,7 @@ export default class MissionControl extends View {
         .when(small, (el) => el.child(div().text_size(12.5).text_color(on ? "#A9B4FF" : "#6F7689").child(small!)));
       parts.push(created && index <= current ? pill.cursor_pointer().on_click((_event, cx) => {
         this.tab = TABS[index]!;
+        this.clear(); // a draft belongs to its step
         cx.notify();
       }) : pill);
     });
@@ -501,10 +504,12 @@ export default class MissionControl extends View {
       h_flex().flex_1().min_h_0().gap(14).items_stretch().child(this.conversation("questions", content, composer)).child(column);
 
     const busy = detail.pilotBusy === "questions";
+    // Once the spec is asked, the answers it is written from no longer change here: a change goes through the spec.
+    const settled = Boolean(detail.spec) || detail.pilotBusy === "spec";
     if (total === 0 && !busy) {
       // Pilot answered that the request is enough.
       return page(this.heading("LES QUESTIONS", "Pilot n’a pas de question", "Votre demande lui suffit pour écrire la spec."),
-        this.composer("tell", "votre demande suffit · Pilot écrit ensuite la spec", "✓  Écrire la spec", write, "Pilot en tient compte pour la spec", tell),
+        this.composer("tell", "votre demande suffit · Pilot écrit ensuite la spec", settled ? "Spec écrite" : "✓  Écrire la spec", settled ? null : write, "Pilot en tient compte pour la spec", tell),
         side("Aucune question", "Pilot a lu la demande et le projet.", []));
     }
     if (total === 0) {
@@ -522,7 +527,7 @@ export default class MissionControl extends View {
         busy ? this.waiting("Pilot vérifie s’il lui reste une question")
           : this.said(`${total === 1 ? "J’ai votre réponse" : `J’ai vos ${total} réponses`}. Je peux écrire la spec : une page, à relire avant le découpage.`),
       ], this.composer("tell", "vos réponses sont validées · Pilot écrit ensuite la spec",
-        detail.spec ? "Spec écrite" : "✓  Écrire la spec", busy || detail.spec || detail.pilotBusy === "spec" ? null : write, "Pilot en tient compte pour la spec", tell),
+        settled ? "Spec écrite" : "✓  Écrire la spec", busy || settled ? null : write, "Pilot en tient compte pour la spec", tell),
       side(`${total} réponses sur ${total}`, "Une question par page. Un clic pour revenir sur une réponse.", rows));
     }
 
@@ -542,7 +547,8 @@ export default class MissionControl extends View {
     const reply = (text: string, cx: Context) => this.send("questions.reply", { issueKey: key, questionId: current.id, text }, cx, current.answer === undefined && revised ? "again" : "answer");
     const validate = (cx: Context) => this.send("questions.validate", { issueKey: key, questionId: current.id }, cx);
     const sendHint = "Pilot met sa réponse à jour · vous validez ensuite";
-    const composer = current.answer !== undefined
+    const composer = settled ? this.composer("answer", "la spec est écrite d’après cette réponse · demandez un changement à l’étape Spec", "Réponse validée", null)
+      : current.answer !== undefined
       ? this.composer("answer", `ou gardez votre réponse · ${next ? "retour aux questions" : "retour au récapitulatif"}`, "✓  Garder cette réponse", (cx) => {
         this.viewing = "";
         this.clear();
@@ -568,7 +574,7 @@ export default class MissionControl extends View {
     const count = questions.length === 1 ? "1 réponse" : `${questions.length} réponses`;
     const tell = (text: string, cx: Context) => this.send("pilot.tell", { issueKey: key, text }, cx, "tell");
     const versions = !spec ? [] : [this.label("VERSIONS"), ...Array.from({ length: spec.version }, (_unused, index) => {
-      const version = index + 1;
+      const version = spec.version - index; // the one to read comes first
       const last = version === spec.version;
       const changed = spec.sections.reduce((sum, section) => sum + section.passages.filter((passage) => passage.changed).length, 0);
       return this.line(String(version), last && version > 1 && !spec.validated ? `Version ${version} · à relire` : `Version ${version}`,

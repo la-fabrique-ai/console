@@ -181,9 +181,18 @@ export default class MissionControl extends View {
       const error = "error" in reply ? reply.error.message : "";
       if (error === this.detailError && ("error" in reply || JSON.stringify(reply.data) === JSON.stringify(this.detail))) return;
       this.detailError = error;
-      if ("data" in reply) this.detail = reply.data;
+      if ("data" in reply) {
+        this.detail = reply.data;
+        this.staged(reply.data);
+      }
       cx.notify();
     });
+  }
+
+  /** The menu and the header follow the stage the engine last gave for a mission: a launch moves it to the next one. */
+  staged(detail: MissionDetail) {
+    this.missions = (this.missions ?? []).map((mission) =>
+      (mission.issueKey === detail.issueKey ? { issueKey: detail.issueKey, title: detail.title, stage: detail.stage } : mission));
   }
 
   /** A gesture about the page on screen is on its way: its button and its field wait for the engine. */
@@ -210,12 +219,10 @@ export default class MissionControl extends View {
     cx.spawn(async (cx) => {
       const reply = await call(action, payload);
       this.sending.delete(key);
+      if ("data" in reply) this.staged(reply.data as MissionDetail); // also when the operator opened another page meanwhile
       if (turn === this.opens) {
         if ("data" in reply) {
-          const detail = reply.data as MissionDetail;
-          this.detail = detail;
-          // The menu and the header follow at once: a launch moves the mission to its next stage.
-          this.missions = (this.missions ?? []).map((mission) => (mission.issueKey === key ? { issueKey: key, title: detail.title, stage: detail.stage } : mission));
+          this.detail = reply.data as MissionDetail;
           // A reply stays on its question, to see Pilot's new proposal; a validation moves on.
           this.viewing = action === "questions.reply" ? (payload as Payloads["questions.reply"]).questionId : "";
           // On to the step the preparation has reached, unless the operator chose another one meanwhile.
@@ -787,10 +794,15 @@ export default class MissionControl extends View {
             : launched ? "Le plan est figé · le développement arrive avec la prochaine étape"
             : `Environ ${duration(total(devs))} avec ${team(devs)}, test et validation compris`
               + (tickets.length > 1 ? ` · ${duration(total(devs === 1 ? 2 : 1))} avec ${team(devs === 1 ? 2 : 1)}` : ""))))
-      .when(!frozen, (el) => el.child(h_flex().id("launch").flex_none().h(46).px(22).items_center().rounded(10).border_1().border_color("#2E8F6C").bg("#163028")
-        .text_size(15).font_semibold().text_color("#5DE3B8").cursor_pointer().hover((style) => style.bg("#1C3A31"))
-        .on_click((_event, cx) => this.send("plan.launch", { issueKey: key }, cx))
-        .child(devs === 1 ? "Approuver et lancer le dev" : "Approuver et lancer les devs")));
+      .when(!frozen, (el) => {
+        // While a team choice is on its way the launch waits: an approval must never be lost, nor bear on another team.
+        const waiting = this.busy();
+        const button = h_flex().id("launch").flex_none().h(46).px(22).items_center().rounded(10).border_1().border_color(waiting ? "#2A2F40" : "#2E8F6C")
+          .bg(waiting ? "#1B1F2B" : "#163028").text_size(15).font_semibold().text_color(waiting ? "#8C93A6" : "#5DE3B8")
+          .child(devs === 1 ? "Approuver et lancer le dev" : "Approuver et lancer les devs");
+        return el.child(waiting ? button : button.cursor_pointer().hover((style) => style.bg("#1C3A31"))
+          .on_click((_event, cx) => this.send("plan.launch", { issueKey: key }, cx)));
+      });
 
     const chip = (dev: number, tool: Tool) => {
       const el = h_flex().id(`dev-${dev}`).h(30).pl(5).pr(10).gap(7).items_center().rounded(9).border_1().border_color("#2A2F40").bg("#161923").text_size(13)

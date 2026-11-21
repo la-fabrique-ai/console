@@ -353,6 +353,7 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   click("add-dev");
   now();
   assert.ok(!screen.texts.includes("Création des tickets dans le tracker…"), "choosing the team never looks like a launch");
+  assert.ok(screen.texts.includes("Approuver et lancer le dev") && !screen.clicks.has("launch"), "the launch waits for the team to be recorded: no click is lost");
   chosen();
   texts = await shown();
   assert.ok(texts.includes("Approuver et lancer les devs") && texts.includes("ÉTAPE 2") && texts.includes("Dev 2") && texts.includes("≈ 1 h 30"), "two devs: one line each, by steps");
@@ -378,7 +379,17 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   assert.equal(writes(), 0);
   writeFileSync(path("settings.json"), JSON.stringify({ ...settings, allowedIssueKeys: ["DEMO-1"] }));
 
+  // The operator leaves and opens the mission again while the launch is on its way.
+  let launched = () => {};
+  screen.slow.set("plan.launch", new Promise((resolve) => { launched = resolve; }));
   click("launch");
+  now();
+  click("nav-development");
+  now();
+  click("mission-DEMO-1");
+  launched();
+  await shown();
+  tick();
   texts = await shown();
   assert.ok(texts.includes("C’est parti : 4 tickets créés dans le tracker") && texts.some((text) => text.endsWith("rattachés à DEMO-1")));
   assert.equal(writes(), 5, "the launch creates the four sub-tickets and one comment");

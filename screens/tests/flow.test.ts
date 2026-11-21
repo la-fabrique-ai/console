@@ -451,6 +451,34 @@ test("back in the list while a gesture is answered, the stage shown is the lates
   assert.ok(texts.includes("Tester") && !texts.includes("Préparer"), "the older answer of the gesture does not stay on screen: the list is read once more");
 });
 
+test("when the reading after a gesture fails, the clock corrects the stage", async (t) => {
+  const { cli } = project(t);
+  const { shown, now, click, tick } = window();
+  await shown();
+  click("issue-DEMO-1");
+  await shown();
+  click("validate");
+  await shown();
+  await cli("pilot.questions", { issueKey: "DEMO-1", questions: [] });
+  tick();
+  await shown();
+  const tested = JSON.stringify({ data: [{ issueKey: "DEMO-1", title: "First issue", stage: "test" }] });
+  const failed = JSON.stringify({ error: { code: "failed", message: "Impossible de lire les missions enregistrées." } });
+  let answered = () => {};
+  screen.slow.set("spec.write", new Promise((resolve) => { answered = resolve; }));
+  click("validate");
+  now();
+  screen.canned.set("missions.list", [tested, failed, tested]);
+  click("nav-development");
+  await new Promise((resolve) => setImmediate(resolve));
+  answered();
+  let texts = await shown();
+  assert.ok(texts.includes("Préparer"), "the gesture's older answer shows while the reading that should correct it has failed");
+  tick();
+  texts = await shown();
+  assert.ok(texts.includes("Tester") && !texts.includes("Préparer"), "the next tick reads the list again and corrects the stage");
+});
+
 test("a refused correction never lands on another question", async (t) => {
   const { cli, path } = project(t);
   const { shown, now, click, type, tick } = window();

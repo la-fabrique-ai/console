@@ -24,6 +24,14 @@ console.log(JSON.stringify({type:"thread.started",thread_id:${JSON.stringify(ses
   const [first, next] = turns;
   assert.equal(first[1], "Role and ticket"); assert.equal(JSON.parse(next[1]).text, "Une réponse");
   if (tool === "codex") {
+    for (const args of [first[0],next[0]]) {
+      for (const feature of ["shell_tool","unified_exec","apps","plugins","browser_use","computer_use","multi_agent"]) {
+        const index = args.indexOf(feature);
+        assert.equal(args[index - 1], "--disable", feature);
+      }
+      assert.ok(args.includes('permissions.mission.filesystem={":minimal"="read",":workspace_roots"="read"}'));
+      assert.ok(args.includes('web_search="disabled"'));
+    }
     assert.ok(first[0].includes("--json")); assert.ok(first[0].includes("--ignore-rules"));
     assert.ok(next[0].includes("resume")); assert.ok(next[0].includes(session)); assert.ok(!next[0].includes("--last"));
   } else {

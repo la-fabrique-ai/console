@@ -22,7 +22,9 @@ async function turn(message: string, resume: boolean) {
     "--allowedTools", "mcp__mc__command", "mcp__mc__shell", "mcp__mc__commit", "--permission-mode", "dontAsk",
     "--permission-prompts", "none", resume ? "--resume" : "--session-id", session] :
     ["-a", "never", "exec", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check", "--json",
-      "-c", 'sandbox_mode="read-only"', "--disable", "shell_tool", "--disable", "unified_exec", "--disable", "multi_agent",
+      "-c", 'default_permissions="mission"', "-c", 'permissions.mission.filesystem={":minimal"="read",":workspace_roots"="read"}',
+      "-c", "permissions.mission.network.enabled=false", "-c", 'web_search="disabled"',
+      ...["shell_tool", "unified_exec", "multi_agent", "apps", "plugins", "browser_use", "computer_use"].flatMap(feature => ["--disable", feature]),
       "-c", "mcp_servers.mc.command=" + JSON.stringify(server.command), "-c", "mcp_servers.mc.args=" + JSON.stringify(server.args),
       "-c", "mcp_servers.mc.env={" + Object.entries(host).map(([k,v]) => k + "=" + JSON.stringify(v)).join(",") + "}",
       ...(resume ? ["resume", session] : []), "-"];

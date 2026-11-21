@@ -17,6 +17,8 @@ export const screen = {
   cliArgs: [] as string[],
   /** "network": Linear cannot be reached (see the engine's Linear fixture). */
   failure: "",
+  /** Answers given in place of the engine's, one per call of the action: what another window or agent made of the state. */
+  canned: new Map<string, string[]>(),
   /** The next call of an action waits for its promise before answering: a slow reply. */
   slow: new Map<string, Promise<void>>(),
 };
@@ -84,6 +86,11 @@ export const props = () => ({ engine: "engine.sh" });
 export async function exec(_command: string, [, ...args]: string[]) {
   const gate = screen.slow.get(args[0]);
   screen.slow.delete(args[0]);
+  const said = screen.canned.get(args[0])?.shift();
+  if (said !== undefined) {
+    await gate;
+    return { code: 0, stdout: said, stderr: "" };
+  }
   const child = spawnSync(process.execPath, [...screen.cliArgs, ...args], { env: { ...screen.env, TEST_LINEAR_FAILURE: screen.failure }, encoding: "utf8" });
   await gate;
   return { code: child.status, stdout: child.stdout, stderr: child.stderr };

@@ -21,6 +21,7 @@ function project(t: TestContext) {
   screen.cliArgs = project.cliArgs;
   screen.failure = "";
   screen.slow.clear();
+  screen.canned.clear();
   return project;
 }
 
@@ -421,6 +422,33 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   assert.equal(writes(), 5, "the launch creates the four sub-tickets and one comment");
   assert.equal(texts[texts.indexOf("DEMO-1") + 1], "Développer", "the menu shows the new stage without leaving the page");
   for (const id of ["launch", "add-dev", "remove-dev", "dev-1", "team-1", "ticket-1", "estimate"]) assert.ok(!screen.clicks.has(id), `nothing changes after the launch: ${id}`);
+});
+
+test("back in the list while a gesture is answered, the stage shown is the latest one", async (t) => {
+  const { cli } = project(t);
+  const { shown, now, click, tick } = window();
+  await shown();
+  click("issue-DEMO-1");
+  await shown();
+  click("validate");
+  await shown();
+  await cli("pilot.questions", { issueKey: "DEMO-1", questions: [] });
+  tick();
+  await shown();
+  // Elsewhere the mission has reached the test stage; the answer to this gesture, asked before, still says "prepare".
+  const tested = JSON.stringify({ data: [{ issueKey: "DEMO-1", title: "First issue", stage: "test" }] });
+  let answered = () => {};
+  screen.slow.set("spec.write", new Promise((resolve) => { answered = resolve; }));
+  click("validate");
+  now();
+  screen.canned.set("missions.list", [tested, tested]);
+  click("nav-development");
+  await new Promise((resolve) => setImmediate(resolve));
+  now();
+  assert.ok(screen.texts.includes("Tester"), "the list shows what it just read");
+  answered();
+  const texts = await shown();
+  assert.ok(texts.includes("Tester") && !texts.includes("Préparer"), "the older answer of the gesture does not stay on screen: the list is read once more");
 });
 
 test("a refused correction never lands on another question", async (t) => {

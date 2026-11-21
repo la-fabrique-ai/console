@@ -72,6 +72,8 @@ export default class MissionControl extends View {
   missionsError = "";
   refreshes = 0;
   lists = 0;
+  /** The readings of the list on their way: the clock starts none while one is. */
+  listing = 0;
   opens = 0;
   requested = "";
   issue: IssueDetail | null = null;
@@ -112,7 +114,12 @@ export default class MissionControl extends View {
       input.on("change", (_event, cx) => cx.notify()); // the button changes role with the field
       this.inputs[field] = input;
     }
-    cx.timer.every(3000, (cx) => this.follow(cx)); // Pilot answers in its own time
+    // Pilot answers in its own time, and the missions move on by themselves: the window reads both again
+    // at each tick, so whatever the order of the engine's answers, what is shown is at most one tick late.
+    cx.timer.every(3000, (cx) => {
+      this.follow(cx);
+      if (!this.listing) this.relist(cx);
+    });
     this.refresh(cx);
   }
 
@@ -132,8 +139,10 @@ export default class MissionControl extends View {
   relist(cx: Spawner) {
     const turn = ++this.lists; // a later reading has the last word
     const asked = ++this.clock;
+    this.listing++;
     cx.spawn(async (cx) => {
       const reply = await call("missions.list", {});
+      this.listing--;
       if (turn !== this.lists) return;
       this.missionsError = "error" in reply ? reply.error.message : "";
       // A mission whose stage was given by a later answer keeps it: this list was read before.

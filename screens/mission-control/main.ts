@@ -71,6 +71,7 @@ export default class MissionControl extends View {
   missions: Mission[] | null = null;
   missionsError = "";
   refreshes = 0;
+  lists = 0;
   opens = 0;
   requested = "";
   issue: IssueDetail | null = null;
@@ -117,11 +118,23 @@ export default class MissionControl extends View {
 
   refresh(cx: Spawner) {
     const turn = ++this.refreshes; // a later refresh has the last word
+    this.relist(cx);
+    cx.spawn(async (cx) => {
+      const reply = await call("issues.list", {});
+      if (turn !== this.refreshes) return;
+      this.issuesError = "error" in reply ? reply.error.message : "";
+      if ("data" in reply) this.issues = reply.data;
+      cx.notify();
+    });
+  }
+
+  /** Reads the missions again. They are local: they never wait for Linear. */
+  relist(cx: Spawner) {
+    const turn = ++this.lists; // a later reading has the last word
     const asked = ++this.clock;
-    // The missions are local: they never wait for Linear.
     cx.spawn(async (cx) => {
       const reply = await call("missions.list", {});
-      if (turn !== this.refreshes) return;
+      if (turn !== this.lists) return;
       this.missionsError = "error" in reply ? reply.error.message : "";
       // A mission whose stage was given by a later answer keeps it: this list was read before.
       if ("data" in reply) {
@@ -132,13 +145,6 @@ export default class MissionControl extends View {
           return mission;
         });
       }
-      cx.notify();
-    });
-    cx.spawn(async (cx) => {
-      const reply = await call("issues.list", {});
-      if (turn !== this.refreshes) return;
-      this.issuesError = "error" in reply ? reply.error.message : "";
-      if ("data" in reply) this.issues = reply.data;
       cx.notify();
     });
   }
@@ -192,8 +198,8 @@ export default class MissionControl extends View {
       if (this.reading === turn) this.reading = 0;
       if (turn !== this.opens || sends !== this.sends) return;
       const error = "error" in reply ? reply.error.message : "";
-      if ("data" in reply) this.staged(reply.data, asked);
-      if (error === this.detailError && ("error" in reply || JSON.stringify(reply.data) === JSON.stringify(this.detail))) return;
+      const moved = "data" in reply && this.staged(reply.data, asked);
+      if (!moved && error === this.detailError && ("error" in reply || JSON.stringify(reply.data) === JSON.stringify(this.detail))) return;
       this.detailError = error;
       if ("data" in reply) this.detail = reply.data;
       cx.notify();
@@ -204,10 +210,12 @@ export default class MissionControl extends View {
    * The menu and the header follow the stage the engine last gave for a mission. Answers arrive in any order:
    * a reading counts from the moment it was asked, a gesture from the moment it is answered, and the later one wins.
    */
-  staged(mission: Mission, stamp: number) {
-    if (stamp < (this.stamps.get(mission.issueKey) ?? 0)) return;
+  staged(mission: Mission, stamp: number): boolean {
+    if (stamp < (this.stamps.get(mission.issueKey) ?? 0)) return false;
     this.stamps.set(mission.issueKey, stamp);
+    const moved = this.mission(mission.issueKey)?.stage !== mission.stage;
     this.missions = (this.missions ?? []).map((known) => (known.issueKey === mission.issueKey ? { ...known, stage: mission.stage } : known));
+    return moved; // the menu must be drawn again
   }
 
   /** A gesture about the page on screen is on its way: its button and its field wait for the engine. */
@@ -235,7 +243,11 @@ export default class MissionControl extends View {
     cx.spawn(async (cx) => {
       const reply = await call(action, payload);
       this.sending.delete(key);
-      if ("data" in reply) this.staged(reply.data as MissionDetail, ++this.clock); // also when the operator opened another page meanwhile
+      if ("data" in reply) {
+        this.staged(reply.data as MissionDetail, ++this.clock); // also when the operator opened another page meanwhile
+        // A reading asked while the gesture was on its way may have seen more or less than its answer: read once more.
+        this.relist(cx);
+      }
       if (this.page === "request" && this.requested === key) { // its mission is on screen, even opened again meanwhile
         if ("data" in reply) {
           this.detail = reply.data as MissionDetail;

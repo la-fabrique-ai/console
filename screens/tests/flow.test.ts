@@ -361,7 +361,12 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   assert.ok(texts.includes("Environ 1 h 30 avec 2 devs en parallèle, test et validation compris · 2 h avec 1 dev"));
   const tools = () => screen.texts.filter((text) => text === "Claude" || text === "Codex").slice(0, 2);
   assert.deepEqual(tools(), ["Claude", "Codex"]);
+  let toggled = () => {};
+  screen.slow.set("plan.team", new Promise((resolve) => { toggled = resolve; }));
   click("dev-2");
+  now();
+  assert.ok(!screen.clicks.has("team-1") && !screen.clicks.has("remove-dev"), "with two devs too, the team waits for the choice on its way");
+  toggled();
   await shown();
   assert.deepEqual(tools(), ["Claude", "Claude"], "each dev's tool is the operator's choice");
   click("remove-dev");
@@ -405,7 +410,12 @@ test("the operator sees the plan with one dev and with two, then launches it", a
   await until(() => screen.clicks.has("launch"));
   click("launch");
   await until(() => screen.texts.includes("C’est parti : 4 tickets créés dans le tracker"));
+  // The operator goes back to the list: the old reading is answered there, and changes nothing.
+  click("nav-development");
   late();
+  texts = await shown();
+  assert.ok(texts.includes("Développer") && !texts.includes("Préparer"), "in the list too the mission keeps the stage of its launch");
+  click("mission-DEMO-1");
   texts = await shown();
   assert.ok(texts.includes("C’est parti : 4 tickets créés dans le tracker") && texts.some((text) => text.endsWith("rattachés à DEMO-1")));
   assert.equal(writes(), 5, "the launch creates the four sub-tickets and one comment");

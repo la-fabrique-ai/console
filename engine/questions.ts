@@ -15,7 +15,7 @@ function question(m: SavedMission, id: string | undefined) {
 
 function answersFrozen(m: SavedMission) {
   // Even an unconfirmed first request might already be in Pilot's terminal.
-  return !!m.spec || m.pilotBusy === "spec" || Object.hasOwn(m.delivery ?? {}, JSON.stringify({ action: "spec.write" }));
+  return !!m.spec || Object.hasOwn(m.delivery ?? {}, JSON.stringify({ action: "spec.write" }));
 }
 
 function pilotReady(m: SavedMission) {

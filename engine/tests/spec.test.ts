@@ -163,22 +163,23 @@ test("the screen sees Pilot writing during delivery and until its spec callback"
   assert.deepEqual((await cli("pilot.spec", payload)).data.spec.requests, ["Changer le délai."]);
 });
 
-test("document headings and answers come only from the mission structure", async t => {
-  const q = { ...question, text: "Qui lit ?\n### Question inventée", proposal: "Oui\n### Réponse inventée" };
-  const { cli, branchGit } = await draft(t, [q], ["Détail\n# Autre titre"]);
+test("the raw mission documents preserve words and escape only structural Markdown", async t => {
+  const fields = ["# titre\n## Interdit", "- liste\n---", "> citation\n### Question inventée"];
+  const questions = fields.map((proposal, i) => ({ ...question, id: String(i), text: "Qui lit ?\r\n### Suite " + i, proposal }));
+  const { cli, branchGit } = await draft(t, questions, fields);
+  const plain = '50 % de mon_fichier avec `code` et "guillemets" ; 2 < 3.';
+  const lines = ["Texte <h1>interdit</h1>", "  + liste", "1. départ", "* liste", "===", "```js", "~~~", "___", plain];
   await cli("spec.change", { ...key, text: "Préciser." });
-  await cli("pilot.spec", { ...payload, sections: [{ title: "Un titre\r\n## Autre section", passages: [
-    { text: "ligne\n---", source: "Demande" }, { text: "<h1>Exemple</h1>", source: "Pilot" }] }] });
+  await cli("pilot.spec", { ...payload, sections: [{ title: "Un titre\r\n## Suite",
+    passages: [...fields, lines.join("\n")].map(text => ({ text, source: "Demande" })) }] });
   assert.ok((await cli("spec.validate", key)).data?.spec.validated);
-  const document = (file: string) => branchGit("show", "HEAD:docs/missions/DEMO-1/" + file + ".md").replace(/^---\n[\s\S]*?\n---\n\n/, "");
-  const spec = document("spec"), answers = document("answers");
-  assert.deepEqual(spec.match(/^#+ /gm), ["# ", "## "]);
-  assert.deepEqual(answers.match(/^#+ /gm), ["# ", "## ", "## ", "### "]);
-  assert.doesNotMatch(spec, /\n[-=]+(?:\n|$)|<h1>/i);
-  // Decode the literal inline text to compare the displayed words and line breaks.
-  const words = (md: string) => md.replaceAll("<br>", "\n").replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n));
-  for (const value of ["Un titre\n## Autre section", "ligne\n---", "<h1>Exemple</h1>"]) assert.ok(words(spec).includes(value), value);
-  for (const value of [q.text, q.proposal, "Détail\n# Autre titre"]) assert.ok(words(answers).includes(value));
+  const doc = (name: string) => branchGit("show", "HEAD:docs/missions/DEMO-1/" + name + ".md").split("\n---\n\n")[1];
+  const spec = doc("spec"), answers = doc("answers");
+  const escaped = ["\\# titre\n\\## Interdit", "\\- liste\n\\---", "\\> citation\n\\### Question inventée"];
+  assert.deepEqual(spec.split("\n\n"), ["# Spec", "## Un titre ## Suite", ...escaped,
+    ["Texte \\<h1>interdit\\</h1>", "  \\+ liste", "1\\. départ", "\\* liste", "\\===", "\\```js", "\\~~~", "\\___", plain].join("\n")]);
+  assert.deepEqual(answers.split("\n\n"), ["# Answers", "## Request details", ...escaped, "## Validated answers",
+    ...escaped.flatMap((answer, i) => ["### Qui lit ? ### Suite " + i, answer])]);
 });
 
 test("a missing Core target prevents publication and an empty details section is omitted", async t => {
@@ -310,4 +311,28 @@ test("answers stay frozen if the first spec request may already have reached Pil
   assert.ok((await cli("questions.reply", { ...id, text: "Changer." })).error);
   assert.equal(calls().length, sent);
   assert.equal((await cli("pilot.spec", payload)).data.questions[0].answer, question.proposal);
+});
+
+test("a signer waiting for input times out, releases the locks and leaves validation retryable", async t => {
+  const { cli, git, path, branchGit } = await draft(t);
+  const signer = path("bin/waiting-signer");
+  writeFileSync(signer, "#!/bin/sh\nexec sleep 2\n", { mode: 0o700 });
+  git("config", "gpg.format", "openpgp"); git("config", "gpg.program", signer); git("config", "commit.gpgSign", "true");
+  // Run a real waiting Git process with the production deadline shortened for the fixture.
+  appendFileSync(path("home.mjs"), `
+import cp from 'node:child_process'; import fs from 'node:fs';
+const run = cp.execFileSync;
+cp.execFileSync = (command, args, options) => {
+  if (command !== "git" || !args.includes("commit") || !(options.timeout > 0)) return run(command, args, options);
+  try { return run(command, args, { ...options, timeout: Math.min(200, options.timeout) }); }
+  catch (error) { fs.writeFileSync(process.env.MISSION_CONTROL_HOME + "/commit-result", String(error.code)); throw error; }
+};
+syncBuiltinESMExports();
+`);
+  assert.equal((await cli("spec.validate", key)).error?.message, "Impossible d’enregistrer la spec et les réponses sur la branche de la mission.");
+  assert.equal(readFileSync(path("commit-result"), "utf8"), "ETIMEDOUT");
+  assert.equal(branchGit("rev-list", "--count", "origin/main..HEAD"), "0");
+  assert.equal((await cli("missions.show", key)).data.spec.validated, undefined);
+  git("config", "commit.gpgSign", "false");
+  assert.ok((await cli("spec.validate", key)).data?.spec.validated);
 });

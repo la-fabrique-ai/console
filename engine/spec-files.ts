@@ -4,10 +4,17 @@ import { join } from "node:path";
 import { CommandError, type MissionDetail } from "./contract.ts";
 import { gitAt, worktree } from "./pilot.ts";
 
-// Keep each field on one Markdown source line. Character references render as literal text.
+// Keep the raw words readable. Escape block markers on each source line and literal HTML tags.
 function markdownText(value: string) {
-  return value.replace(/\r\n?|\n|^[^\p{L}]|[\\`*_\[\]#<>&~|$%]/gu, char =>
-    char === "\n" || char.startsWith("\r") ? "<br>" : "&#" + char.codePointAt(0) + ";");
+  return value.replace(/\r\n?/g, "\n")
+    .replace(/(\\*)<(?=\/?[a-zA-Z][\w-]*(?:[\s/>]|$)|[!?])/g,
+      (tag, slashes: string) => slashes.length % 2 ? tag : slashes + "\\<")
+    .replace(/^([ \t]*)(#{1,6}(?=[ \t]|$)|[-*+](?=[ \t]|$)|>|`{3,}|~{3,}|=+[ \t]*$|(?:-[ \t]*){2,}$|(?:\*[ \t]*){3,}$|(?:_[ \t]*){3,}$)/gm, "$1\\$2")
+    .replace(/^([ \t]*\d{1,9})([.)])(?=[ \t]|$)/gm, "$1\\$2");
+}
+
+function heading(value: string) {
+  return markdownText(value.replace(/\r\n?|\n/g, " "));
 }
 
 export function commitSpec(repository: string, m: MissionDetail, date: string) {
@@ -24,11 +31,11 @@ export function commitSpec(repository: string, m: MissionDetail, date: string) {
     const header = (title: string, author: string) =>
       ["---", "title: " + m.issueKey + " — " + title, "status: validated", "date: " + date, "author: " + author, "---", "", "# " + title];
     const spec = header("Spec", "Pilot");
-    for (const section of m.spec!.sections) spec.push("", "## " + markdownText(section.title), "", section.passages.map(p => markdownText(p.text)).join("\n\n"));
+    for (const section of m.spec!.sections) spec.push("", "## " + heading(section.title), "", section.passages.map(p => markdownText(p.text)).join("\n\n"));
     const answers = header("Answers", "Operator");
     if (m.details.length) answers.push("", "## Request details", "", m.details.map(markdownText).join("\n\n"));
     answers.push("", "## Validated answers");
-    for (const q of m.questions) answers.push("", "### " + markdownText(q.text), "", markdownText(q.answer!));
+    for (const q of m.questions) answers.push("", "### " + heading(q.text), "", markdownText(q.answer!));
     const docs = [["spec.md", spec.join("\n")], ["answers.md", answers.join("\n")]];
     for (const [name, content] of docs) {
       const file = join(directory, name);

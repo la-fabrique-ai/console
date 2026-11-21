@@ -5,7 +5,7 @@ import { CommandError, type MissionDetail, type Plan } from "./contract.ts";
 import { gitAt, worktree } from "./pilot.ts";
 
 // Keep the raw words readable. Escape block markers on each source line and literal HTML tags.
-function markdownText(value: string) {
+export function markdownText(value: string) {
   return value.replace(/\r\n?/g, "\n")
     .replace(/(\\*)<(?=\/?[a-zA-Z][\w-]*(?:[\s/>]|$)|[!?])/g,
       (tag, slashes: string) => slashes.length % 2 ? tag : slashes + "\\<")
@@ -14,8 +14,12 @@ function markdownText(value: string) {
     .replace(/^([ \t]*\d{1,9})([.)])(?=[ \t]|$)/gm, "$1\\$2");
 }
 
+export function singleLine(value: string) {
+  return value.replace(/\r\n?|\n/g, " ");
+}
+
 function heading(value: string) {
-  return markdownText(value.replace(/\r\n?|\n/g, " "));
+  return markdownText(singleLine(value));
 }
 
 export function localDate() {
@@ -70,8 +74,8 @@ export function commitSplit(repository: string, key: string, plan: Plan, date: s
       "Testing: " + plan.testMinutes + " min", "Validation: " + plan.validationMinutes + " min");
     for (const t of plan.tickets) {
       split.push("", "## Ticket " + heading(t.id) + " — " + heading(t.title),
-        "", "### Change", "", markdownText(t.change), "", "### Implementation", "", markdownText(t.how),
-        "", "### Coverage", "", t.covers.map(markdownText).join("\n\n"));
+        "", "### Change", "", markdownText(t.change), "", "### Implementation", "", markdownText(t.how));
+      if (t.covers.length) split.push("", "### Coverage", "", t.covers.map(markdownText).join("\n\n"));
       if (t.after.length) split.push("", "### Dependencies", "", t.after.map(markdownText).join("\n\n"));
       split.push("", "Size: " + t.minutes + " min" + (t.sensitive ? " · high-risk" : ""),
         "Parallel schedule: dev " + t.parallel.dev + ", step " + t.parallel.step);

@@ -8,7 +8,7 @@ const key = { issueKey: "DEMO-1" };
 const summary = "Les équipes peuvent retrouver une fiche.";
 const tickets = ["Chercher", "Ouvrir", "Exporter"].map((title, i) => ({
   id: String(i + 1), title: i === 0 ? title + "\n## Suite" : title, change: "# le changement\n> exemple",
-  how: "Indexer à 50 % dans nom_fichier.", covers: ["Les fiches", "Les accents"], after: i === 0 ? [] : [String(i)],
+  how: "Indexer à 50 % dans nom_fichier.", covers: i === 0 ? [] : ["Les fiches", "Les accents"], after: i === 0 ? [] : [String(i)],
   minutes: 15 + i, sensitive: i === 1, parallel: { dev: i === 1 ? 2 : 1, step: i + 1 },
 }));
 const file = "docs/missions/DEMO-1/split.md";
@@ -47,15 +47,20 @@ test("approval commits only the safe split, creates ordered children, comments l
   const doc = branch("show", "HEAD:" + file);
   assert.match(doc, /^---\ntitle: DEMO-1 — Split\nstatus: validated\ndate: \d{4}-\d\d-\d\d\nauthor: Pilot\n---/);
   for (const value of ["Chercher ## Suite", "\\# le changement\n\\> exemple", tickets[0].how, "codex", "claude", "Travailler à deux."]) assert.ok(doc.includes(value), value);
+  const firstSection = doc.split("## Ticket 2")[0];
+  assert.doesNotMatch(firstSection, /### Coverage|### Dependencies/);
+  assert.match(doc, /### Coverage/);
   const mutations = writes();
   assert.equal(mutations.length, 4);
   assert.equal(new Set(mutations.map(r => r.variables.input.id)).size, 4);
   for (const [i, ticket] of tickets.entries()) {
     const { query, variables: { input } } = mutations[i];
     assert.match(query, /issueCreate\(input: \$input\)/);
-    const description = [ticket.change, ticket.how, "- Les fiches\n- Les accents", ...(i ? ["← " + i] : []),
-      ticket.minutes + " min" + (ticket.sensitive ? " · high-risk" : "")].join("\n\n");
-    assert.deepEqual(input, { id: input.id, teamId: "team", parentId: "parent", title: ticket.title, description });
+    const description = ["**Ce que ça change**\n\\# le changement\n\\> exemple", "**Comment**\nIndexer à 50 % dans nom_fichier.",
+      ...(i ? ["**Couvre, dans la spec**\n- Les fiches\n- Les accents",
+        "**Attend**\n- " + (i === 1 ? "DEMO-10 — Chercher ## Suite" : "DEMO-11 — Ouvrir")] : []),
+      "**Taille** : environ " + ticket.minutes + " min" + (i === 1 ? "\n**Sensible** : approche relue avant le code, deux revues" : "")].join("\n\n");
+    assert.deepEqual(input, { id: input.id, teamId: "team", parentId: "parent", title: i ? ticket.title : "Chercher ## Suite", description });
   }
   assert.match(mutations[3].query, /commentCreate\(input: \$input\)/);
   assert.deepEqual(mutations[3].variables.input, { id: mutations[3].variables.input.id, issueId: "parent", body: summary });
@@ -90,7 +95,7 @@ for (const [fault, count] of [["after-commit", 0], ["after-two", 2], ["after-com
     const reads = firstWrite < 0 ? resumed : resumed.slice(0, firstWrite);
     for (const field of ["children(", "comments("]) assert.ok(reads.some(r => r.query.includes(field)));
     assert.deepEqual(writes().map(r => Object.keys(r.variables.input).includes("issueId") ? "comment" : r.variables.input.title),
-      [...tickets.map(t => t.title), "comment"]);
+      ["Chercher ## Suite", "Ouvrir", "Exporter", "comment"]);
   });
 }
 
@@ -129,4 +134,19 @@ test("a missing child is retried with its original ID, and unrelated children an
   const remote = JSON.parse(readFileSync(path("tracker.json"), "utf8"));
   assert.deepEqual(remote.children[0], { id: "original", identifier: "DEMO-5" });
   assert.equal(remote.comments.length, 2); assert.equal(remote.comments[0].id, "prior");
+});
+
+test("a damaged launch journal never reaches Git or the tracker on repeated launches", async t => {
+  const { cli, path, requests, branch } = await ready(t);
+  const file = path("missions/DEMO-1.json"), saved = JSON.parse(readFileSync(file, "utf8"));
+  const before = requests(), head = branch("rev-parse", "HEAD");
+  const ids = ["1", "2", "3", "4"].map(d => d.repeat(8) + "-1234-4123-a123-123456789abc");
+  const valid = { date: "2026-11-21", children: ids.slice(0, 3), comment: ids[3] };
+  for (const launch of [null, {}, { ...valid, children: ids.slice(0, 2) }, { ...valid, children: ["bad", ...ids.slice(1,3)] },
+    { ...valid, children: [ids[0], ids[0], ids[2]] }, { ...valid, comment: ids[0] }, { ...valid, comment: null },
+    { ...valid, date: "x\n---" }]) {
+    writeFileSync(file, JSON.stringify({ ...saved, launch }));
+    for (let i = 0; i < 2; i++) assert.equal((await cli("plan.launch", key)).error?.message, "Les données de reprise du lancement sont endommagées.");
+    assert.deepEqual(requests(), before); assert.equal(branch("rev-parse", "HEAD"), head);
+  }
 });

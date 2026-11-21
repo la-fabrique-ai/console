@@ -92,7 +92,7 @@ test("a validated request becomes a mission, and the operator answers Pilot's qu
   click("nav-issues");
   now();
   click("issue-DEMO-2");
-  for (let wait = 0; wait < 100 && !screen.texts.includes("Second issue"); wait++) {
+  for (let wait = 0; wait < 100 && !screen.fields.has("Ajoutez une précision…"); wait++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
     now();
   }

@@ -45,7 +45,7 @@ export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
     run.steps.push({ kind: "review", tool, startedAt: new Date().toISOString() });
     m.agents!.reviewer = review; delete m.publication;
     saveMission(dir,m);
-    startAgent(m,review,ticket,commit);
+    startAgent(m,review,ticket,commit,base,summary);
     return visible(m);
   });
 }

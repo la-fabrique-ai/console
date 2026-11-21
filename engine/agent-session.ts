@@ -12,7 +12,7 @@ const env = Object.fromEntries(["PATH", "HOME", "TMPDIR", "LANG", "ANTHROPIC_API
   .flatMap(k => process.env[k] ? [[k, process.env[k]!]] : []));
 const host = Object.fromEntries(["MISSION_CONTROL_HOME", "HERDR_APP_HOME", "HC_SOCKET", "HC_SESSION", "PATH"]
   .map(k => [k, process.env[k] ?? ""]));
-const server = { command: process.execPath, args: [join(import.meta.dirname, "agent-tools.ts"), key, terminal], env: host };
+const server = { command: process.execPath, args: [join(import.meta.dirname, "agent-tools.ts"), key, terminal, cwd], env: host };
 const config = JSON.stringify({ mcpServers: { mc: server } });
 const lines = createInterface({ input: process.stdin, terminal: !!process.stdin.isTTY, output: process.stdout })[Symbol.asyncIterator]();
 let session = tool === "claude" ? randomUUID().toString() : "";

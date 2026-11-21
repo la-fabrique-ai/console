@@ -32,7 +32,7 @@ export function agentFor(m: SavedMission, role: Agent["role"], tool: Tool, cwd: 
   return { id, role, tool, cwd, ticketId, terminal: [role, m.issueKey.toLowerCase(), randomUUID().slice(0, 12)].join("-") };
 }
 
-export function startAgent(m: SavedMission, agent: Agent, ticket?: PlanTicket, commit?: string) {
+export function startAgent(m: SavedMission, agent: Agent, ticket?: PlanTicket, commit?: string, base?: string, summary?: string) {
   const roleFile = join(import.meta.dirname, "../roles", agent.role + ".md");
   const docs = "docs/missions/" + m.issueKey + "/";
   const guidance = {
@@ -42,8 +42,8 @@ export function startAgent(m: SavedMission, agent: Agent, ticket?: PlanTicket, c
   };
   try {
     const prompt = [readFileSync(roleFile, "utf8"), guidance[agent.role],
-      "Use the mission-control tool with the action and JSON payload. Include issueKey in every call. For request.ask include text, context, choices and your ticketId if assigned.",
-      JSON.stringify({ issueKey: m.issueKey, ticket, commit })].join("\n");
+      "Use the command tool to run mission-control ACTION -: pass action and json (the complete JSON string for standard input). Use shell for project commands and commit for a dev commit. Reviewers can run tests in a private TMPDIR copy. Include issueKey in every call. For request.ask include text, context, choices and your ticketId if assigned.",
+      JSON.stringify({ issueKey: m.issueKey, ticket, commit, base, summary })].join("\n");
     execFileSync("hc", ["run", "--bg", "--no-parent", "--name", agent.terminal, "--cwd", agent.cwd, "--",
       "/usr/bin/env", "-u", "LINEAR_API_KEY", "MISSION_CONTROL_HOME=" + process.env.MISSION_CONTROL_HOME,
       process.execPath, join(import.meta.dirname, "agent-session.ts"), m.issueKey, agent.terminal, agent.tool, prompt],

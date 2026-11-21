@@ -336,3 +336,21 @@ syncBuiltinESMExports();
   git("config", "commit.gpgSign", "false");
   assert.ok((await cli("spec.validate", key)).data?.spec.validated);
 });
+
+test("a leading bracket stays visible across lines without changing an existing escape or an inline bracket", async t => {
+  const cases = [
+    ["[oui\nsuite]: non", "\\[oui\nsuite]: non"],
+    ["Oui.\n\n[voir\nle ticket]: MC-12", "Oui.\n\n\\[voir\nle ticket]: MC-12"],
+    [" [un]", " \\[un]"], ["  [deux]", "  \\[deux]"], ["   [trois]", "   \\[trois]"],
+    ["    [quatre]", "    [quatre]"], ["\t[tabulation]", "\t[tabulation]"],
+    ["[a\\]b]: c", "\\[a\\]b]: c"], ["\\[oui]: non", "\\[oui]: non"],
+    ["Lire [oui] ici.", "Lire [oui] ici."],
+  ];
+  const { cli, branchGit } = await draft(t);
+  await cli("spec.change", { ...key, text: "Préciser." });
+  await cli("pilot.spec", { ...payload, sections: [{ title: "Exemples",
+    passages: cases.map(([text]) => ({ text, source: "Demande" })) }] });
+  assert.ok((await cli("spec.validate", key)).data?.spec.validated);
+  const spec = branchGit("show", "HEAD:docs/missions/DEMO-1/spec.md");
+  assert.equal(spec.split("## Exemples\n\n")[1], cases.map(([, expected]) => expected).join("\n\n"));
+});

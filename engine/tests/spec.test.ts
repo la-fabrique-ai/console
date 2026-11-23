@@ -93,6 +93,7 @@ test("validation commits only the two current documents on the mission branch, o
   const dir = "docs/missions/DEMO-1";
   writeFileSync(cwd + "/staged", "another change"); branchGit("add", "--", "staged");
   writeFileSync(cwd + "/unstaged", "leave me alone");
+  mkdirSync(cwd + "/unrelated/.git", { recursive: true });
   const rootStatus = git("status", "--porcelain");
   await cli("spec.change", { ...key, text: "Préciser le public." });
   await cli("pilot.spec", { ...payload, sections: [{ title: "Public", passages: [
@@ -117,6 +118,7 @@ test("validation commits only the two current documents on the mission branch, o
   assert.doesNotMatch(branchGit("log", "-1", "--format=%B"), /Claude|Codex|Pilot/i);
   for (const content of [question.text, question.proposal, second.text, second.proposal, "Même sur mobile."]) assert.ok(doc("answers").includes(content));
   assert.ok(!existsSync(path("inherited-index")));
+  renameSync(cwd + "/unrelated", path("unrelated"));
   assert.equal(branchGit("status", "--porcelain"), "A  staged\n?? unstaged");
   assert.equal(git("status", "--porcelain"), rootStatus); assert.ok(!existsSync(path("repo/docs")));
   assert.deepEqual(calls().filter(row => row[0] === "send").map(row => JSON.parse(row.at(-1)!)).at(-1), { action: "spec.validate" });

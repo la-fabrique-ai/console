@@ -181,6 +181,21 @@ test("the merge checks the target immediately before and verifies the merge on t
   assert.equal(p.state().development.tickets[0].steps.at(-1).accepted,undefined);
 });
 
+for (const accepted of [false, true]) {
+  test("a dev answer reaches only the dev after " + (accepted ? "acceptance" : "a request for fixes"), async t => {
+    const p = await project(t);
+    p.commit();
+    await p.done();
+    assert.ok((await p.verdict(accepted)).data);
+    const dev = p.state().agents.dev;
+    const asked = await p.action("request.ask", { ticketId: "1", text: "Quel tri ?", context: "Affichage", choices: [] }, dev.id);
+    const requestId = asked.data.development.requests[0].id;
+    assert.ok((await p.action("requests.answer", { requestId, text: "Par nom." })).data);
+    const sends = p.calls().filter(c => c[0] === "send" && JSON.parse(c[3]).requestId === requestId);
+    assert.deepEqual(sends.map(c => c[2]), [dev.terminal]);
+  });
+}
+
 test("automatic branch deletion blocks the merge with a specific explanation", async t => {
   const p = await project(t); p.commit(); await p.done();
   writeFileSync(p.path("auto-delete"),"true");
@@ -197,7 +212,14 @@ test("automatic branch deletion blocks the merge with a specific explanation", a
   await p.action("requests.answer", { requestId: request.id, text: "Réglage corrigé." });
   const { unlinkSync } = await import("node:fs");
   unlinkSync(p.path("auto-delete"));
-  assert.ok((await p.verdict(true)).data.development.tickets[0].steps.at(-1).accepted);
+  const reviewer = p.state().agents.reviewer;
+  const replies = p.calls().filter(c => c[0] === "send" && JSON.parse(c[3]).requestId === request.id);
+  assert.deepEqual(replies.map(c => c[2]), [reviewer.terminal]);
+  const answer = JSON.parse(replies[0][3]);
+  assert.equal(answer.text, "Réglage corrigé.");
+  assert.equal(answer.resume, "review.verdict");
+  const result = await p.action(answer.resume, { ticketId: answer.ticketId, accepted: true, remarks: [] }, reviewer.id);
+  assert.ok(result.data.development.tickets[0].steps.at(-1).accepted);
 });
 
 test("reworded retries finish the same handoff and verdict with the original text", async t => {
@@ -331,7 +353,7 @@ test("a handoff refuses nested repository metadata before Git inspects or stages
     else if (shape === "gitfile") writeFileSync(nested + "/.git", "gitdir: missing\n");
     else p.git("init", "--bare", "-q", nested);
     assert.equal((await p.done()).error?.message, advice, shape);
-    for (const args of [["add", "--all", "--", "."], ["commit", "-m", "Test"]]) {
+    for (const args of [["add", "--all", "--", "."], ["add", "-A", "--", "."], ["commit", "-m", "Test"]]) {
       assert.throws(() => gitAt(p.cwd, ...args), { message: advice });
     }
     rmSync(nested, { recursive: true });
@@ -346,6 +368,22 @@ test("a handoff refuses nested repository metadata before Git inspects or stages
   mkdirSync(reviewFolder + "/manual/.git", { recursive: true });
   assert.ok((await p.verdict(false)).data, "keep an externally modified review checkout");
   assert.ok(existsSync(reviewFolder + "/manual/.git"));
+});
+
+test("missing project settings identify what is missing before Git inspects the checkout", async t => {
+  const p = development(t);
+  useGitSettings(t, p.env.MISSION_CONTROL_HOME);
+  const inspect = () => gitAt(p.mission, "rev-parse", "HEAD");
+  const { unlinkSync } = await import("node:fs");
+  unlinkSync(p.path("settings.json"));
+  const missingFile = "Le fichier settings.json des réglages du projet est introuvable.";
+  assert.throws(inspect, { message: missingFile });
+  assert.equal((await p.action("missions.show")).error?.message, missingFile);
+
+  writeFileSync(p.path("settings.json"), "{}");
+  assert.throws(inspect, { message: "Indiquez le dépôt Git dans les réglages du projet." });
+  delete process.env.MISSION_CONTROL_HOME;
+  assert.throws(inspect, { message: "Le dossier Mission Control n’est pas configuré." });
 });
 
 test("engine Git overrides filesystem monitoring at its common command boundary", async t => {

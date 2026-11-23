@@ -181,6 +181,21 @@ test("the merge checks the target immediately before and verifies the merge on t
   assert.equal(p.state().development.tickets[0].steps.at(-1).accepted,undefined);
 });
 
+for (const accepted of [false, true]) {
+  test("a dev answer reaches only the dev after " + (accepted ? "acceptance" : "a request for fixes"), async t => {
+    const p = await project(t);
+    p.commit();
+    await p.done();
+    assert.ok((await p.verdict(accepted)).data);
+    const dev = p.state().agents.dev;
+    const asked = await p.action("request.ask", { ticketId: "1", text: "Quel tri ?", context: "Affichage", choices: [] }, dev.id);
+    const requestId = asked.data.development.requests[0].id;
+    assert.ok((await p.action("requests.answer", { requestId, text: "Par nom." })).data);
+    const sends = p.calls().filter(c => c[0] === "send" && JSON.parse(c[3]).requestId === requestId);
+    assert.deepEqual(sends.map(c => c[2]), [dev.terminal]);
+  });
+}
+
 test("automatic branch deletion blocks the merge with a specific explanation", async t => {
   const p = await project(t); p.commit(); await p.done();
   writeFileSync(p.path("auto-delete"),"true");
@@ -197,7 +212,14 @@ test("automatic branch deletion blocks the merge with a specific explanation", a
   await p.action("requests.answer", { requestId: request.id, text: "Réglage corrigé." });
   const { unlinkSync } = await import("node:fs");
   unlinkSync(p.path("auto-delete"));
-  assert.ok((await p.verdict(true)).data.development.tickets[0].steps.at(-1).accepted);
+  const reviewer = p.state().agents.reviewer;
+  const replies = p.calls().filter(c => c[0] === "send" && JSON.parse(c[3]).requestId === request.id);
+  assert.deepEqual(replies.map(c => c[2]), [reviewer.terminal]);
+  const answer = JSON.parse(replies[0][3]);
+  assert.equal(answer.text, "Réglage corrigé.");
+  assert.equal(answer.resume, "review.verdict");
+  const result = await p.action(answer.resume, { ticketId: answer.ticketId, accepted: true, remarks: [] }, reviewer.id);
+  assert.ok(result.data.development.tickets[0].steps.at(-1).accepted);
 });
 
 test("reworded retries finish the same handoff and verdict with the original text", async t => {

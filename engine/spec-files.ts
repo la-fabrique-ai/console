@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { lstatSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CommandError, type MissionDetail, type Plan } from "./contract.ts";
-import { gitAt, worktree } from "./pilot.ts";
+import { commitMissionFiles, gitAt, worktree } from "./pilot.ts";
 
 // Keep the raw words readable. Escape block markers on each source line and literal HTML tags.
 export function markdownText(value: string) {
@@ -49,10 +49,7 @@ function commitDocuments(repository: string, key: string, docs: [string, string[
     finally { rmSync(tmp, { force: true }); }
   }
   const paths = docs.map(([name]) => join("docs", "missions", key, name));
-  gitAt(cwd, "add", "--", ...paths);
-  if (gitAt(cwd, "diff", "--cached", "--name-only", "HEAD", "--", ...paths).trim()) {
-    gitAt(cwd, "commit", "--only", "-m", message + key, "--", ...paths);
-  }
+  commitMissionFiles(cwd, paths, message + key);
 }
 
 export function commitSpec(repository: string, m: MissionDetail, date: string) {

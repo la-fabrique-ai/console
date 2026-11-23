@@ -76,12 +76,18 @@ function registeredGitDir(cwd: string) {
 
 export function gitAt(cwd: string, ...args: string[]) {
   const admin = registeredGitDir(cwd);
-  const wholeCheckout = args[0] === "status" || (args[0] === "add" && args.includes("--all")) ||
-    (args[0] === "commit" && !args.includes("--only"));
-  if (wholeCheckout && containsNestedRepository(cwd)) {
+  if (["status", "add", "commit"].includes(args[0]) && containsNestedRepository(cwd)) {
     throw new CommandError("Retirez le dépôt Git imbriqué du dossier du ticket avant de continuer.");
   }
   return runGit(cwd, args, admin);
+}
+
+export function commitMissionFiles(cwd: string, paths: string[], message: string) {
+  const admin = registeredGitDir(cwd);
+  runGit(cwd, ["add", "--", ...paths], admin);
+  if (runGit(cwd, ["diff", "--cached", "--name-only", "HEAD", "--", ...paths], admin).trim()) {
+    runGit(cwd, ["commit", "--only", "-m", message, "--", ...paths], admin);
+  }
 }
 
 export function worktree(repository: string, key: string, create = false, branch = "mission/" + key) {

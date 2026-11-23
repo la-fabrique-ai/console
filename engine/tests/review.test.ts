@@ -331,7 +331,7 @@ test("a handoff refuses nested repository metadata before Git inspects or stages
     else if (shape === "gitfile") writeFileSync(nested + "/.git", "gitdir: missing\n");
     else p.git("init", "--bare", "-q", nested);
     assert.equal((await p.done()).error?.message, advice, shape);
-    for (const args of [["add", "--all", "--", "."], ["commit", "-m", "Test"]]) {
+    for (const args of [["add", "--all", "--", "."], ["add", "-A", "--", "."], ["commit", "-m", "Test"]]) {
       assert.throws(() => gitAt(p.cwd, ...args), { message: advice });
     }
     rmSync(nested, { recursive: true });

@@ -370,6 +370,22 @@ test("a handoff refuses nested repository metadata before Git inspects or stages
   assert.ok(existsSync(reviewFolder + "/manual/.git"));
 });
 
+test("missing project settings identify what is missing before Git inspects the checkout", async t => {
+  const p = development(t);
+  useGitSettings(t, p.env.MISSION_CONTROL_HOME);
+  const inspect = () => gitAt(p.mission, "rev-parse", "HEAD");
+  const { unlinkSync } = await import("node:fs");
+  unlinkSync(p.path("settings.json"));
+  const missingFile = "Le fichier settings.json des réglages du projet est introuvable.";
+  assert.throws(inspect, { message: missingFile });
+  assert.equal((await p.action("missions.show")).error?.message, missingFile);
+
+  writeFileSync(p.path("settings.json"), "{}");
+  assert.throws(inspect, { message: "Indiquez le dépôt Git dans les réglages du projet." });
+  delete process.env.MISSION_CONTROL_HOME;
+  assert.throws(inspect, { message: "Le dossier Mission Control n’est pas configuré." });
+});
+
 test("engine Git overrides filesystem monitoring at its common command boundary", async t => {
   const p = await project(t);
   useGitSettings(t, p.env.MISSION_CONTROL_HOME);

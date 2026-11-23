@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { issueDetail, openIssues } from "./linear.ts";
@@ -12,8 +11,8 @@ import { ask, answer } from "./requests.ts";
 import { done, verdict } from "./review.ts";
 import { build, startDevelopment, caller, refused } from "./agents.ts";
 import { startPilot } from "./pilot.ts";
+import { projectSettings } from "./settings.ts";
 
-interface Settings { teamKey: string; allowedIssueKeys: string[]; repository: string }
 type Handlers = { [A in Action]: (payload: Payloads[A]) => Results[A] | Promise<Results[A]> };
 
 function issueNumber(key: unknown, teamKey: string): number {
@@ -28,10 +27,9 @@ function issueNumber(key: unknown, teamKey: string): number {
 async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<A>> {
   let failure = "Impossible de lire les réglages du projet.";
   try {
-    const home = process.env.MISSION_CONTROL_HOME;
-    if (!home) throw new CommandError("Le dossier Mission Control n’est pas configuré.");
+    const { home, settings } = projectSettings();
+    const { teamKey, allowedIssueKeys, repository } = settings;
     const dir = join(home, "missions");
-    const { teamKey, allowedIssueKeys, repository }: Settings = JSON.parse(await readFile(join(home, "settings.json"), "utf8"));
     if (!teamKey || typeof teamKey !== "string" || !Array.isArray(allowedIssueKeys)) throw new CommandError(failure);
     const reading = "Impossible de lire les missions enregistrées.";
     failure = reading;

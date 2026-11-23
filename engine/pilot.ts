@@ -3,6 +3,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSyn
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { CommandError } from "./contract.ts";
+import { projectSettings } from "./settings.ts";
 
 export function coreEnvironment() {
   const { HERDR_APP_HOME: ui, HC_SOCKET: socket, HC_SESSION: session } = process.env;
@@ -56,8 +57,12 @@ function projectPath(repository: string) {
 
 // A checkout's gitfile is only a hint. Its registration and backlink belong to the configured project.
 function registeredGitDir(cwd: string) {
+  const { settings } = projectSettings();
+  const repository = settings?.repository;
+  if (typeof repository !== "string" || !repository.trim()) {
+    throw new CommandError("Indiquez le dépôt Git dans les réglages du projet.");
+  }
   try {
-    const { repository } = JSON.parse(readFileSync(join(process.env.MISSION_CONTROL_HOME!, "settings.json"), "utf8"));
     const project = projectPath(repository);
     const metadata = join(project, ".git");
     const common = statSync(metadata).isDirectory() ? realpathSync(metadata) :

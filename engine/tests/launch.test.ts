@@ -70,7 +70,8 @@ test("approval commits only the safe split, creates ordered children, comments l
     ["pilot.tell", { text: "Autre" }], ["pilot.ticket", { ticket: tickets[0] }]] as const) {
     assert.deepEqual(await cli(action, { ...key, ...data }), first);
   }
-  assert.deepEqual(requests(), all); assert.deepEqual(calls(), before);
+  assert.deepEqual(requests(), all); assert.equal(calls().filter(a => a[0] === "run").length, before.filter(a => a[0] === "run").length + 1);
+  assert.deepEqual(m.development, { tickets: [], requests: [] });
 });
 
 for (const [fault, count] of [["after-commit", 0], ["after-two", 2], ["after-comment", 4], ["lost-answer", 1]] as const) {

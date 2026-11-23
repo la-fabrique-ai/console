@@ -1,12 +1,30 @@
 import { execFileSync } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join, parse } from "node:path";
+import type { Agent } from "./agents.ts";
 import { CommandError, type Mission, type MissionDetail } from "./contract.ts";
 
 // Per-message delivery confirmations last until Pilot calls back.
-export type SavedMission = MissionDetail & { delivery?: Record<string, boolean>; validationDate?: string; planSummary?: string;
-  launch?: { date: string; children: string[]; comment: string } };
-export function visible({ delivery: _receipt, validationDate: _date, planSummary: _summary, launch: _launch, ...mission }: SavedMission): MissionDetail { return mission; }
+export type SavedMission = MissionDetail & {
+  agents?: Partial<Record<Agent["role"], Agent>>;
+  notice?: { deliveryId: string; terminal: string; event: object };
+  recipients?: Record<string, string>;
+  pendingAnswers?: Record<string, string>;
+  publication?: { commit: string; base: string; summary: string };
+  merging?: boolean;
+  delivery?: Record<string, boolean>;
+  validationDate?: string;
+  planSummary?: string;
+  launch?: { date: string; children: string[]; comment: string };
+};
+
+export function visible({
+  agents: _agents, notice: _notice, recipients: _recipients, pendingAnswers: _pendingAnswers,
+  publication: _publication, merging: _merging, delivery: _receipt, validationDate: _date,
+  planSummary: _summary, launch: _launch, ...mission
+}: SavedMission): MissionDetail {
+  return mission;
+}
 
 export function summary({ issueKey, title, stage }: Mission): Mission { return { issueKey, title, stage }; }
 

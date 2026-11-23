@@ -6,7 +6,7 @@ import { CommandError, type Payloads, type TicketStep } from "./contract.ts";
 import { github, remoteError } from "./github.ts";
 import { loadDetail, saveMission, visible, withMission } from "./missions.ts";
 import { recordRequest } from "./requests.ts";
-import { containsNestedRepository, gitAt, worktree } from "./pilot.ts";
+import { gitAt, worktree } from "./pilot.ts";
 
 export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
   return withMission(dir, p.issueKey, () => {
@@ -106,9 +106,11 @@ export function verdict(dir: string, repository: string, p: Payloads["review.ver
         throw new CommandError(waitForAnswer);
       }
     } else if (m.merging) throw refused();
-    if (existsSync(agent.cwd) && !containsNestedRepository(agent.cwd) &&
-        !gitAt(agent.cwd, "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=dirty").trim()) {
-      gitAt(worktree(repository, m.issueKey), "worktree", "remove", agent.cwd);
+    if (existsSync(agent.cwd)) {
+      let clean = false;
+      try { clean = !gitAt(agent.cwd, "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=dirty").trim(); }
+      catch (error) { if (!(error instanceof CommandError)) throw error; }
+      if (clean) gitAt(worktree(repository, m.issueKey), "worktree", "remove", agent.cwd);
     }
     delete m.merging;
     Object.assign(previous, { endedAt: new Date().toISOString(), accepted: p.accepted, remarks: p.remarks });

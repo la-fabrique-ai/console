@@ -4,6 +4,15 @@ import { test, type TestContext } from "node:test";
 import { gitAt } from "../pilot.ts";
 import { development } from "./develop-project.ts";
 
+function useGitSettings(t: TestContext, home: string) {
+  const originalHome = process.env.MISSION_CONTROL_HOME;
+  process.env.MISSION_CONTROL_HOME = home;
+  t.after(() => {
+    if (originalHome === undefined) delete process.env.MISSION_CONTROL_HOME;
+    else process.env.MISSION_CONTROL_HOME = originalHome;
+  });
+}
+
 async function project(t: TestContext, team?: string[]) {
   const p = development(t), id = { ticketId: "1" };
   p.git("init", "--bare", p.path("bare"));
@@ -235,8 +244,48 @@ test("a dev can ask the operator about its own ticket during review", async t =>
   assert.equal(request.ticketId, "1");
 });
 
+test("ticket Git and review cleanup refuse a replaced root .git", async t => {
+  const p = await project(t);
+  useGitSettings(t, p.env.MISSION_CONTROL_HOME);
+  const { renameSync } = await import("node:fs");
+  p.commit();
+  const root = p.cwd + "/.git", saved = p.path("ticket-gitfile");
+  const registered = p.git("-C", p.cwd, "rev-parse", "--absolute-git-dir");
+  // Withdraw the checkout pointer after validation, just as Git starts. Discovery would now fail.
+  const { execFileSync } = await import("node:child_process");
+  const probe = `import cp from "node:child_process"; import fs from "node:fs";
+    import { syncBuiltinESMExports } from "node:module";
+    const [folder, saved] = process.argv.slice(1), run = cp.execFileSync;
+    cp.execFileSync = (cmd, args, options) => {
+      if (cmd === "git" && args.includes("--absolute-git-dir")) fs.renameSync(folder + "/.git", saved);
+      return run(cmd, args, options);
+    };
+    syncBuiltinESMExports();
+    const { gitAt } = await import("./engine/pilot.ts");
+    console.log(gitAt(folder, "rev-parse", "--absolute-git-dir").trim());`;
+  assert.equal(execFileSync(process.execPath, ["--input-type=module", "-e", probe, p.cwd, saved],
+    { env: p.env, encoding: "utf8" }).trim(), registered);
+  renameSync(p.path("origin/.git"), root);
+  const advice = "Rétablissez le fichier .git du dossier de travail avant de continuer.";
+  for (const args of [["rev-parse", "--absolute-git-dir"], ["status", "--porcelain"], ["add", "--all"], ["commit", "--allow-empty", "-m", "Replacement"]]) {
+    assert.throws(() => gitAt(p.cwd, ...args), { message: advice }, args[0]);
+  }
+  renameSync(root, p.path("origin/.git"));
+  // Even a legitimate sibling checkout cannot substitute its registration.
+  writeFileSync(root, readFileSync(p.mission + "/.git"));
+  assert.throws(() => gitAt(p.cwd, "rev-parse", "HEAD"), { message: advice });
+  renameSync(saved, root);
+  assert.ok((await p.done()).data);
+  const reviewer = p.state().agents.reviewer;
+  renameSync(reviewer.cwd + "/.git", saved);
+  renameSync(p.path("origin/.git"), reviewer.cwd + "/.git");
+  assert.ok((await p.verdict(false)).data);
+  assert.ok(existsSync(reviewer.cwd + "/.git/config"), "leave the substituted review folder in place");
+});
+
 test("a handoff refuses nested repository metadata before Git inspects or stages the ticket", async t => {
   const p = await project(t);
+  useGitSettings(t, p.env.MISSION_CONTROL_HOME);
   p.commit();
   const nested = p.cwd + "/vendor/example";
   mkdirSync(nested, { recursive: true });
@@ -254,6 +303,10 @@ test("a handoff refuses nested repository metadata before Git inspects or stages
     rmSync(nested, { recursive: true });
     mkdirSync(nested);
   }
+  const { chmodSync } = await import("node:fs");
+  chmodSync(nested, 0);
+  try { assert.match((await p.done()).error?.message, /droits de lecture/); }
+  finally { chmodSync(nested, 0o700); }
   assert.ok((await p.done()).data);
   const reviewFolder = p.state().agents.reviewer.cwd;
   mkdirSync(reviewFolder + "/manual/.git", { recursive: true });
@@ -263,6 +316,7 @@ test("a handoff refuses nested repository metadata before Git inspects or stages
 
 test("engine Git overrides filesystem monitoring at its common command boundary", async t => {
   const p = await project(t);
+  useGitSettings(t, p.env.MISSION_CONTROL_HOME);
   p.git("config", "core.fsmonitor", "true");
   assert.equal(gitAt(p.cwd, "config", "--bool", "--get", "core.fsmonitor").trim(), "false");
 });

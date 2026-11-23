@@ -244,6 +244,40 @@ test("a dev can ask the operator about its own ticket during review", async t =>
   assert.equal(request.ticketId, "1");
 });
 
+test("the last dev answer wakes the blocked reviewer and its verdict applies once despite a lost reply", async t => {
+  const p = await project(t);
+  p.commit();
+  await p.done();
+  const { dev, reviewer } = p.state().agents;
+  const ask = (text: string) => p.action("request.ask", { ticketId: "1", text, context: "Tri", choices: [] }, dev.id);
+  await ask("Quel ordre ?");
+  const [first, last] = (await ask("Et pour les ex æquo ?")).data.development.requests;
+  const original = { ticketId: "1", accepted: false, remarks: ["Corriger le tri."] };
+  assert.match((await p.action("review.verdict", original, reviewer.id)).error?.message, /Attendez/);
+  const answer = (requestId: string, text: string) => p.action("requests.answer", { requestId, text });
+  await answer(first.id, "Croissant.");
+  assert.deepEqual(p.calls().filter(c => c[0] === "send").map(c => c[2]), [dev.terminal]);
+
+  writeFileSync(p.path("lose-send-" + reviewer.terminal), "received, reply lost");
+  assert.ok((await answer(last.id, "Par nom.")).error);
+  const messages = () => readFileSync(p.path("delivered"), "utf8").trim().split("\n").map(line => JSON.parse(line));
+  assert.deepEqual(messages().map(c => c[2]), [dev.terminal, dev.terminal, reviewer.terminal]);
+  const wake = JSON.parse(messages()[2][3]);
+  assert.equal(wake.resume, "review.verdict");
+  assert.equal(wake.ticketId, "1");
+  assert.equal(wake.question, last.text);
+  assert.equal(wake.text, "Par nom.");
+  // The notified reviewer can act even before the operator retries the unconfirmed answer.
+  const retryVerdict = () => p.action(wake.resume, original, reviewer.id);
+  const result = await retryVerdict();
+  assert.deepEqual(result.data?.development.tickets[0].steps.map((s: any) => s.kind), ["build", "review", "fix"]);
+  assert.deepEqual(result.data.development.tickets[0].steps[1].remarks, original.remarks);
+  assert.ok((await retryVerdict()).data);
+  assert.equal((await answer(last.id, "Autrement.")).data?.development.requests.at(-1).answer, "Par nom.");
+  assert.equal(messages().length, 4);
+  assert.deepEqual(JSON.parse(messages()[3][3]).remarks, original.remarks);
+});
+
 test("ticket Git and review cleanup refuse a replaced root .git", async t => {
   const p = await project(t);
   useGitSettings(t, p.env.MISSION_CONTROL_HOME);

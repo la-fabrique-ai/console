@@ -45,7 +45,8 @@ if (args[0] === "send" && !fs.existsSync(home + "/offline")) {
     if (!fs.existsSync(receipt)) {
       fs.writeFileSync(receipt,""); fs.appendFileSync(home + "/delivered",JSON.stringify(args) + "\\n");
     }
-    if (fs.existsSync(home + "/lose-send")) { fs.unlinkSync(home + "/lose-send"); process.exit(74); }
+    const lost = fs.existsSync(home + "/lose-send") ? home + "/lose-send" : home + "/lose-send-" + args[2];
+    if (fs.existsSync(lost)) { fs.unlinkSync(lost); process.exit(74); }
   }
 }
 const callback = home + "/" + args[0] + ".callback";

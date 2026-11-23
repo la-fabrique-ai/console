@@ -5,7 +5,7 @@ import { agentFor, caller, refused, startAgent, sendOnce } from "./agents.ts";
 import { CommandError, type Payloads, type TicketStep } from "./contract.ts";
 import { github, remoteError } from "./github.ts";
 import { loadDetail, saveMission, visible, withMission } from "./missions.ts";
-import { recordRequest } from "./requests.ts";
+import { awaitingReviewAnswer, recordRequest } from "./requests.ts";
 import { gitAt, worktree } from "./pilot.ts";
 
 export function done(dir: string, repository: string, p: Payloads["dev.done"]) {
@@ -88,7 +88,7 @@ export function verdict(dir: string, repository: string, p: Payloads["review.ver
       return finishNotice(dir, m);
     }
     const waitForAnswer = "Attendez la réponse de l’opérateur, puis rappelez review.verdict.";
-    if (m.development!.requests.some(r => r.ticketId === p.ticketId && !r.answer)) throw new CommandError(waitForAnswer);
+    if (m.development!.requests.some(r => awaitingReviewAnswer(dir, m, agent, r))) throw new CommandError(waitForAnswer);
     const sha = run.steps.at(-2)!.commit!;
     if (p.accepted) {
       m.merging = true; saveMission(dir,m);

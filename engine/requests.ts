@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { caller, refused, sendOnce, type Agent } from "./agents.ts";
+import { caller, received, refused, sendOnce, type Agent } from "./agents.ts";
 import { CommandError, type Payloads, type Request } from "./contract.ts";
 import { withMission, loadDetail, saveMission, visible, type SavedMission } from "./missions.ts";
 
@@ -22,6 +22,12 @@ export function ask(dir: string, p: Payloads["request.ask"]) {
   });
 }
 
+export function awaitingReviewAnswer(dir: string, m: SavedMission, reviewer: Agent, request: Request) {
+  // The reviewer's receipt can outlive a lost reply from its terminal to requests.answer.
+  return request.ticketId === reviewer.ticketId && request.answer === undefined &&
+    !(m.pendingAnswers?.[request.id] && received(dir, reviewer.terminal, request.id));
+}
+
 export function answer(dir: string, p: Payloads["requests.answer"]) {
   return withMission(dir, p.issueKey, () => {
     const m = loadDetail(dir,p.issueKey);
@@ -34,7 +40,20 @@ export function answer(dir: string, p: Payloads["requests.answer"]) {
     const pending = m.pendingAnswers ??= {};
     const text = pending[request.id] ??= p.text;
     saveMission(dir, m);
-    sendOnce(dir, terminal, request.id, { action: "requests.answer", requestId: request.id, text });
+    const reply = { action: "requests.answer", requestId: request.id, text };
+    const reviewer = m.agents?.reviewer;
+    const step = m.development!.tickets.find(t => t.id === request.ticketId)?.steps.at(-1);
+    const resumesReview = reviewer && reviewer.ticketId === request.ticketId && step?.kind === "review" && !step.endedAt &&
+      !m.development!.requests.some(r => r.id !== request.id && awaitingReviewAnswer(dir, m, reviewer, r));
+    if (resumesReview) {
+      if (terminal !== reviewer.terminal) sendOnce(dir, terminal, request.id, reply);
+      sendOnce(dir, reviewer.terminal, request.id, {
+        ...reply, issueKey: m.issueKey, ticketId: request.ticketId, question: request.text, resume: "review.verdict",
+        instruction: "If your verdict was waiting for the operator, repeat your review.verdict call with its accepted value and remarks.",
+      });
+    } else {
+      sendOnce(dir, terminal, request.id, reply);
+    }
     request.answer = text;
     delete pending[request.id];
     saveMission(dir, m);

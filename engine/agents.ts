@@ -28,8 +28,12 @@ export function caller(m: SavedMission, action: Action, ticketId?: string) {
   return agent;
 }
 
+export function received(dir: string, terminal: string, deliveryId: string) {
+  return existsSync(join(dir, "..", "receipts", terminal, deliveryId));
+}
+
 export function sendOnce(dir: string, terminal: string, deliveryId: string, event: object) {
-  if (existsSync(join(dir, "..", "receipts", terminal, deliveryId))) return;
+  if (received(dir, terminal, deliveryId)) return;
   try {
     execFileSync("hc", ["send", "--", terminal, JSON.stringify({ ...event, deliveryId })],
       { env: coreEnvironment(), timeout: 15_000, stdio: "pipe" });

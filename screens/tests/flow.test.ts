@@ -734,6 +734,19 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   texts = await shown();
   assert.ok(texts.includes("À vous : une demande du dev sur DEMO-2") && texts.includes("Vous attend") && texts.includes(request.text) && texts.includes("Recommandé"),
     "a request takes the banner and the right column, its ticket waits for the operator");
+  const rings = (text: string) => screen.notified.filter((entry) => entry.includes(text)).length;
+  screen.canned.set("missions.show", [asked]);
+  tick();
+  await shown();
+  assert.equal(rings(request.text), 1, "a request rings once when it arrives, not at each reading");
+  assert.equal(rings("Par où commencer ?"), 1, "the Lead's earlier request rang once too");
+  const second = { ...request, id: "r9", text: "Une seconde question ?" };
+  screen.canned.set("missions.show", [said({ tickets: [run([build])], requests: [request, second] }), asked]);
+  tick();
+  await shown();
+  assert.equal(rings(second.text), 1, "a request that arrives while another waits rings too");
+  tick();
+  await shown();
   click("ticket-1");
   now();
   assert.ok(screen.texts.includes("DÉROULÉ") && !screen.clicks.has("choice-0"), "the operator can still look at a ticket");
@@ -749,7 +762,6 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   click("send-reply");
   texts = await shown();
   assert.ok(texts.includes("Réponse refusée.") && texts.includes("Oui pour les deux"));
-  assert.equal(screen.notified.filter((entry) => entry.includes(request.text)).length, 1, "a request rings once when it arrives, not at each reading");
   const other = { ...request, id: "r2", text: "Et les liens en double ?" };
   const later3 = { ...request, id: "r3" };
   screen.canned.set("missions.show", [said({ tickets: [run([build])], requests: [{ ...request, answer: "Oui, les deux" }, other] })]);
@@ -757,6 +769,7 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   texts = await shown();
   assert.ok(texts.includes(other.text) && !texts.includes("Oui pour les deux") && !texts.includes("Réponse refusée.") && !screen.clicks.has("send-reply"),
     "a draft never lands on another request, nor does the refusal of its answer");
+  assert.equal(rings(other.text), 1, "the request that takes its place rings once");
   screen.canned.set("requests.answer", [said({ tickets: [run([build])], requests: [{ ...request, answer: "Oui, les deux" }, { ...other, answer: "Oui, les deux" }, later3] })]);
   assert.ok(screen.clicks.has("restart-lead"), "a Lead that asked and lost its terminal can still be started again");
   click("choice-0");

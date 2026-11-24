@@ -247,10 +247,14 @@ export default class MissionControl extends View {
     if (asked(detail) !== asked(this.detail)) {
       this.inputs.reply?.set_value("");
       this.requestError = "";
-      // A request that arrives while the mission is on screen also rings: the operator may be looking elsewhere.
-      const request = detail.development?.requests.find((entry) => entry.answer === undefined);
-      if (request && this.detail?.issueKey === detail.issueKey) {
-        notify({ title: `${detail.issueKey} · une demande vous attend`, body: request.text, level: "warning" });
+    }
+    // A request that arrives while its mission is on screen also rings, once: the operator may be looking elsewhere.
+    if (this.page === "request" && this.detail?.issueKey === detail.issueKey) {
+      const known = new Set(this.detail.development?.requests.map((request) => request.id));
+      for (const request of detail.development?.requests ?? []) {
+        if (request.answer === undefined && !known.has(request.id)) {
+          notify({ title: `${detail.issueKey} · une demande vous attend`, body: request.text, level: "warning" });
+        }
       }
     }
     this.detail = detail;

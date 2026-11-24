@@ -38,6 +38,17 @@ Each slice is a thin, complete path that can be shown alone.
 
 Slice 1 also settles the base: TypeScript strict, tests, project check, the separate Herdr installation, and what Herdr accepts as a screen file (decision 0012). It stays a slice: it ends with something on screen.
 
+## Change of course, 2026-11-24
+Two real runs of slice 5 on Jiroo showed that agents started on the Mac inside a home-made sandbox cannot do a real project's work (no database, no browser tests). Nicolas decided the following; decisions 0003, 0007 and 0008 are to be amended accordingly.
+
+- **Agents run in `runtime`** (`la-fabrique-ai/runtime`), in containers on ai-dev, one VM per project: Jiroo and the portail for now. The engine no longer starts agents; it hands each ticket to the lead of the project's runtime team and follows it. Dev and reviewer are both Claude there, each in its own container.
+- **Publication is the operator's click.** Agents never push. The click fetches and ships the tickets' branches from the Mac (signed with the operator's key), then the engine merges the tickets' pull requests into the mission's main branch. `main` stays the operator's.
+- **The Lead decides, per mission, whether the tickets ship as a stack of pull requests or not.** A stack suits tickets that build on one another. A mission made of independent changes, such as a spec of acceptance feedback with several fixes, needs no stack: each ticket starts from the main branch. In runtime a stack stays with one dev, and a task starts from `main` or from another task, never from an arbitrary branch.
+- **A failing agent is an alert**: in the banner of the Development page, as a notification, and in the Inbox.
+- **Two projects in the layout**: Jiroo with the Linear connector, the portail with the Markdown connector.
+
+Order of the next bits, each reviewed and shown before the next: the engine hands a ticket to runtime and follows it; publication; several projects; Markdown connector; Inbox.
+
 ## After milestone 1
 | Slice | Result |
 |---|---|

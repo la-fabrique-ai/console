@@ -66,7 +66,7 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
       "pilot.plan": p => update(p.issueKey, m => completePlan(m, p)),
       "plan.team": p => update(p.issueKey, m => chooseTeam(m, p.team)),
       "develop.start": p => startDevelopment(dir, settings, p.issueKey),
-      "requests.answer": p => answerRuntime(dir, p),
+      "requests.answer": p => answerRuntime(dir, settings, p),
       "request.ask": retired,
       "dev.done": retired,
       "review.verdict": retired,

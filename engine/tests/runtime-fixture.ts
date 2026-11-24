@@ -11,10 +11,11 @@ export function installForge(p: ReturnType<typeof setup>) {
   writeFileSync(path("settings.json"), JSON.stringify({ ...settings, runtimeHost: "forge-test", runtimeTeam: "studio" }));
   const status = (inbox: object[] = []) => writeFileSync(path("status.json"), JSON.stringify({ members, inbox, mirrors: [] }));
   status();
-  writeFileSync(path("roles/runtime-lead.md"), "Role supplied by the project.");
+  writeFileSync(path("roles/runtime-lead.md"), "Role supplied by the project. Run PostgreSQL and Playwright tests and obtain the reviewer verdict.");
   writeFileSync(path("bin/ssh"), `#!${process.execPath}
 const fs = require("node:fs"), home = ${JSON.stringify(path(""))};
 const args = process.argv.slice(2), stdin = fs.readFileSync(0, "utf8");
+if (process.env.LINEAR_API_KEY || process.env.GH_TOKEN) process.exit(86);
 const host = args.indexOf("forge-test");
 if (host < 0 || !args.includes("BatchMode=yes") || !args.some(a => a.startsWith("ConnectTimeout="))) process.exit(81);
 const [forge,team,op,target,...rest] = args.slice(host + 1).join(" ").split(" ");

@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import os from "node:os";
 import { test, type TestContext } from "node:test";
 import { gitAt } from "../pilot.ts";
+import { mergeTicket, publishTicket } from "../review.ts";
 import { development } from "./develop-project.ts";
+import { publication } from "./publication-project.ts";
 
 function useGitSettings(t: TestContext, home: string) {
   const originalHome = process.env.MISSION_CONTROL_HOME;
@@ -13,315 +17,61 @@ function useGitSettings(t: TestContext, home: string) {
   });
 }
 
-async function project(t: TestContext, team?: string[]) {
-  const p = development(t), id = { ticketId: "1" };
-  p.git("init", "--bare", p.path("bare"));
-  p.git("push", p.path("bare"), "main:main");
-  p.git("remote", "set-url", "origin", "https://github.com/demo/repo.git");
-  p.git("config", "url." + p.path("bare") + ".insteadOf", "https://github.com/demo/repo.git");
-  for (const tool of ["gh","git"]) writeFileSync(p.path("bin",tool),
-    '#!/bin/sh\nexec "' + process.execPath + '" "' + p.path("engine/tests/github-fixture.ts") + '" ' + tool + ' "$@"\n', { mode: 0o700 });
-  if (team) {
-    const m = p.state(); m.plan.team = team;
-    writeFileSync(p.path("missions/DEMO-1.json"), JSON.stringify(m));
-  }
-  await p.action("develop.start");
-  await p.action("lead.build", id, p.state().agents.lead.id);
-  const dev = p.state().agents.dev.id, cwd = p.path("Developer/worktrees/repo/DEMO-10");
-  const done = () => p.action("dev.done", { ...id, summary: "Travail terminé." }, dev);
-  const verdict = (accepted: boolean, reviewer = p.state().agents.reviewer.id) => p.action("review.verdict",
-    { ...id, accepted, remarks: accepted ? [] : ["Corriger le résultat."] }, reviewer);
-  const commit = () => { p.git("-C", cwd, "commit", "--allow-empty", "-m", "Work"); return p.git("-C", cwd, "rev-parse", "HEAD"); };
-  const log = () => readFileSync(p.path("remote-calls"),"utf8").trim().split("\n").map(s => JSON.parse(s) as string[]);
-  return { ...p, dev, cwd, done, verdict, commit, log };
-}
-
-test("review refuses dirty or unchanged work; a fix goes once to the dev and its new commit gets a fresh opposite reviewer", async t => {
-  const p = await project(t);
-  assert.ok((await p.done()).error);
-  const sha = p.commit();
-  writeFileSync(p.cwd + "/dirty","new");
-  assert.ok((await p.done()).error);
-  p.git("-C",p.cwd,"add","dirty"); assert.ok((await p.done()).error);
-  p.git("-C",p.cwd,"restore","--staged","dirty");
-  const { unlinkSync } = await import("node:fs"); unlinkSync(p.cwd + "/dirty");
-  const reviewed = await p.done();
-  assert.equal(reviewed.data?.development.tickets[0].steps[0].commit,sha,JSON.stringify(reviewed));
-  const first = p.state().agents.reviewer;
-  assert.equal(first.tool,"claude");
-  assert.equal(p.git("-C",first.cwd,"rev-parse","HEAD"),sha);
-  assert.ok((await p.verdict(false,p.dev)).error);
-  assert.ok((await p.verdict(false)).data); await p.verdict(false);
-  assert.ok((await p.done()).error); p.commit(); assert.ok((await p.done()).data);
-  assert.notEqual(p.state().agents.reviewer.id,first.id);
-  assert.ok((await p.verdict(true,first.id)).error);
-  const result = (await p.verdict(true)).data;
-  assert.deepEqual(result.development.tickets[0].steps.map((s: any) => s.kind),["build","review","fix","review"]);
-  assert.equal(result.development.tickets[0].steps.at(-1).accepted,true);
-  assert.equal(p.calls().filter(a => a[0] === "send").length,2);
-  assert.equal(existsSync(p.path("linear-requests")),false);
-});
-
-test("every remote reply can be lost: the same two callbacks publish only the pinned heads and merge the ticket once", async t => {
-  let total = 1;
-  for (let fault = 0; fault <= total; fault++) {
-    const p = await project(t), main = p.git("rev-parse","main"), sha = p.commit();
-    writeFileSync(p.path("fail-at"),String(fault));
-    let result = await p.done();
-    if (result.error) { p.commit(); result = await p.done(); }
-    assert.equal(result.data?.development.tickets[0].steps[0].commit,sha,JSON.stringify(result));
-    result = await p.verdict(true);
-    if (result.error) result = await p.verdict(true);
-    assert.equal(result.data?.development.tickets[0].steps.at(-1).accepted,true,JSON.stringify(result));
-    const calls = p.log();
-    if (!fault) total = calls.length;
-    const pushes = calls.filter(a => a.includes("push"));
-    assert.deepEqual(pushes.map(a => a.at(-1)), [p.git("-C",p.mission,"rev-parse","HEAD^1") + ":refs/heads/mission/DEMO-1",sha + ":refs/heads/ticket/DEMO-10"]);
-    assert.ok(pushes.every(a => !a.some(v => v.startsWith("+") || v.includes("--force"))));
-    const prs = JSON.parse(readFileSync(p.path("pulls"),"utf8"));
-    assert.deepEqual(prs.map((r: any) => [r.headRefName,r.baseRefName,r.isDraft,r.state]),
-      [["mission/DEMO-1","main",true,"OPEN"],["ticket/DEMO-10","mission/DEMO-1",false,"MERGED"]]);
-    assert.equal(calls.filter(a => a.includes("create")).length,2);
-    assert.equal(calls.filter(a => a.includes("repos/demo/repo/pulls/2/merge")).length,1);
-    assert.equal(p.git("-C",p.mission,"rev-parse","HEAD^2"),sha);
-    assert.equal(p.git("--git-dir",p.path("bare"),"rev-parse","main"),main);
-    assert.equal(p.calls().filter(a => a[0] === "send").length,1);
-  }
-});
-
-test("the same dev handoff finishes an unconfirmed reviewer start, without another checkout or PR", async t => {
-  const p = await project(t); p.commit();
-  writeFileSync(p.path("offline"),"before launch");
-  assert.ok((await p.done()).error);
-  const agent = p.state().agents.reviewer;
-  const { unlinkSync } = await import("node:fs"); unlinkSync(p.path("offline"));
-  writeFileSync(p.path("lose-start"),"lost after launch");
-  assert.ok((await p.done()).error);
-  const before = p.calls().filter(c => c[0] === "run").length;
-  assert.equal((await p.done()).data?.development.tickets[0].steps.at(-1).kind,"review");
-  assert.equal(p.state().agents.reviewer.terminal,agent.terminal);
-  assert.equal(p.state().agents.reviewer.cwd,agent.cwd);
-  assert.equal(p.calls().filter(c => c[0] === "run").length,before);
-  assert.equal(p.log().filter(a => a.includes("create")).length,2);
-});
-
-for (const accepted of [true,false]) test("an interrupted verdict reaches the original recipient once: " + accepted, async t => {
-  const p = await project(t); p.commit(); await p.done();
-  const recipient = p.state().agents[accepted ? "lead" : "dev"];
-  writeFileSync(p.path("offline"),"before send");
-  assert.ok((await p.verdict(accepted)).error);
-  const { unlinkSync } = await import("node:fs"); unlinkSync(p.path("offline"));
-  writeFileSync(p.path("lose-send"),"lost after receipt");
-  assert.ok((await p.verdict(accepted)).error);
-  assert.ok((await p.verdict(accepted)).data);
-  assert.ok((await p.verdict(accepted)).data);
-  const sends = readFileSync(p.path("delivered"),"utf8").trim().split("\n").map(l => JSON.parse(l));
-  assert.equal(sends.length,1); assert.equal(sends[0][2],recipient.terminal);
-  assert.deepEqual(JSON.parse(sends[0][3]).remarks,accepted ? [] : ["Corriger le résultat."]);
-  assert.equal(p.log().filter(c => c.includes("repos/demo/repo/pulls/2/merge")).length,accepted ? 1 : 0);
-});
-
-test("a Codex reviewer whose first turn fails appears on the ticket's Development page", async t => {
-  const p = await project(t, ["claude"]);
-  p.commit();
-  assert.ok((await p.done()).data);
-  const reviewer = p.state().agents.reviewer;
-  assert.equal(reviewer.tool, "codex");
-  writeFileSync(p.path("bin/codex"), "#!/bin/sh\nexit 1\n", { mode: 0o700 });
-  const { spawnSync } = await import("node:child_process");
-  const run = spawnSync(process.execPath, [p.path("engine/agent-session.ts"), p.issueKey, reviewer.terminal, "codex", "Review"],
-    { env: p.env, input: "", encoding: "utf8" });
-  assert.equal(run.status, 0, run.stderr);
-  const [request] = (await p.action("missions.show")).data.development.requests;
-  assert.equal(request.from, "reviewer");
-  assert.equal(request.ticketId, "1");
-  assert.match(request.context, /Codex/);
-});
-
-test("a single Claude dev, fresh Codex reviewer and Lead receive only their commands and the exact assigned context", async t => {
-  const p = await project(t, ["claude"]), sha = p.commit();
-  p.git("config", "push.followTags", "true");
-  p.git("tag", "-a", "unrelated-tag", "-m", "Keep local", sha);
-  await p.done();
-  assert.equal(p.git("--git-dir",p.path("bare"),"tag","--list"), "");
-  const { lead, dev, reviewer } = p.state().agents;
-  const launch = (name: string) => p.calls().find(a => a[0] === "run" && a.includes(name))!;
-  const assigned = p.state().plan.tickets[0];
-  for (const [agent,tool,action] of [[lead,"claude","lead.build"],[dev,"claude","dev.done"],[reviewer,"codex","review.verdict"]]) {
-    const args = launch(agent.terminal);
-    assert.ok(args, agent.role + " terminal");
-    assert.equal(args.at(-2),tool);
-    const prompt = args.at(-1)!;
-    assert.ok(prompt.includes(agent.role + " role fixture"));
-    for (const permitted of [action,"request.ask"]) assert.ok(prompt.includes("mission-control " + permitted + " -"));
-    const context = JSON.parse(prompt.split("\n").at(-1)!);
-    assert.equal(context.issueKey,"DEMO-1");
-    if (agent === lead) {
-      for (const doc of ["spec.md","split.md","answers.md"]) assert.ok(prompt.includes("docs/missions/DEMO-1/" + doc));
-    } else assert.deepEqual(context.ticket,assigned);
-    if (agent === reviewer) {
-      assert.equal(context.commit,sha); assert.equal(context.base,p.git("-C",p.mission,"rev-parse","HEAD"));
-      assert.equal(context.summary,"Travail terminé.");
-    }
-  }
-  // Both missions and their ticket IDs exist. Each owns distinct terminal identities.
-  const other = p.state(); other.issueKey = "DEMO-2";
-  for (const agent of Object.values(other.agents) as {id:string}[]) agent.id += "-other";
-  writeFileSync(p.path("missions/DEMO-2.json"),JSON.stringify(other));
-  for (const agent of [lead,dev,reviewer]) {
-    for (const [action,owner] of [["lead.build",lead],["dev.done",dev],["review.verdict",reviewer]] as const) {
-      const payload = {ticketId:"1",summary:"Travail terminé.",accepted:false,remarks:["Un point."]};
-      if (agent !== owner) assert.equal((await p.action(action,payload,agent.id)).error?.message,"Cette action n’est pas autorisée pour cet agent.");
-      assert.equal((await p.action(action,{...payload,issueKey:"DEMO-2"},agent.id)).error?.message,"Cette action n’est pas autorisée pour cet agent.");
-    }
-    if (agent !== lead) assert.equal((await p.action("request.ask",{ticketId:"2",text:"?",context:"?",choices:[]},agent.id)).error?.message,
-      "Cette action n’est pas autorisée pour cet agent.");
-  }
-  await p.verdict(true);
-  assert.equal(existsSync(reviewer.cwd),false);
-  const next = await p.action("lead.build",{ticketId:"2"},lead.id);
-  assert.equal(next.data?.development.tickets[1].steps[0].tool,"claude");
-  assert.equal(p.git("-C",p.state().agents.dev.cwd,"rev-parse","HEAD"),p.git("-C",p.mission,"rev-parse","HEAD"));
-});
-
-test("the merge checks the target immediately before and verifies the merge on the remote mission afterwards", async t => {
-  const p = await project(t); p.commit(); await p.done();
-  writeFileSync(p.path("retarget"),"after ready");
-  assert.ok((await p.verdict(true)).error);
-  assert.equal(p.log().filter(c => c.includes("repos/demo/repo/pulls/2/merge")).length,0);
-  const prs = JSON.parse(readFileSync(p.path("pulls"),"utf8"));
-  prs[1].baseRefName = "mission/DEMO-1"; writeFileSync(p.path("pulls"),JSON.stringify(prs));
-  writeFileSync(p.path("wrong-remote"),"merge object exists on the host, absent on the mission branch");
-  const before = p.git("-C",p.mission,"rev-parse","HEAD");
-  assert.ok((await p.verdict(true)).error);
-  assert.equal(p.git("-C",p.mission,"rev-parse","HEAD"),before);
-  assert.equal(p.state().development.tickets[0].steps.at(-1).accepted,undefined);
-});
-
-for (const accepted of [false, true]) {
-  test("a dev answer reaches only the dev after " + (accepted ? "acceptance" : "a request for fixes"), async t => {
-    const p = await project(t);
-    p.commit();
-    await p.done();
-    assert.ok((await p.verdict(accepted)).data);
-    const dev = p.state().agents.dev;
-    const asked = await p.action("request.ask", { ticketId: "1", text: "Quel tri ?", context: "Affichage", choices: [] }, dev.id);
-    const requestId = asked.data.development.requests[0].id;
-    assert.ok((await p.action("requests.answer", { requestId, text: "Par nom." })).data);
-    const sends = p.calls().filter(c => c[0] === "send" && JSON.parse(c[3]).requestId === requestId);
-    assert.deepEqual(sends.map(c => c[2]), [dev.terminal]);
-  });
-}
-
-test("automatic branch deletion blocks the merge with a specific explanation", async t => {
-  const p = await project(t); p.commit(); await p.done();
-  writeFileSync(p.path("auto-delete"),"true");
-  const reply = await p.verdict(true);
-  assert.match(reply.error?.message, /réponse.*review\.verdict/i);
-  const detail = (await p.action("missions.show")).data;
-  const [request] = detail.development.requests;
-  assert.equal(request.from, "reviewer");
-  assert.equal(request.ticketId, "1");
-  assert.match(request.text, /suppression automatique.*GitHub/i);
-  await p.verdict(true);
-  assert.equal((await p.action("missions.show")).data.development.requests.length, 1);
-  assert.ok(!p.log().some(c => c.includes("ready") || c.includes("repos/demo/repo/pulls/2/merge")));
-  await p.action("requests.answer", { requestId: request.id, text: "Réglage corrigé." });
-  const { unlinkSync } = await import("node:fs");
-  unlinkSync(p.path("auto-delete"));
-  const reviewer = p.state().agents.reviewer;
-  const replies = p.calls().filter(c => c[0] === "send" && JSON.parse(c[3]).requestId === request.id);
-  assert.deepEqual(replies.map(c => c[2]), [reviewer.terminal]);
-  const answer = JSON.parse(replies[0][3]);
-  assert.equal(answer.text, "Réglage corrigé.");
-  assert.equal(answer.resume, "review.verdict");
-  const result = await p.action(answer.resume, { ticketId: answer.ticketId, accepted: true, remarks: [] }, reviewer.id);
-  assert.ok(result.data.development.tickets[0].steps.at(-1).accepted);
-});
-
-test("reworded retries finish the same handoff and verdict with the original text", async t => {
-  const p = await project(t);
-  const sha = p.commit();
-  const handoff = (summary: string) => p.action("dev.done", { ticketId: "1", summary }, p.dev);
-  writeFileSync(p.path("fail-at"), "1");
-  assert.match((await handoff("Premier résumé")).error?.message, /request\.ask/);
-  writeFileSync(p.path("offline"), "reviewer has not started");
-  assert.match((await handoff("Deuxième résumé")).error?.message, /request\.ask/);
-  const { unlinkSync } = await import("node:fs");
-  unlinkSync(p.path("offline"));
-  const resumed = await handoff("Troisième résumé");
-  assert.equal(resumed.data?.development.tickets[0].steps[0].summary, "Premier résumé");
-  assert.deepEqual(await handoff("Reçu"), resumed);
-  const reviewer = p.state().agents.reviewer;
-  const start = p.calls().findLast(args => args[0] === "run" && args.includes(reviewer.terminal))!;
-  assert.equal(JSON.parse(start.at(-1)!.split("\n").at(-1)!).summary, "Premier résumé");
-  const reject = (remark: string) => p.action("review.verdict",
-    { ticketId: "1", accepted: false, remarks: [remark] }, reviewer.id);
-  writeFileSync(p.path("offline"), "before send");
-  assert.match((await reject("Première remarque")).error?.message, /request\.ask/);
-  unlinkSync(p.path("offline"));
-  const fixed = await reject("Autres mots");
-  const steps = fixed.data?.development.tickets[0].steps;
-  assert.deepEqual(steps.map((s: any) => s.kind), ["build", "review", "fix"]);
-  assert.equal(steps[0].commit, sha);
-  assert.deepEqual(steps[1].remarks, ["Première remarque"]);
-  assert.deepEqual(await reject("Encore autrement"), fixed);
-  assert.ok((await p.verdict(true)).error);
-  const delivered = readFileSync(p.path("delivered"), "utf8").trim().split("\n");
-  assert.equal(delivered.length, 1);
-  assert.deepEqual(JSON.parse(JSON.parse(delivered[0])[3]).remarks, ["Première remarque"]);
-});
-
-test("a dev can ask the operator about its own ticket during review", async t => {
-  const p = await project(t);
-  p.commit();
-  await p.done();
-  const question = { ticketId: "1", text: "Quel ordre souhaitez-vous ?", context: "Le tri reste à préciser.", choices: [] };
-  const asked = await p.action("request.ask", question, p.dev);
-  const request = asked.data?.development.requests[0];
-  assert.equal(request?.from, "dev", JSON.stringify(asked));
-  assert.equal(request.ticketId, "1");
-});
-
-test("the last dev answer wakes the blocked reviewer and its verdict applies once despite a lost reply", async t => {
-  const p = await project(t);
-  p.commit();
-  await p.done();
-  const { dev, reviewer } = p.state().agents;
-  const ask = (text: string) => p.action("request.ask", { ticketId: "1", text, context: "Tri", choices: [] }, dev.id);
-  await ask("Quel ordre ?");
-  const [first, last] = (await ask("Et pour les ex æquo ?")).data.development.requests;
-  const original = { ticketId: "1", accepted: false, remarks: ["Corriger le tri."] };
-  assert.match((await p.action("review.verdict", original, reviewer.id)).error?.message, /Attendez/);
-  const answer = (requestId: string, text: string) => p.action("requests.answer", { requestId, text });
-  await answer(first.id, "Croissant.");
-  assert.deepEqual(p.calls().filter(c => c[0] === "send").map(c => c[2]), [dev.terminal]);
-
-  writeFileSync(p.path("lose-send-" + reviewer.terminal), "received, reply lost");
-  assert.ok((await answer(last.id, "Par nom.")).error);
-  const messages = () => readFileSync(p.path("delivered"), "utf8").trim().split("\n").map(line => JSON.parse(line));
-  assert.deepEqual(messages().map(c => c[2]), [dev.terminal, dev.terminal, reviewer.terminal]);
-  const wake = JSON.parse(messages()[2][3]);
-  assert.equal(wake.resume, "review.verdict");
-  assert.equal(wake.ticketId, "1");
-  assert.equal(wake.question, last.text);
-  assert.equal(wake.text, "Par nom.");
-  // The notified reviewer can act even before the operator retries the unconfirmed answer.
-  const retryVerdict = () => p.action(wake.resume, original, reviewer.id);
-  const result = await retryVerdict();
-  assert.deepEqual(result.data?.development.tickets[0].steps.map((s: any) => s.kind), ["build", "review", "fix"]);
-  assert.deepEqual(result.data.development.tickets[0].steps[1].remarks, original.remarks);
-  assert.ok((await retryVerdict()).data);
-  assert.equal((await answer(last.id, "Autrement.")).data?.development.requests.at(-1).answer, "Par nom.");
-  assert.equal(messages().length, 4);
-  assert.deepEqual(JSON.parse(messages()[3][3]).remarks, original.remarks);
-});
-
-test("ticket Git and review cleanup refuse a replaced root .git", async t => {
-  const p = await project(t);
+function ticketCheckout(t: TestContext) {
+  const p = development(t);
+  const cwd = p.path("Developer/worktrees/repo/DEMO-10");
+  p.git("worktree", "add", "-b", "ticket/DEMO-10", cwd, "mission/DEMO-1");
   useGitSettings(t, p.env.MISSION_CONTROL_HOME);
-  const { renameSync } = await import("node:fs");
-  p.commit();
+  return { ...p, cwd };
+}
+
+test("publication refuses an unchanged or dirty ticket, then retries both draft PRs at their original commits", t => {
+  const p = publication(t);
+  const home = t.mock.method(os, "homedir", () => p.path());
+  syncBuiltinESMExports();
+  t.after(() => { home.mock.restore(); syncBuiltinESMExports(); });
+  const dir = p.path("missions"), repository = p.path("repo"), cwd = p.path("Developer/worktrees/repo/DEMO-10");
+  p.git("worktree", "add", "-b", p.ticketBranch, cwd, p.missionSha);
+  const m = p.state();
+  m.development = { tickets: [{ id: "1", branch: p.ticketBranch,
+    steps: [{ kind: "build", tool: "claude", startedAt: "2026-11-24T08:00:00Z" }] }], requests: [] };
+  writeFileSync(p.path("missions/DEMO-1.json"), JSON.stringify(m));
+  const publish = (summary: string) => {
+    const mission = p.state();
+    return publishTicket(dir, repository, mission, mission.development.tickets[0], summary);
+  };
+  assert.throws(() => publish("Travail terminé."), /Commitez vos modifications/);
+  p.git("-C", cwd, "merge", "--ff-only", p.ticketSha);
+  writeFileSync(cwd + "/dirty", "change");
+  assert.throws(() => publish("Travail terminé."), /Commitez vos modifications/);
+  p.git("-C", cwd, "add", "dirty");
+  assert.throws(() => publish("Travail terminé."), /Commitez vos modifications/);
+  p.git("-C", cwd, "restore", "--staged", "dirty");
+  unlinkSync(cwd + "/dirty");
+
+  writeFileSync(p.path("fail-at"), "2"); // The first push succeeded, but its reply was lost.
+  assert.throws(() => publish("Premier résumé."), /GitHub/);
+  assert.equal(p.state().publication.commit, p.ticketSha);
+  p.git("-C", cwd, "commit", "--allow-empty", "-m", "Later work");
+  publish("Nouveau résumé.");
+  const saved = p.state(), run = saved.development.tickets[0];
+  assert.deepEqual(run.steps.map((s: { commit: string; summary: string }) => [s.commit, s.summary]),
+    [[p.ticketSha, "Premier résumé."]]);
+  assert.equal(saved.development.pr.number, 1);
+  assert.equal(run.pr.number, 2);
+  const pushes = p.remoteCalls().filter(args => args.includes("push"));
+  assert.deepEqual(pushes.map(args => args.at(-1)), [
+    p.missionSha + ":refs/heads/" + p.missionBranch, p.ticketSha + ":refs/heads/" + p.ticketBranch,
+  ]);
+  assert.equal(saved.publication, undefined);
+
+  assert.equal(mergeTicket(dir, repository, saved, run, p.ticketSha), true);
+  assert.equal(p.git("-C", p.mission, "rev-parse", "HEAD^2"), p.ticketSha);
+  assert.equal(p.state().merging, undefined);
+});
+
+test("ticket Git refuses a replaced root .git", async t => {
+  const p = ticketCheckout(t);
   const root = p.cwd + "/.git", saved = p.path("ticket-gitfile");
   const registered = p.git("-C", p.cwd, "rev-parse", "--absolute-git-dir");
   // Withdraw the checkout pointer after validation, just as Git starts. Discovery would now fail.
@@ -348,18 +98,11 @@ test("ticket Git and review cleanup refuse a replaced root .git", async t => {
   writeFileSync(root, readFileSync(p.mission + "/.git"));
   assert.throws(() => gitAt(p.cwd, "rev-parse", "HEAD"), { message: advice });
   renameSync(saved, root);
-  assert.ok((await p.done()).data);
-  const reviewer = p.state().agents.reviewer;
-  renameSync(reviewer.cwd + "/.git", saved);
-  renameSync(p.path("origin/.git"), reviewer.cwd + "/.git");
-  assert.ok((await p.verdict(false)).data);
-  assert.ok(existsSync(reviewer.cwd + "/.git/config"), "leave the substituted review folder in place");
+  assert.equal(gitAt(p.cwd, "rev-parse", "--absolute-git-dir").trim(), registered);
 });
 
-test("a handoff refuses nested repository metadata before Git inspects or stages the ticket", async t => {
-  const p = await project(t);
-  useGitSettings(t, p.env.MISSION_CONTROL_HOME);
-  p.commit();
+test("ticket Git refuses nested repository metadata before inspecting or staging", async t => {
+  const p = ticketCheckout(t);
   const nested = p.cwd + "/vendor/example";
   mkdirSync(nested, { recursive: true });
   const { rmSync } = await import("node:fs");
@@ -369,8 +112,7 @@ test("a handoff refuses nested repository metadata before Git inspects or stages
     if (shape === "directory") p.git("init", "-q", nested);
     else if (shape === "gitfile") writeFileSync(nested + "/.git", "gitdir: missing\n");
     else p.git("init", "--bare", "-q", nested);
-    assert.equal((await p.done()).error?.message, advice, shape);
-    for (const args of [["add", "--all", "--", "."], ["add", "-A", "--", "."], ["commit", "-m", "Test"]]) {
+    for (const args of [["status", "--porcelain"], ["add", "--all", "--", "."], ["commit", "-m", "Test"]]) {
       assert.throws(() => gitAt(p.cwd, ...args), { message: advice });
     }
     rmSync(nested, { recursive: true });
@@ -378,20 +120,15 @@ test("a handoff refuses nested repository metadata before Git inspects or stages
   }
   const { chmodSync } = await import("node:fs");
   chmodSync(nested, 0);
-  try { assert.match((await p.done()).error?.message, /droits de lecture/); }
+  try { assert.throws(() => gitAt(p.cwd, "status", "--porcelain"), /droits de lecture/); }
   finally { chmodSync(nested, 0o700); }
-  assert.ok((await p.done()).data);
-  const reviewFolder = p.state().agents.reviewer.cwd;
-  mkdirSync(reviewFolder + "/manual/.git", { recursive: true });
-  assert.ok((await p.verdict(false)).data, "keep an externally modified review checkout");
-  assert.ok(existsSync(reviewFolder + "/manual/.git"));
+  assert.doesNotThrow(() => gitAt(p.cwd, "status", "--porcelain"));
 });
 
 test("missing project settings identify what is missing before Git inspects the checkout", async t => {
   const p = development(t);
   useGitSettings(t, p.env.MISSION_CONTROL_HOME);
   const inspect = () => gitAt(p.mission, "rev-parse", "HEAD");
-  const { unlinkSync } = await import("node:fs");
   unlinkSync(p.path("settings.json"));
   const missingFile = "Le fichier settings.json des réglages du projet est introuvable.";
   assert.throws(inspect, { message: missingFile });
@@ -403,9 +140,8 @@ test("missing project settings identify what is missing before Git inspects the 
   assert.throws(inspect, { message: "Le dossier Mission Control n’est pas configuré." });
 });
 
-test("engine Git overrides filesystem monitoring at its common command boundary", async t => {
-  const p = await project(t);
-  useGitSettings(t, p.env.MISSION_CONTROL_HOME);
+test("engine Git overrides filesystem monitoring at its common command boundary", t => {
+  const p = ticketCheckout(t);
   p.git("config", "core.fsmonitor", "true");
   assert.equal(gitAt(p.cwd, "config", "--bool", "--get", "core.fsmonitor").trim(), "false");
 });

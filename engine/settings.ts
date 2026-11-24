@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CommandError } from "./contract.ts";
 
-interface Settings { teamKey: string; allowedIssueKeys: string[]; repository: string }
+export interface Settings { teamKey: string; allowedIssueKeys: string[]; repository: string; runtimeHost?: string; runtimeTeam?: string }
 
 export function projectSettings() {
   const home = process.env.MISSION_CONTROL_HOME;

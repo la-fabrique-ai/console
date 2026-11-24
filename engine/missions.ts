@@ -1,12 +1,13 @@
 import { execFileSync } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join, parse } from "node:path";
-import type { Agent } from "./agents.ts";
+import type { Runtime } from "./runtime.ts";
 import { CommandError, type Mission, type MissionDetail } from "./contract.ts";
 
 // Per-message delivery confirmations last until Pilot calls back.
 export type SavedMission = MissionDetail & {
-  agents?: Partial<Record<Agent["role"], Agent>>;
+  runtime?: Runtime;
+  agents?: unknown; // Hide private fields from missions saved by the former local agent runner.
   notice?: { deliveryId: string; terminal: string; event: object };
   recipients?: Record<string, string>;
   pendingAnswers?: Record<string, string>;
@@ -19,7 +20,7 @@ export type SavedMission = MissionDetail & {
 };
 
 export function visible({
-  agents: _agents, notice: _notice, recipients: _recipients, pendingAnswers: _pendingAnswers,
+  runtime: _runtime, agents: _agents, notice: _notice, recipients: _recipients, pendingAnswers: _pendingAnswers,
   publication: _publication, merging: _merging, delivery: _receipt, validationDate: _date,
   planSummary: _summary, launch: _launch, ...mission
 }: SavedMission): MissionDetail {

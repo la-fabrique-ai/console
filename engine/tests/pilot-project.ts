@@ -11,7 +11,7 @@ export function setup(t: TestContext) {
   const path = (...p: string[]) => join(root, ...p);
   for (const dir of ["roles", ".mc1", ".mc1/ui", ".mc1/run", "bin", "repo"]) mkdirSync(path(dir));
   cpSync(join(import.meta.dirname, ".."), path("engine"), { recursive: true });
-  for (const role of ["pilot", "lead", "dev", "reviewer"]) writeFileSync(path("roles", role + ".md"), (role === "pilot" ? "Pilot" : role) + " role fixture");
+  writeFileSync(path("roles/pilot.md"), "Pilot role fixture");
   writeFileSync(path(".mc1/ui/.mission-control"), "");
   writeFileSync(path(".mc1/run/core.sock"), "stand-in socket");
   const git = (...args: string[]) => execFileSync("git", ["-C", path("repo"), ...args], { encoding: "utf8" }).trim();
@@ -29,26 +29,6 @@ if ("LINEAR_API_KEY" in process.env) process.exit(96);
 const home = process.env.MISSION_CONTROL_HOME, args = process.argv.slice(2);
 fs.appendFileSync(home + "/calls", JSON.stringify(process.argv.slice(2)) + "\\n");
 if (args[0] === "ls") console.log(fs.readFileSync(home + "/live", "utf8"));
-if (args[0] === "run" && !args.includes("pilot-demo-1") && !fs.existsSync(home + "/offline")) {
-  const inventory = fs.existsSync(home + "/live") ? JSON.parse(fs.readFileSync(home + "/live")) : { terminals: [] };
-  inventory.terminals.push({ name: args[args.indexOf("--name") + 1], cwd: args[args.indexOf("--cwd") + 1], state: "live" });
-  fs.writeFileSync(home + "/live", JSON.stringify(inventory));
-}
-if (args[0] === "run" && fs.existsSync(home + "/lose-start")) {
-  fs.unlinkSync(home + "/lose-start"); process.exit(74);
-}
-if (args[0] === "send" && !fs.existsSync(home + "/offline")) {
-  const msg = JSON.parse(args[3]);
-  if (msg.deliveryId) {
-    const dir = home + "/receipts/" + args[2]; fs.mkdirSync(dir,{recursive:true});
-    const receipt = dir + "/" + msg.deliveryId;
-    if (!fs.existsSync(receipt)) {
-      fs.writeFileSync(receipt,""); fs.appendFileSync(home + "/delivered",JSON.stringify(args) + "\\n");
-    }
-    const lost = fs.existsSync(home + "/lose-send") ? home + "/lose-send" : home + "/lose-send-" + args[2];
-    if (fs.existsSync(lost)) { fs.unlinkSync(lost); process.exit(74); }
-  }
-}
 const callback = home + "/" + args[0] + ".callback";
 if (fs.existsSync(callback)) {
   const [action, payload] = JSON.parse(fs.readFileSync(callback));

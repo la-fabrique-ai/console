@@ -20,7 +20,8 @@ export function github(cwd: string) {
   function find(head: string, base: string): Pull | undefined {
     const pulls: Pull[] = JSON.parse(gh("pr","list","--head",head,"--base",base,"--state","all","--json",
       "number,url,headRefName,baseRefName,headRefOid,isCrossRepository,isDraft,state,mergeCommit"));
-    return pulls.find(p => !p.isCrossRepository && p.baseRefName === base && p.headRefName === head);
+    // A pull request closed without a merge belongs to an abandoned attempt: the branch gets a new one.
+    return pulls.find(p => !p.isCrossRepository && p.baseRefName === base && p.headRefName === head && p.state !== "CLOSED");
   }
   return {
     publish(branch: string, commit: string) {

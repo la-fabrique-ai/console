@@ -96,3 +96,31 @@ test("Development follows building, review, refusal, corrections and explicit ac
   assert.ok(p.forge.calls().every(c => ["assign","status","question"].includes(c.op)));
   assert.equal(p.forge.calls().filter(c => c.op === "assign").length,1);
 });
+
+for (const outcome of ["delivered", "ack lost", "undelivered"]) test("a runtime question is answered once, " + outcome, async t => {
+  const p = project(t);
+  await p.action("develop.start");
+  const { dev, event } = assigned(p);
+  const q = event(21, dev.name, "QUESTION Quel tri ?", "Pour les résultats.");
+  const other = event(22, dev.name, "QUESTION Autre projet ?", "Contexte", "elsewhere");
+  p.forge.status([q,other]);
+  const detail = (await p.action("missions.show")).data.development;
+  assert.equal(detail.requests.length,1);
+  const [request] = detail.requests;
+  assert.deepEqual([request.from,request.ticketId,request.text,request.context], ["dev","1","Quel tri ?","Pour les résultats."]);
+  if (outcome !== "delivered") writeFileSync(p.path(outcome === "ack lost" ? "lose-answer" : "dead-answer"), "");
+  const text = "Par ordre alphabétique.\nAvec les accents et les apostrophes.";
+  const answer = () => p.action("requests.answer",{ requestId:request.id, text });
+  const results = await Promise.all([answer(),answer()]);
+  if (outcome === "delivered") {
+    for (const result of results) assert.equal(result.data?.development.requests[0].answer,text);
+  } else {
+    for (const result of results) assert.ok(result.error);
+    const shown = (await p.action("missions.show")).data.development.requests;
+    assert.equal(shown[0].answer,undefined);
+    assert.match(shown[0].context,/vérifiez/i);
+  }
+  const sends = p.forge.calls().filter(c => c.op === "answer");
+  assert.equal(sends.length,1); assert.equal(sends[0].target,"21");
+  assert.equal(JSON.parse(sends[0].stdin).body,text);
+});

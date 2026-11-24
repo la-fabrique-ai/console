@@ -11,6 +11,7 @@ export interface Runtime {
   host: string; team: string; ticketId: string; ref: string;
   assignment?: "uncertain" | "confirmed";
   verdicts?: number[];
+  attemptedAnswers?: string[];
 }
 
 function forge(r: Runtime, args: string[], input = "") {
@@ -75,8 +76,18 @@ function follow(m: SavedMission, r: Runtime, ticket: PlanTicket, current: Status
   }
   const prefix = "MC " + r.ref + " ";
   for (const item of current.inbox) {
-    if (item.from !== lead || !item.summary.startsWith(prefix) || r.verdicts?.includes(item.id)) continue;
+    if (!item.summary.startsWith(prefix)) continue;
     const kind = item.summary.slice(prefix.length);
+    const sender = team.find(a => a.name === item.from);
+    if (kind.startsWith("QUESTION ") && sender && ["lead", "dev", "reviewer"].includes(sender.role)) {
+      const id = "forge-" + item.id, text = kind.slice(9).trim();
+      if (!text || work.requests.some(q => q.id === id)) continue;
+      const q = readQuestion(r, item);
+      if (q.state === "open") work.requests.push({ id, from: sender.role as "lead" | "dev" | "reviewer", ticketId: ticket.id,
+        text, context: q.body ?? "", choices: [] });
+      continue;
+    }
+    if (item.from !== lead || r.verdicts?.includes(item.id)) continue;
     if (kind !== "ACCEPTED" && kind !== "REFUSED") continue;
     const q = readQuestion(r, item);
     const { summary, remarks } = JSON.parse(q.body);
@@ -144,6 +155,47 @@ export function startDevelopment(dir: string, settings: Settings, key: string) {
   });
 }
 
-export function answerRuntime(_dir: string, _p: Payloads["requests.answer"]): never {
-  throw new CommandError("Cette demande est introuvable.");
+const verifyAnswer = "Vérifiez dans la boîte de réception de runtime si l’agent a reçu votre réponse.";
+const missedAnswer = "La réponse a été enregistrée dans runtime. Vérifiez le terminal de l’agent pour la lui transmettre.";
+
+export function answerRuntime(dir: string, p: Payloads["requests.answer"]) {
+  return withMission(dir, p.issueKey, () => {
+    const m = loadDetail(dir, p.issueKey), r = m.runtime;
+    const request = m.development?.requests.find(q => q.id === p.requestId);
+    if (!r || !request) throw new CommandError("Cette demande est introuvable.");
+    if (request.answer !== undefined) return visible(m);
+    if (typeof p.text !== "string" || !p.text.trim() || Buffer.byteLength(p.text) > 262144) {
+      throw new CommandError("Saisissez une réponse de moins de 256 Kio.");
+    }
+    if (r.attemptedAnswers?.includes(request.id)) throw new CommandError(request.context);
+    const id = Number(/^forge-([0-9]+)$/.exec(request.id)?.[1]);
+    const ticket = m.plan!.tickets.find(t => t.id === r.ticketId)!;
+    let current: Status;
+    try { current = status(r); } catch { throw new CommandError(verifyAnswer); }
+    const item = current.inbox.find(q => q.id === id), lead = "agent-" + r.team + "-lead";
+    const agent = current.members.find(a => a.team === r.team && a.role === request.from && a.name === item?.from);
+    if (!item || item.summary !== "MC " + r.ref + " QUESTION " + request.text || !agent || !agent.present || !live(agent) ||
+        (agent.role === "lead" ? agent.name !== lead || agent.task !== "(no branch)" || agent.assignedBy !== "human" :
+        agent.assignedBy !== lead || agent.task !== (agent.role === "dev" ? ticket.key!.toLowerCase() : "(no branch)"))) {
+      throw new CommandError(verifyAnswer);
+    }
+    const readContext = request.context;
+    (r.attemptedAnswers ??= []).push(request.id);
+    request.context = verifyAnswer;
+    saveMission(dir, m);
+    try {
+      const receipt = JSON.parse(forge(r, ["answer", String(id), "--json"],
+        JSON.stringify({ summary: "Réponse de l’opérateur.", body: p.text })));
+      if (receipt.id !== id || receipt.to !== agent.name || typeof receipt.delivered !== "boolean") throw new Error();
+      if (!receipt.delivered) {
+        request.context = missedAnswer;
+        saveMission(dir, m);
+        throw new Error();
+      }
+    } catch { throw new CommandError(request.context); }
+    request.answer = p.text;
+    request.context = readContext;
+    saveMission(dir, m);
+    return visible(m);
+  });
 }

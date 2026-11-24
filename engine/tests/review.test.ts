@@ -121,6 +121,23 @@ for (const accepted of [true,false]) test("an interrupted verdict reaches the or
   assert.equal(p.log().filter(c => c.includes("repos/demo/repo/pulls/2/merge")).length,accepted ? 1 : 0);
 });
 
+test("a Codex reviewer whose first turn fails appears on the ticket's Development page", async t => {
+  const p = await project(t, ["claude"]);
+  p.commit();
+  assert.ok((await p.done()).data);
+  const reviewer = p.state().agents.reviewer;
+  assert.equal(reviewer.tool, "codex");
+  writeFileSync(p.path("bin/codex"), "#!/bin/sh\nexit 1\n", { mode: 0o700 });
+  const { spawnSync } = await import("node:child_process");
+  const run = spawnSync(process.execPath, [p.path("engine/agent-session.ts"), p.issueKey, reviewer.terminal, "codex", "Review"],
+    { env: p.env, input: "", encoding: "utf8" });
+  assert.equal(run.status, 0, run.stderr);
+  const [request] = (await p.action("missions.show")).data.development.requests;
+  assert.equal(request.from, "reviewer");
+  assert.equal(request.ticketId, "1");
+  assert.match(request.context, /Codex/);
+});
+
 test("a single Claude dev, fresh Codex reviewer and Lead receive only their commands and the exact assigned context", async t => {
   const p = await project(t, ["claude"]), sha = p.commit();
   p.git("config", "push.followTags", "true");

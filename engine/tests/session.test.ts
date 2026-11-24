@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { readFileSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
+import { createInterface } from "node:readline";
+import { once } from "node:events";
 import { setup } from "./pilot-project.ts";
+import { development } from "./develop-project.ts";
 
 for (const tool of ["claude", "codex"]) test(tool + " gets one new session and resumes the same conversation by ID", t => {
   const p = setup(t);
@@ -55,6 +58,55 @@ console.log(JSON.stringify({type:"thread.started",thread_id:${JSON.stringify(ses
   }
 });
 
+for (const role of ["lead", "dev"]) test(role + " shows one failed turn on Development and retries the input on recovery", { timeout: 12000 }, async t => {
+  const p = development(t);
+  await p.action("develop.start");
+  if (role === "dev") await p.action("lead.build", { ticketId: "1" }, p.state().agents.lead.id);
+  const agent = p.state().agents[role];
+  const fault = p.path("turn-fails"), turns = p.path("turns");
+  if (role === "lead") writeFileSync(fault, "");
+  writeFileSync(p.path("bin", agent.tool), `#!${process.execPath}
+const fs = require("node:fs"), text = fs.readFileSync(0, "utf8");
+fs.appendFileSync(${JSON.stringify(turns)}, JSON.stringify([process.argv.slice(2), text]) + "\\n");
+if (fs.existsSync(${JSON.stringify(fault)})) process.exit(1);
+if (text === "Original delivery") { console.log(JSON.stringify({ type:"turn.failed" })); process.exit(0); }
+console.log(JSON.stringify({ type:"thread.started", thread_id:"demo-thread" }));
+`, { mode: 0o700 });
+  // The wrapper, not this terminal double, writes the receipt when it reads the message.
+  renameSync(p.path("bin/hc"), p.path("bin/hc-original"));
+  writeFileSync(p.path("bin/hc"), '#!/bin/sh\nif [ "$1" = send ]; then printf "%s" "$4" > "$MISSION_CONTROL_HOME/inbox"; else exec "$MISSION_CONTROL_HOME/bin/hc-original" "$@"; fi\n', { mode: 0o700 });
+  const child = spawn(process.execPath, [p.path("engine/agent-session.ts"), "DEMO-1", agent.terminal, agent.tool, "Initial role"], { env: p.env });
+  t.after(() => child.kill());
+  const finished = once(child, "exit");
+  const errors = createInterface({ input: child.stderr })[Symbol.asyncIterator]();
+  if (role === "dev") child.stdin.write("Original delivery\n");
+  async function failure() {
+    assert.match((await errors.next()).value ?? "", /Agent turn failed/);
+    const requests = (await p.action("missions.show")).data.development.requests;
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].from, role);
+    assert.equal(requests[0].ticketId, agent.ticketId);
+    assert.match(requests[0].text + requests[0].context, /terminal/i);
+    assert.match(requests[0].choices[0], /reprendre/i);
+    return requests[0];
+  }
+  const request = await failure();
+  if (role === "lead") {
+    child.stdin.write("Other input\n");
+    assert.equal((await failure()).id, request.id);
+    unlinkSync(fault);
+  }
+  const reply = role === "lead" ? await p.action("develop.start") :
+    await p.action("requests.answer", { requestId: request.id, text: "Réessayez." });
+  assert.ok(reply.data?.development.requests[0].answer, JSON.stringify(reply));
+  child.stdin.end(readFileSync(p.path("inbox"), "utf8") + "\n");
+  assert.equal((await finished)[0], 0);
+  const [args, input] = JSON.parse(readFileSync(turns, "utf8").trim().split("\n").at(-1)!);
+  assert.ok(input.includes(role === "lead" ? "Initial role" : "Original delivery"));
+  assert.ok(input.includes(reply.data.development.requests[0].answer));
+  assert.equal(args.includes("--resume") || args.includes("resume"), role === "dev");
+});
+
 for (const tool of ["claude", "codex"]) test(tool + " keeps processing terminal input after failed turns", t => {
   const p = setup(t);
   const session = "bf698558-c45b-4399-a688-adfb1930c105";
@@ -78,5 +130,9 @@ console.log(JSON.stringify({type:"thread.started", thread_id:${JSON.stringify(se
     assert.ok(!turns[1][0].includes("resume"));
     assert.ok(turns[1][1].includes("Initial role"));
     assert.ok(turns[3][0].includes(session));
-  } else assert.equal(turns[3][0][turns[3][0].indexOf("--resume") + 1], turns[0][0].at(-1));
+  } else {
+    assert.ok(turns[1][0].includes("--session-id"));
+    assert.notEqual(turns[1][0].at(-1), turns[0][0].at(-1));
+    assert.equal(turns[3][0][turns[3][0].indexOf("--resume") + 1], turns[1][0].at(-1));
+  }
 });

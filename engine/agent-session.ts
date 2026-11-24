@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
+import { reportTurnFailure } from "./requests.ts";
 
 const [, , key, terminal, tool, first] = process.argv;
 const cwd = mkdtempSync(join(tmpdir(), "mc-agent-"));
@@ -15,20 +16,24 @@ const host = Object.fromEntries(["MISSION_CONTROL_HOME", "HERDR_APP_HOME", "HC_S
 const server = { command: process.execPath, args: [join(import.meta.dirname, "agent-tools.ts"), key, terminal, cwd], env: host };
 const config = JSON.stringify({ mcpServers: { mc: server } });
 const lines = createInterface({ input: process.stdin, terminal: !!process.stdin.isTTY, output: process.stdout })[Symbol.asyncIterator]();
-let session = tool === "claude" ? randomUUID().toString() : "";
+let session = "";
+let failed: { requestId: string; message: string } | undefined;
 
 function messageFields(line: string) {
   try { return JSON.parse(line); }
   catch { return undefined; }
 }
 
-async function turn(message: string, resume: boolean) {
+async function turn(message: string) {
+  const resume = Boolean(session);
+  let id = session || (tool === "claude" ? randomUUID() : "");
+  let turnFailed = false;
   const executable = tool === "codex"
     ? realpathSync(execFileSync("/usr/bin/which", ["codex"], { cwd, env, encoding: "utf8" }).trim())
     : tool;
   const args = tool === "claude" ? ["-p", "--restricted", "--strict-mcp-config", "--mcp-config", config, "--tools", "",
     "--allowedTools", "mcp__mc__command", "mcp__mc__shell", "mcp__mc__commit", "--permission-mode", "dontAsk",
-    "--permission-prompts", "none", resume ? "--resume" : "--session-id", session] :
+    "--permission-prompts", "none", resume ? "--resume" : "--session-id", id] :
     ["-a", "never", "exec", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check", "--json",
       "-c", 'default_permissions="mission"', "-c", 'permissions.mission.filesystem={":minimal"="read",":workspace_roots"="read",' + JSON.stringify(executable) + '="read"}',
       "-c", "permissions.mission.network.enabled=false", "-c", 'web_search="disabled"',
@@ -46,16 +51,28 @@ async function turn(message: string, resume: boolean) {
   child.stdin.end(message);
   for await (const line of createInterface({ input: child.stdout })) {
     console.log(line);
-    if (tool === "codex" && !resume) {
+    if (tool === "codex") {
       const event = messageFields(line);
-      if (event?.type === "thread.started" && typeof event.thread_id === "string") session = event.thread_id;
+      if (!resume && event?.type === "thread.started" && typeof event.thread_id === "string") id = event.thread_id;
+      if (event?.type === "turn.failed") turnFailed = true;
     }
   }
-  if (!await done || !session) console.error("Agent turn failed. Waiting for the next message.");
+  if (!await done || turnFailed || !id) return false;
+  session = id;
+  return true;
+}
+
+async function handleTurn(message: string) {
+  try {
+    if (await turn(message)) return;
+  } catch { console.error("Unable to launch the agent CLI."); }
+  const requestId = await reportTurnFailure(join(host.MISSION_CONTROL_HOME, "missions"), key, terminal);
+  if (requestId && failed?.requestId !== requestId) failed = { requestId, message };
+  console.error("Agent turn failed. Waiting for the next message.");
 }
 
 try {
-  await turn(first, false);
+  await handleTurn(first);
   for await (const message of { [Symbol.asyncIterator]: () => lines }) {
     const event = messageFields(message);
     if (typeof event?.deliveryId === "string" && /^[0-9a-f-]{36}$/.test(event.deliveryId)) {
@@ -67,6 +84,11 @@ try {
         throw err;
       }
     }
-    await turn(session ? message : first + "\n\n" + message, Boolean(session));
+    let context = session ? "" : first;
+    if (failed && event?.action === "requests.answer" && event.requestId === failed.requestId) {
+      context = failed.message;
+      failed = undefined;
+    }
+    await handleTurn(context ? context + "\n\n" + message : message);
   }
 } finally { rmSync(cwd, { recursive: true, force: true }); }

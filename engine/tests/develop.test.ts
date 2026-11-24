@@ -51,23 +51,39 @@ test("a Lead still marked starting is relaunched when its terminal is absent or 
   }
 });
 
-test("a restart replaces a failed Lead whose terminal was removed and closes its request", async t => {
-  const p = development(t);
-  await p.action("develop.start");
-  const lead = p.state().agents.lead;
-  writeFileSync(p.path("bin/claude"), "#!/bin/sh\nexit 1\n", { mode: 0o700 });
-  const run = spawnSync(process.execPath, [p.path("engine/agent-session.ts"), p.issueKey, lead.terminal, "claude", "Role"],
-    { env: p.env, input: "", encoding: "utf8" });
-  assert.equal(run.status, 0, run.stderr);
-  assert.equal((await p.action("missions.show")).data.development.requests[0].answer, undefined);
-  writeFileSync(p.path("live"), JSON.stringify({ terminals: [] }));
-  const result = await p.action("develop.start");
-  assert.ok(result.data?.development.requests[0].answer);
-  const replacement = p.state().agents.lead;
-  assert.notEqual(replacement.terminal, lead.terminal);
-  assert.ok((await p.action("lead.build", { ticketId: "1" }, lead.id)).error);
-  assert.equal(p.calls().filter(c => c[0] === "run" && c.includes(replacement.terminal)).length, 1);
-});
+for (const outcome of ["confirmed", "unconfirmed", "unconfirmed then failed"]) {
+  test("a replacement Lead resolves the removed Lead's request when " + outcome, async t => {
+    const p = development(t);
+    await p.action("develop.start");
+    const lead = p.state().agents.lead;
+    writeFileSync(p.path("bin/claude"), "#!/bin/sh\nexit 1\n", { mode: 0o700 });
+    function failTurn(terminal: string) {
+      const run = spawnSync(process.execPath, [p.path("engine/agent-session.ts"), p.issueKey, terminal, "claude", "Role"],
+        { env: p.env, input: "", encoding: "utf8" });
+      assert.equal(run.status, 0, run.stderr);
+    }
+    failTurn(lead.terminal);
+    const [failure] = (await p.action("missions.show")).data.development.requests;
+    assert.equal(failure.answer, undefined);
+    writeFileSync(p.path("live"), JSON.stringify({ terminals: [] }));
+    if (outcome !== "confirmed") writeFileSync(p.path("lose-start"), "");
+    let result = await p.action("develop.start");
+    const replacement = p.state().agents.lead;
+    assert.notEqual(replacement.terminal, lead.terminal);
+    if (outcome !== "confirmed") {
+      assert.ok(result.error);
+      if (outcome === "unconfirmed then failed") failTurn(replacement.terminal);
+      const pending = (await p.action("missions.show")).data.development.requests;
+      assert.deepEqual(pending, [failure]);
+      result = await p.action("develop.start");
+    }
+    assert.deepEqual(result.data?.development.requests, [{ ...failure, answer: failure.choices[0] }]);
+    const sends = p.calls().filter(c => c[0] === "send").map(c => [c[2], JSON.parse(c[3]).requestId]);
+    assert.deepEqual(sends, outcome === "unconfirmed then failed" ? [[replacement.terminal, failure.id]] : []);
+    assert.ok((await p.action("lead.build", { ticketId: "1" }, lead.id)).error);
+    assert.equal(p.calls().filter(c => c[0] === "run").length, 2);
+  });
+}
 
 test("a failed dev launch resumes the same build and adopts a live terminal after a lost start reply", async t => {
   const p = development(t);

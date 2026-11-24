@@ -69,7 +69,7 @@ for (const role of ["lead", "dev"]) test(role + " shows one failed turn on Devel
 const fs = require("node:fs"), text = fs.readFileSync(0, "utf8");
 fs.appendFileSync(${JSON.stringify(turns)}, JSON.stringify([process.argv.slice(2), text]) + "\\n");
 if (fs.existsSync(${JSON.stringify(fault)})) process.exit(1);
-if (text === "Original delivery") { console.log(JSON.stringify({ type:"turn.failed" })); process.exit(0); }
+if (text.startsWith("{") && !text.includes("\\n\\n")) { console.log(JSON.stringify({ type:"turn.failed" })); process.exit(0); }
 console.log(JSON.stringify({ type:"thread.started", thread_id:"demo-thread" }));
 `, { mode: 0o700 });
   // The wrapper, not this terminal double, writes the receipt when it reads the message.
@@ -79,10 +79,20 @@ console.log(JSON.stringify({ type:"thread.started", thread_id:"demo-thread" }));
   t.after(() => child.kill());
   const finished = once(child, "exit");
   const errors = createInterface({ input: child.stderr })[Symbol.asyncIterator]();
-  if (role === "dev") child.stdin.write("Original delivery\n");
+  async function answerDevQuestion(question: string, text: string) {
+    const asked = await p.action("request.ask", { ticketId: "1", text: question, context: "Affichage", choices: [] }, agent.id);
+    const requestId = asked.data.development.requests.at(-1).id;
+    const result = await p.action("requests.answer", { requestId, text });
+    assert.equal(result.data.development.requests.at(-1).answer, text);
+    return readFileSync(p.path("inbox"), "utf8");
+  }
+  const inputs = role === "lead" ? ["Initial role", "Other input"] : [
+    await answerDevQuestion("Quel tri ?", "Par nom."), await answerDevQuestion("Quel ordre ?", "Croissant."),
+  ];
+  if (role === "dev") child.stdin.write(inputs[0] + "\n");
   async function failure() {
     assert.match((await errors.next()).value ?? "", /Agent turn failed/);
-    const requests = (await p.action("missions.show")).data.development.requests;
+    const requests = (await p.action("missions.show")).data.development.requests.filter((r: { answer?: string }) => r.answer === undefined);
     assert.equal(requests.length, 1);
     assert.equal(requests[0].from, role);
     assert.equal(requests[0].ticketId, agent.ticketId);
@@ -91,19 +101,32 @@ console.log(JSON.stringify({ type:"thread.started", thread_id:"demo-thread" }));
     return requests[0];
   }
   const request = await failure();
-  if (role === "lead") {
-    child.stdin.write("Other input\n");
-    assert.equal((await failure()).id, request.id);
-    unlinkSync(fault);
-  }
+  child.stdin.write(inputs[1] + "\n");
+  assert.equal((await failure()).id, request.id);
+  if (role === "lead") unlinkSync(fault);
+  else child.stdin.write(inputs[1] + "\n"); // Duplicate delivery of the second answer.
   const reply = role === "lead" ? await p.action("develop.start") :
     await p.action("requests.answer", { requestId: request.id, text: "Réessayez." });
-  assert.ok(reply.data?.development.requests[0].answer, JSON.stringify(reply));
-  child.stdin.end(readFileSync(p.path("inbox"), "utf8") + "\n");
+  assert.ok(reply.data?.development.requests.at(-1).answer, JSON.stringify(reply));
+  const recovery = readFileSync(p.path("inbox"), "utf8");
+  child.stdin.write((recovery + "\n").repeat(2));
+  const expectedPrompts = role === "lead" ? [["Initial role"], inputs] : [["Initial role"], [inputs[0]], [inputs[1]]];
+  expectedPrompts.push([...inputs, recovery]);
+  if (role === "dev") {
+    const later = await answerDevQuestion("Quelle couleur ?", "Bleu.");
+    child.stdin.write(later + "\n");
+    const next = await failure();
+    assert.notEqual(next.id, request.id);
+    await p.action("requests.answer", { requestId: next.id, text: "Reprenez." });
+    const confirmed = readFileSync(p.path("inbox"), "utf8");
+    child.stdin.write(confirmed + "\n");
+    expectedPrompts.push([later], [later, confirmed]);
+  }
+  child.stdin.end();
   assert.equal((await finished)[0], 0);
-  const [args, input] = JSON.parse(readFileSync(turns, "utf8").trim().split("\n").at(-1)!);
-  assert.ok(input.includes(role === "lead" ? "Initial role" : "Original delivery"));
-  assert.ok(input.includes(reply.data.development.requests[0].answer));
+  const attempts = readFileSync(turns, "utf8").trim().split("\n").map(line => JSON.parse(line));
+  assert.deepEqual(attempts.map(([, input]) => input.split("\n\n")), expectedPrompts);
+  const [args] = attempts.at(-1);
   assert.equal(args.includes("--resume") || args.includes("resume"), role === "dev");
 });
 

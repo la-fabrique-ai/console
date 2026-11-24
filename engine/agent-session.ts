@@ -17,7 +17,8 @@ const server = { command: process.execPath, args: [join(import.meta.dirname, "ag
 const config = JSON.stringify({ mcpServers: { mc: server } });
 const lines = createInterface({ input: process.stdin, terminal: !!process.stdin.isTTY, output: process.stdout })[Symbol.asyncIterator]();
 let session = "";
-let failed: { requestId: string; message: string } | undefined;
+let failedRequest: string | undefined;
+let failedMessages: string[] = [];
 
 function messageFields(line: string) {
   try { return JSON.parse(line); }
@@ -62,17 +63,21 @@ async function turn(message: string) {
   return true;
 }
 
-async function handleTurn(message: string) {
+async function handleTurn(messages: string[]) {
+  const prompt = session ? messages : [first, ...messages];
   try {
-    if (await turn(message)) return;
+    if (await turn(prompt.join("\n\n"))) return;
   } catch { console.error("Unable to launch the agent CLI."); }
   const requestId = await reportTurnFailure(join(host.MISSION_CONTROL_HOME, "missions"), key, terminal);
-  if (requestId && failed?.requestId !== requestId) failed = { requestId, message };
+  if (requestId) {
+    failedRequest = requestId;
+    for (const message of messages) failedMessages.push(message);
+  }
   console.error("Agent turn failed. Waiting for the next message.");
 }
 
 try {
-  await handleTurn(first);
+  await handleTurn([]);
   for await (const message of { [Symbol.asyncIterator]: () => lines }) {
     const event = messageFields(message);
     if (typeof event?.deliveryId === "string" && /^[0-9a-f-]{36}$/.test(event.deliveryId)) {
@@ -84,11 +89,12 @@ try {
         throw err;
       }
     }
-    let context = session ? "" : first;
-    if (failed && event?.action === "requests.answer" && event.requestId === failed.requestId) {
-      context = failed.message;
-      failed = undefined;
+    let messages = [message];
+    if (failedRequest && event?.action === "requests.answer" && event.requestId === failedRequest) {
+      messages = failedMessages.concat(message);
+      failedMessages = [];
+      failedRequest = undefined;
     }
-    await handleTurn(context ? context + "\n\n" + message : message);
+    await handleTurn(messages);
   }
 } finally { rmSync(cwd, { recursive: true, force: true }); }

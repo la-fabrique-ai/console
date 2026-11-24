@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { test, type TestContext } from "node:test";
 import { setup } from "./pilot-project.ts";
+import { installForge } from "./runtime-fixture.ts";
 
 const key = { issueKey: "DEMO-1" };
 const summary = "# Retrouver une fiche\n- Afficher les résultats.";
@@ -15,6 +16,7 @@ const file = "docs/missions/DEMO-1/split.md";
 
 async function ready(t: TestContext) {
   const project = setup(t);
+  installForge(project);
   const { cli, path, git } = project;
   git("config", "user.name", "Test"); git("config", "user.email", "test@example.invalid");
   await cli("missions.create", key);
@@ -70,7 +72,7 @@ test("approval commits only the safe split, creates ordered children, comments l
     ["pilot.tell", { text: "Autre" }], ["pilot.ticket", { ticket: tickets[0] }]] as const) {
     assert.deepEqual(await cli(action, { ...key, ...data }), first);
   }
-  assert.deepEqual(requests(), all); assert.equal(calls().filter(a => a[0] === "run").length, before.filter(a => a[0] === "run").length + 1);
+  assert.deepEqual(requests(), all); assert.equal(calls().filter(a => a[0] === "run").length, before.filter(a => a[0] === "run").length);
   assert.deepEqual(m.development, { tickets: [], requests: [] });
 });
 

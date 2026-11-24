@@ -7,9 +7,7 @@ import { CommandError, type Action, type Payloads, type Reply, type Results } fr
 import { askQuestions, propose, deliver } from "./questions.ts";
 import { receiveSpec, specGesture } from "./spec.ts";
 import { chooseTeam, completePlan, foundTicket, launchPlan } from "./plan.ts";
-import { ask, answer } from "./requests.ts";
-import { done, verdict } from "./review.ts";
-import { build, startDevelopment, caller, refused } from "./agents.ts";
+import { startDevelopment, answerRuntime, showDevelopment } from "./runtime.ts";
 import { startPilot } from "./pilot.ts";
 import { projectSettings } from "./settings.ts";
 
@@ -40,11 +38,8 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
         !("issueKey" in payload) || payload.issueKey !== process.env.MC_PILOT_ISSUE)) {
       throw new Error("Invalid Pilot callback");
     }
-    if (process.env.MC_AGENT_ID || ["lead.build", "dev.done", "review.verdict", "request.ask"].includes(action)) {
-      if (!("issueKey" in payload)) throw refused();
-      issueNumber(payload.issueKey, teamKey);
-      caller(loadDetail(dir, payload.issueKey), action, "ticketId" in payload ? payload.ticketId : undefined);
-    }
+    const retired = (): never => { throw new CommandError("Cette action n’est pas autorisée pour cet agent."); };
+    if (process.env.MC_AGENT_ID) retired();
     if (action === "develop.start" || action === "requests.answer" || action.startsWith("plan.") || action.startsWith("questions.") || action.startsWith("pilot.") || action.startsWith("spec.")) {
       issueNumber("issueKey" in payload ? payload.issueKey : undefined, teamKey);
     }
@@ -70,16 +65,16 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
       "pilot.ticket": p => update(p.issueKey, m => foundTicket(m, p.ticket)),
       "pilot.plan": p => update(p.issueKey, m => completePlan(m, p)),
       "plan.team": p => update(p.issueKey, m => chooseTeam(m, p.team)),
-      "develop.start": p => startDevelopment(dir, repository, p.issueKey),
-      "request.ask": p => ask(dir, p),
-      "requests.answer": p => answer(dir, p),
-      "dev.done": p => done(dir, repository, p),
-      "review.verdict": p => verdict(dir, repository, p),
-      "lead.build": p => build(dir, repository, p),
+      "develop.start": p => startDevelopment(dir, settings, p.issueKey),
+      "requests.answer": p => answerRuntime(dir, p),
+      "request.ask": retired,
+      "dev.done": retired,
+      "review.verdict": retired,
+      "lead.build": retired,
       "plan.launch": async p => {
         if (!allowedIssueKeys.includes(p.issueKey)) throw new CommandError("Ce ticket ne figure pas dans la liste autorisée.", "issue_not_allowed");
         await launchPlan(dir, p.issueKey, teamKey, repository);
-        return startDevelopment(dir, repository, p.issueKey);
+        return startDevelopment(dir, settings, p.issueKey);
       },
       "missions.list": () => listMissions(dir),
       "issues.list": async () => {
@@ -97,7 +92,7 @@ async function command<A extends Action>(action: A, json = "{}"): Promise<Reply<
       },
       "missions.show": ({ issueKey }) => {
         issueNumber(issueKey, teamKey);
-        return visible(loadDetail(dir, issueKey));
+        return showDevelopment(dir, issueKey);
       },
       "missions.create": async ({ issueKey, details = [] }) => {
         if (!allowedIssueKeys.includes(issueKey)) throw new CommandError("Ce ticket ne figure pas dans la liste autorisée.", "issue_not_allowed");

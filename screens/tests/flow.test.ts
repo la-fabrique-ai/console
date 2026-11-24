@@ -23,6 +23,7 @@ function project(t: TestContext) {
   screen.slow.clear();
   screen.canned.clear();
   screen.sent.length = 0;
+  screen.notified.length = 0;
   return project;
 }
 
@@ -748,6 +749,7 @@ test("the operator follows a ticket from the Lead's start to accepted, and answe
   click("send-reply");
   texts = await shown();
   assert.ok(texts.includes("Réponse refusée.") && texts.includes("Oui pour les deux"));
+  assert.equal(screen.notified.filter((entry) => entry.includes(request.text)).length, 1, "a request rings once when it arrives, not at each reading");
   const other = { ...request, id: "r2", text: "Et les liens en double ?" };
   const later3 = { ...request, id: "r3" };
   screen.canned.set("missions.show", [said({ tickets: [run([build])], requests: [{ ...request, answer: "Oui, les deux" }, other] })]);

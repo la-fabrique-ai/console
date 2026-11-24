@@ -3,7 +3,7 @@
 // docs/mockups/prepare-flow (states 01, 02, 08 to 13, 23 and 24).
 import { View, div, type Context, type NativeElement } from "gpui-kit";
 import { v_flex, h_flex, TextView, InputState, Input } from "gpui-base";
-import { exec, checking, props } from "herdr";
+import { exec, checking, notify, props } from "herdr";
 import type { Action, IssueDetail, IssueSummary, Mission, MissionDetail, Payloads, Plan, PlanTicket, Question, Reply, Request, Stage, TicketRun, TicketStep, Tool } from "../../engine/contract.ts";
 
 type Page = "issues" | "request" | "development";
@@ -247,6 +247,11 @@ export default class MissionControl extends View {
     if (asked(detail) !== asked(this.detail)) {
       this.inputs.reply?.set_value("");
       this.requestError = "";
+      // A request that arrives while the mission is on screen also rings: the operator may be looking elsewhere.
+      const request = detail.development?.requests.find((entry) => entry.answer === undefined);
+      if (request && this.detail?.issueKey === detail.issueKey) {
+        notify({ title: `${detail.issueKey} · une demande vous attend`, body: request.text, level: "warning" });
+      }
     }
     this.detail = detail;
   }

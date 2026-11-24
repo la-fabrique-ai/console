@@ -23,6 +23,8 @@ export const screen = {
   sent: [] as string[][],
   /** The next call of an action waits for its promise before answering: a slow reply. */
   slow: new Map<string, Promise<void>>(),
+  /** Every notification posted, as "title | body". */
+  notified: [] as string[],
 };
 
 const drawn = new WeakMap<object, Drawn>();
@@ -84,6 +86,7 @@ export const InputState = {
 export const Input = { new: (state: Field) => element(state.value(), [...states].find(([, other]) => other === state)![0]) };
 
 export const checking = () => false;
+export const notify = (n: { title: string; body?: string }) => { screen.notified.push(`${n.title} | ${n.body ?? ""}`); return ""; };
 export const props = () => ({ engine: "engine.sh" });
 export async function exec(_command: string, [, ...args]: string[]) {
   screen.sent.push(args);

@@ -41,8 +41,13 @@ function containsNestedRepository(root: string) {
 
 function runGit(cwd: string, args: string[], gitDir?: string) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== "LINEAR_API_KEY" && !name.startsWith("GIT_")));
+  // The operator's SSH key may need a touch nobody is there to give. The engine reaches GitHub with the gh sign-in.
+  const signIn = ["fetch", "push", "ls-remote"].includes(args[0]) ? [
+    "-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential",
+    "-c", "url.https://github.com/.insteadOf=git@github.com:", "-c", "url.https://github.com/.insteadOf=ssh://git@github.com/",
+  ] : [];
   return execFileSync("git", [
-    "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "submodule.recurse=false", "-C", cwd,
+    "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "submodule.recurse=false", ...signIn, "-C", cwd,
     ...(gitDir ? ["--git-dir", gitDir, "--work-tree", cwd] : []), ...args,
   ], {
     env: { ...env, GIT_TERMINAL_PROMPT: "0" },

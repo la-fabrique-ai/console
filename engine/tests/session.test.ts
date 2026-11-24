@@ -1,17 +1,19 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { setup } from "./pilot-project.ts";
 
 for (const tool of ["claude", "codex"]) test(tool + " gets one new session and resumes the same conversation by ID", t => {
   const p = setup(t);
   const session = "44ac9115-567b-4411-8632-234c7cb14737";
-  writeFileSync(p.path("bin", tool), `#!${process.execPath}
+  const binary = p.path("bin", tool === "codex" ? "installed-codex" : tool);
+  if (tool === "codex") symlinkSync(binary, p.path("bin", tool));
+  writeFileSync(binary, `#!${process.execPath}
 const fs = require("node:fs");
 if (process.env.LINEAR_API_KEY || process.env.GH_TOKEN || process.env.MC_AGENT_ID) process.exit(91);
 const input = fs.readFileSync(0,"utf8");
-fs.appendFileSync(${JSON.stringify(p.path("turns"))}, JSON.stringify([process.argv.slice(2),input])+"\\n");
+fs.appendFileSync(${JSON.stringify(p.path("turns"))}, JSON.stringify([process.argv.slice(2),input,process.argv[1]])+"\\n");
 console.log(JSON.stringify({type:"thread.started",thread_id:${JSON.stringify(session)}}));
 `, { mode: 0o700 });
   const run = spawnSync(process.execPath, [p.path("engine/agent-session.ts"), "DEMO-1", "terminal-one", tool, "Role and ticket"], {
@@ -24,12 +26,17 @@ console.log(JSON.stringify({type:"thread.started",thread_id:${JSON.stringify(ses
   const [first, next] = turns;
   assert.equal(first[1], "Role and ticket"); assert.equal(JSON.parse(next[1]).text, "Une réponse");
   if (tool === "codex") {
+    const installed = realpathSync(binary);
+    assert.equal(first[2], installed);
+    assert.equal(next[2], installed);
     for (const args of [first[0],next[0]]) {
       for (const feature of ["shell_tool","unified_exec","apps","plugins","browser_use","computer_use","multi_agent"]) {
         const index = args.indexOf(feature);
         assert.equal(args[index - 1], "--disable", feature);
       }
-      assert.ok(args.includes('permissions.mission.filesystem={":minimal"="read",":workspace_roots"="read"}'));
+      assert.ok(args.includes('permissions.mission.filesystem={":minimal"="read",":workspace_roots"="read",' + JSON.stringify(installed) + '="read"}'));
+      assert.ok(args.includes('mcp_servers.mc.default_tools_approval_mode="approve"'));
+      assert.ok(args.includes('permissions.mission.network.enabled=false'));
       assert.ok(args.includes('web_search="disabled"'));
     }
     assert.ok(first[0].includes("--json")); assert.ok(first[0].includes("--ignore-rules"));

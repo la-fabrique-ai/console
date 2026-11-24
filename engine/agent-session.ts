@@ -1,7 +1,7 @@
 // A terminal owns one conversation. Only the engine's scoped tools run in the project.
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -23,17 +23,21 @@ function messageFields(line: string) {
 }
 
 async function turn(message: string, resume: boolean) {
+  const executable = tool === "codex"
+    ? realpathSync(execFileSync("/usr/bin/which", ["codex"], { cwd, env, encoding: "utf8" }).trim())
+    : tool;
   const args = tool === "claude" ? ["-p", "--restricted", "--strict-mcp-config", "--mcp-config", config, "--tools", "",
     "--allowedTools", "mcp__mc__command", "mcp__mc__shell", "mcp__mc__commit", "--permission-mode", "dontAsk",
     "--permission-prompts", "none", resume ? "--resume" : "--session-id", session] :
     ["-a", "never", "exec", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check", "--json",
-      "-c", 'default_permissions="mission"', "-c", 'permissions.mission.filesystem={":minimal"="read",":workspace_roots"="read"}',
+      "-c", 'default_permissions="mission"', "-c", 'permissions.mission.filesystem={":minimal"="read",":workspace_roots"="read",' + JSON.stringify(executable) + '="read"}',
       "-c", "permissions.mission.network.enabled=false", "-c", 'web_search="disabled"',
       ...["shell_tool", "unified_exec", "multi_agent", "apps", "plugins", "browser_use", "computer_use"].flatMap(feature => ["--disable", feature]),
+      "-c", 'mcp_servers.mc.default_tools_approval_mode="approve"',
       "-c", "mcp_servers.mc.command=" + JSON.stringify(server.command), "-c", "mcp_servers.mc.args=" + JSON.stringify(server.args),
       "-c", "mcp_servers.mc.env={" + Object.entries(host).map(([k,v]) => k + "=" + JSON.stringify(v)).join(",") + "}",
       ...(resume ? ["resume", session] : []), "-"];
-  const child = spawn(tool, args, { cwd, env, stdio: ["pipe", "pipe", "inherit"] });
+  const child = spawn(executable, args, { cwd, env, stdio: ["pipe", "pipe", "inherit"] });
   const done = new Promise<boolean>(resolve => {
     child.on("error", () => resolve(false));
     child.on("close", code => resolve(code === 0));

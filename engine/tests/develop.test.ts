@@ -34,6 +34,23 @@ test("an older mission starts one Lead and replaces a lost terminal, then starts
   assert.equal(existsSync(path("linear-requests")), false);
 });
 
+test("a Lead still marked starting is relaunched when its terminal is absent or finished", async t => {
+  const p = development(t);
+  await p.action("develop.start");
+  for (const present of [false, true]) {
+    const m = p.state(), lead = m.agents.lead;
+    lead.starting = true;
+    writeFileSync(p.path("missions/DEMO-1.json"), JSON.stringify(m));
+    const terminals = present ? [{ name: lead.terminal, cwd: lead.cwd, state: "finished" }] : [];
+    writeFileSync(p.path("live"), JSON.stringify({ terminals }));
+    const launches = () => p.calls().filter(c => c[0] === "run" && c.includes(lead.terminal)).length;
+    const before = launches();
+    assert.ok((await p.action("develop.start")).data);
+    assert.equal(launches(), before + 1);
+    assert.equal(p.state().agents.lead.starting, undefined);
+  }
+});
+
 test("a restart replaces a failed Lead whose terminal was removed and closes its request", async t => {
   const p = development(t);
   await p.action("develop.start");

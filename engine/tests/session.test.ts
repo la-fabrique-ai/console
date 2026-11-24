@@ -13,17 +13,25 @@ for (const tool of ["claude", "codex"]) test(tool + " gets one new session and r
 const fs = require("node:fs");
 if (process.env.LINEAR_API_KEY || process.env.GH_TOKEN || process.env.MC_AGENT_ID) process.exit(91);
 const input = fs.readFileSync(0,"utf8");
-fs.appendFileSync(${JSON.stringify(p.path("turns"))}, JSON.stringify([process.argv.slice(2),input,process.argv[1]])+"\\n");
+fs.appendFileSync(${JSON.stringify(p.path("turns"))}, JSON.stringify([process.argv.slice(2),input,process.argv[1],{home:process.env.HOME,user:process.env.USER,login:process.env.LOGNAME}])+"\\n");
 console.log(JSON.stringify({type:"thread.started",thread_id:${JSON.stringify(session)}}));
 `, { mode: 0o700 });
   const run = spawnSync(process.execPath, [p.path("engine/agent-session.ts"), "DEMO-1", "terminal-one", tool, "Role and ticket"], {
-    cwd: p.path("repo"), env: { ...p.env, GH_TOKEN: "fixture", LINEAR_API_KEY: "fixture", MC_AGENT_ID: "fixture" },
+    cwd: p.path("repo"), env: { ...p.env, HOME: p.path("operator"), USER: "operator", LOGNAME: "login", GH_TOKEN: "fixture", LINEAR_API_KEY: "fixture", MC_AGENT_ID: "fixture" },
     input: (JSON.stringify({ text:"Une réponse", deliveryId:session }) + "\n").repeat(2), encoding: "utf8",
   });
   assert.equal(run.status, 0, run.stderr);
   const turns = readFileSync(p.path("turns"), "utf8").trim().split("\n").map(l => JSON.parse(l));
   assert.equal(turns.length, 2);
   const [first, next] = turns;
+  for (const [args, , , identity] of turns) {
+    assert.deepEqual(identity, tool === "claude" ? { home: p.path("operator"), user: "operator" } : { home: p.path("operator") });
+    const host = tool === "claude" ? JSON.parse(args[args.indexOf("--mcp-config") + 1]).mcpServers.mc.env :
+      Object.fromEntries([...args.find((arg: string) => arg.startsWith("mcp_servers.mc.env=")).matchAll(/(\w+)="([^"]*)"/g)]
+        .map(([, key, value]) => [key, value]));
+    assert.deepEqual(host, { MISSION_CONTROL_HOME: p.env.MISSION_CONTROL_HOME, HERDR_APP_HOME: p.env.HERDR_APP_HOME,
+      HC_SOCKET: p.env.HC_SOCKET, HC_SESSION: p.env.HC_SESSION, PATH: p.env.PATH, HOME: p.path("operator") });
+  }
   assert.equal(first[1], "Role and ticket"); assert.equal(JSON.parse(next[1]).text, "Une réponse");
   if (tool === "codex") {
     const installed = realpathSync(binary);

@@ -8,9 +8,9 @@ import { createInterface } from "node:readline";
 
 const [, , key, terminal, tool, first] = process.argv;
 const cwd = mkdtempSync(join(tmpdir(), "mc-agent-"));
-const env = Object.fromEntries(["PATH", "HOME", "USER", "LOGNAME", "TMPDIR", "LANG", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "OPENAI_API_KEY", "CODEX_HOME"]
+const env = Object.fromEntries(["PATH", "HOME", ...(tool === "claude" ? ["USER"] : []), "TMPDIR", "LANG", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "OPENAI_API_KEY", "CODEX_HOME"]
   .flatMap(k => process.env[k] ? [[k, process.env[k]!]] : []));
-const host = Object.fromEntries(["MISSION_CONTROL_HOME", "HERDR_APP_HOME", "HC_SOCKET", "HC_SESSION", "PATH", "HOME", "USER", "LOGNAME"]
+const host = Object.fromEntries(["MISSION_CONTROL_HOME", "HERDR_APP_HOME", "HC_SOCKET", "HC_SESSION", "PATH", "HOME"]
   .map(k => [k, process.env[k] ?? ""]));
 const server = { command: process.execPath, args: [join(import.meta.dirname, "agent-tools.ts"), key, terminal, cwd], env: host };
 const config = JSON.stringify({ mcpServers: { mc: server } });

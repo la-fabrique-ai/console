@@ -4,10 +4,11 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { CommandError, type Action, type Payloads, type PlanTicket, type Tool } from "./contract.ts";
 import { loadDetail, saveMission, visible, withMission, type SavedMission } from "./missions.ts";
+import { answerRequest } from "./requests.ts";
 import { coreEnvironment, gitAt, worktree } from "./pilot.ts";
 
 export interface Agent {
-  id: string; role: "lead" | "dev" | "reviewer"; tool: Tool; terminal: string; cwd: string; ticketId?: string; starting?: boolean; base?: string;
+  id: string; role: "lead" | "dev" | "reviewer"; tool: Tool; terminal: string; cwd: string; ticketId?: string; starting?: boolean; base?: string; failedRequest?: string;
 }
 export const refused = () => new CommandError("Cette action n’est pas autorisée pour cet agent.");
 export const retryAgentAction = "Répétez votre appel. Si l’échec persiste, utilisez request.ask pour demander à l’opérateur de vérifier.";
@@ -95,21 +96,24 @@ export function startDevelopment(dir: string, repository: string, key: string) {
   return withMission(dir, key, () => {
     const m = loadDetail(dir, key);
     if (!m.plan?.launched || m.stage !== "develop") throw new CommandError("Validez le plan avant de démarrer le Lead.");
-    if (m.agents?.lead?.starting) {
-      startAgent(dir, m, m.agents.lead, true);
-      m.development ??= { tickets: [], requests: [] };
+    const lead = m.agents?.lead;
+    const failure = m.development?.requests.find(r => r.id === lead?.failedRequest && r.answer === undefined);
+    if (lead && live(lead)) {
+      delete lead.starting;
+      if (failure && m.recipients?.[failure.id] === lead.terminal) {
+        return answerRequest(dir, m, { requestId: failure.id, text: failure.choices[0] });
+      }
+    } else {
+      const agent = lead?.starting ? lead : agentFor(m, "lead", "claude", worktree(repository, key));
+      if (failure) agent.failedRequest = failure.id;
+      (m.agents ??= {}).lead = agent;
       saveMission(dir, m);
-      return visible(m);
+      startAgent(dir, m, agent, false);
     }
-    if (m.agents?.lead && live(m.agents.lead)) {
-      m.development ??= { tickets: [], requests: [] };
-      saveMission(dir, m);
-      return visible(m);
+    if (failure) {
+      failure.answer = m.pendingAnswers?.[failure.id] ?? failure.choices[0];
+      delete m.pendingAnswers?.[failure.id];
     }
-    const agent = agentFor(m, "lead", "claude", worktree(repository, key));
-    (m.agents ??= {}).lead = agent;
-    saveMission(dir, m);
-    startAgent(dir, m, agent, false);
     m.development ??= { tickets: [], requests: [] };
     saveMission(dir, m);
     return visible(m);

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { development } from "./develop-project.ts";
@@ -31,6 +32,41 @@ test("an older mission starts one Lead and replaces a lost terminal, then starts
     assert.ok((await action("lead.build", { ticketId: id }, agent)).error);
   assert.ok((await action("develop.start", {}, state().agents.dev.id)).error);
   assert.equal(existsSync(path("linear-requests")), false);
+});
+
+test("a Lead still marked starting is relaunched when its terminal is absent or finished", async t => {
+  const p = development(t);
+  await p.action("develop.start");
+  for (const present of [false, true]) {
+    const m = p.state(), lead = m.agents.lead;
+    lead.starting = true;
+    writeFileSync(p.path("missions/DEMO-1.json"), JSON.stringify(m));
+    const terminals = present ? [{ name: lead.terminal, cwd: lead.cwd, state: "finished" }] : [];
+    writeFileSync(p.path("live"), JSON.stringify({ terminals }));
+    const launches = () => p.calls().filter(c => c[0] === "run" && c.includes(lead.terminal)).length;
+    const before = launches();
+    assert.ok((await p.action("develop.start")).data);
+    assert.equal(launches(), before + 1);
+    assert.equal(p.state().agents.lead.starting, undefined);
+  }
+});
+
+test("a restart replaces a failed Lead whose terminal was removed and closes its request", async t => {
+  const p = development(t);
+  await p.action("develop.start");
+  const lead = p.state().agents.lead;
+  writeFileSync(p.path("bin/claude"), "#!/bin/sh\nexit 1\n", { mode: 0o700 });
+  const run = spawnSync(process.execPath, [p.path("engine/agent-session.ts"), p.issueKey, lead.terminal, "claude", "Role"],
+    { env: p.env, input: "", encoding: "utf8" });
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal((await p.action("missions.show")).data.development.requests[0].answer, undefined);
+  writeFileSync(p.path("live"), JSON.stringify({ terminals: [] }));
+  const result = await p.action("develop.start");
+  assert.ok(result.data?.development.requests[0].answer);
+  const replacement = p.state().agents.lead;
+  assert.notEqual(replacement.terminal, lead.terminal);
+  assert.ok((await p.action("lead.build", { ticketId: "1" }, lead.id)).error);
+  assert.equal(p.calls().filter(c => c[0] === "run" && c.includes(replacement.terminal)).length, 1);
 });
 
 test("a failed dev launch resumes the same build and adopts a live terminal after a lost start reply", async t => {

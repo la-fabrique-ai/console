@@ -34,19 +34,20 @@ test("an older mission starts one Lead and replaces a lost terminal, then starts
   assert.equal(existsSync(path("linear-requests")), false);
 });
 
-test("a Lead still marked starting is relaunched when its terminal is absent or finished", async t => {
+test("a Lead still marked starting only launches again if its terminal is absent or finished", async t => {
   const p = development(t);
   await p.action("develop.start");
-  for (const present of [false, true]) {
+  for (const state of [undefined, "finished", "live"]) {
     const m = p.state(), lead = m.agents.lead;
     lead.starting = true;
     writeFileSync(p.path("missions/DEMO-1.json"), JSON.stringify(m));
-    const terminals = present ? [{ name: lead.terminal, cwd: lead.cwd, state: "finished" }] : [];
+    const terminals = state ? [{ name: lead.terminal, cwd: lead.cwd, state }] : [];
     writeFileSync(p.path("live"), JSON.stringify({ terminals }));
-    const launches = () => p.calls().filter(c => c[0] === "run" && c.includes(lead.terminal)).length;
+    const launches = () => p.calls().filter(c => c[0] === "run").length;
     const before = launches();
     assert.ok((await p.action("develop.start")).data);
-    assert.equal(launches(), before + 1);
+    assert.equal(launches(), before + (state === "live" ? 0 : 1));
+    assert.equal(p.state().agents.lead.terminal, lead.terminal);
     assert.equal(p.state().agents.lead.starting, undefined);
   }
 });

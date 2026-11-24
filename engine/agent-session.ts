@@ -68,9 +68,10 @@ async function handleTurn(messages: string[]) {
   try {
     if (await turn(prompt.join("\n\n"))) return;
   } catch { console.error("Unable to launch the agent CLI."); }
-  const requestId = await reportTurnFailure(join(host.MISSION_CONTROL_HOME, "missions"), key, terminal);
-  if (requestId) {
-    failedRequest = requestId;
+  try {
+    failedRequest = await reportTurnFailure(join(host.MISSION_CONTROL_HOME, "missions"), key, terminal);
+  } catch { console.error("Unable to record the failed turn."); }
+  if (failedRequest) {
     for (const message of messages) failedMessages.push(message);
   }
   console.error("Agent turn failed. Waiting for the next message.");

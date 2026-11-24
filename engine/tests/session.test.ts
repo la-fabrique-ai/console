@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { readFileSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { createInterface } from "node:readline";
 import { once } from "node:events";
@@ -130,8 +130,9 @@ console.log(JSON.stringify({ type:"thread.started", thread_id:"demo-thread" }));
   assert.equal(args.includes("--resume") || args.includes("resume"), role === "dev");
 });
 
-for (const tool of ["claude", "codex"]) test(tool + " keeps processing terminal input after failed turns", t => {
+for (const tool of ["claude", "codex"]) test(tool + " keeps processing terminal input after failed turns when the mission cannot be read", t => {
   const p = setup(t);
+  mkdirSync(p.path("missions/DEMO-1.json"), { recursive: true });
   const session = "bf698558-c45b-4399-a688-adfb1930c105";
   writeFileSync(p.path("bin", tool), `#!${process.execPath}
 const fs = require("node:fs"), file = ${JSON.stringify(p.path("turns"))};
